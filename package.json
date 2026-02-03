@@ -1,0 +1,24 @@
+{
+  "name": "git-canvas",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npx melina start",
+    "start": "npx melina start"
+  },
+  "keywords": [
+    "git",
+    "canvas",
+    "visualization",
+    "repository"
+  ],
+  "author": "",
+  "license": "ISC",
+  "description": "Visual Git Repository Explorer with interactive canvas",
+  "dependencies": {
+    "@ments/db": "^1.6.1",
+    "@ments/web": "^1.14.0",
+    "melina": "^1.0.0",
+    "simple-git": "^3.30.0"
+  }
+}
