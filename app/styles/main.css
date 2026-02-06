@@ -622,8 +622,7 @@ body {
 /* File Content Preview Styles */
 .file-card {
     width: 400px;
-    min-height: 200px;
-    max-height: 450px;
+    min-height: 100px;
 }
 
 .file-card-header {
@@ -638,7 +637,6 @@ body {
 
 .file-content-preview {
     margin-top: 8px;
-    max-height: 280px;
     overflow: auto;
     background: rgba(0, 0, 0, 0.3);
     border-radius: var(--radius-sm);
