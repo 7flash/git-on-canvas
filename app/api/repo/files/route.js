@@ -1,4 +1,4 @@
-import { measure } from '@ments/web';
+import { measure } from '../../../lib/measure.js';
 import simpleGit from 'simple-git';
 
 export async function POST(req) {
