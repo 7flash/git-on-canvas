@@ -7,7 +7,7 @@ let zoom = 1;
 let isDragging = false;
 let dragStartX, dragStartY;
 let fileCards = new Map();
-let positions = new M   ap(); // Store file positions
+let positions = new Map(); // Store file positions
 
 // Current repo state
 let currentRepo = '';
@@ -319,18 +319,18 @@ async function selectCommit(hash) {
 // Make selectCommit available globally
 window.selectCommit = selectCommit;
 
-// Render files on canvas
+// Render files on canvas - now shows only CHANGED files with content
 function renderFilesOnCanvas(files, commitHash) {
     measure('canvas:renderFiles', () => {
         // Clear existing cards
         fileCards.forEach(card => card.remove());
         fileCards.clear();
 
-        // Calculate grid layout for files without saved positions
-        const cols = Math.ceil(Math.sqrt(files.length));
-        const cardWidth = 220;
-        const cardHeight = 100;
-        const gap = 30;
+        // Better layout for content cards - wider with more spacing
+        const cols = Math.min(files.length, 3); // Max 3 columns
+        const cardWidth = 400;
+        const cardHeight = 300;
+        const gap = 40;
 
         files.forEach((file, index) => {
             const posKey = getPositionKey(file.path, commitHash);
@@ -344,8 +344,8 @@ function renderFilesOnCanvas(files, commitHash) {
                 // Auto-layout in grid
                 const col = index % cols;
                 const row = Math.floor(index / cols);
-                x = 100 + col * (cardWidth + gap);
-                y = 100 + row * (cardHeight + gap);
+                x = 50 + col * (cardWidth + gap);
+                y = 50 + row * (cardHeight + gap);
             }
 
             const card = createFileCard(file, x, y, commitHash);
@@ -355,10 +355,10 @@ function renderFilesOnCanvas(files, commitHash) {
     });
 }
 
-// Create a file card element
+// Create a file card element with full content display
 function createFileCard(file, x, y, commitHash) {
     const card = document.createElement('div');
-    card.className = 'file-card';
+    card.className = `file-card file-card--${file.status || 'modified'}`;
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
     card.dataset.path = file.path;
@@ -366,22 +366,56 @@ function createFileCard(file, x, y, commitHash) {
     const ext = file.name.split('.').pop().toLowerCase();
     const iconClass = getFileIconClass(ext);
 
+    // Status badge styling
+    const statusColors = {
+        added: '#22c55e',
+        modified: '#eab308',
+        deleted: '#ef4444'
+    };
+    const statusLabels = {
+        added: '+ ADDED',
+        modified: '~ MODIFIED',
+        deleted: '- DELETED'
+    };
+    const statusColor = statusColors[file.status] || '#a855f7';
+    const statusLabel = statusLabels[file.status] || file.status?.toUpperCase() || 'CHANGED';
+
+    // Format content preview (first 30 lines)
+    let contentPreview = '';
+    if (file.content) {
+        const lines = file.content.split('\n');
+        const previewLines = lines.slice(0, 30);
+        contentPreview = previewLines
+            .map((line, i) => `<span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}`)
+            .join('\n');
+        if (lines.length > 30) {
+            contentPreview += `\n<span class="more-lines">... ${lines.length - 30} more lines</span>`;
+        }
+    } else if (file.status === 'deleted') {
+        contentPreview = '<span class="deleted-notice">File was deleted in this commit</span>';
+    } else if (file.contentError) {
+        contentPreview = `<span class="error-notice">Error: ${escapeHtml(file.contentError)}</span>`;
+    }
+
     card.innerHTML = `
-        <div class="file-card-header">
+        <div class="file-card-header" style="border-left: 4px solid ${statusColor}">
             <div class="file-icon ${iconClass}">
                 ${getFileIcon(file.type, ext)}
             </div>
             <span class="file-name">${escapeHtml(file.name)}</span>
+            <span class="file-status" style="background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${statusLabel}</span>
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(file.path)}</div>
             <div class="file-meta">
-                <span>${file.type}</span>
-                ${file.size ? `<span>${formatSize(file.size)}</span>` : ''}
+                <span>${file.lines || 0} lines</span>
+            </div>
+            <div class="file-content-preview">
+                <pre><code>${contentPreview}</code></pre>
             </div>
         </div>
         <div class="file-card-actions">
-            <button class="file-action" onclick="previewFile('${escapeHtml(file.path)}')">Preview</button>
+            <button class="file-action" onclick="previewFile('${escapeHtml(file.path)}')">Full View</button>
         </div>
     `;
 
