@@ -380,17 +380,13 @@ function createFileCard(file, x, y, commitHash) {
     const statusColor = statusColors[file.status] || '#a855f7';
     const statusLabel = statusLabels[file.status] || file.status?.toUpperCase() || 'CHANGED';
 
-    // Format content preview (first 30 lines)
+    // Format full file content
     let contentPreview = '';
     if (file.content) {
         const lines = file.content.split('\n');
-        const previewLines = lines.slice(0, 30);
-        contentPreview = previewLines
+        contentPreview = lines
             .map((line, i) => `<span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}`)
             .join('\n');
-        if (lines.length > 30) {
-            contentPreview += `\n<span class="more-lines">... ${lines.length - 30} more lines</span>`;
-        }
     } else if (file.status === 'deleted') {
         contentPreview = '<span class="deleted-notice">File was deleted in this commit</span>';
     } else if (file.contentError) {
