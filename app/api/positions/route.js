@@ -1,4 +1,4 @@
-import { measure } from '@ments/web';
+import { measure } from '../../lib/measure.js';
 import { Database } from 'bun:sqlite';
 import path from 'path';
 

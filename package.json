@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npx melina start",
-    "start": "npx melina start"
+    "dev": "bun run server.ts",
+    "start": "bun run server.ts"
   },
   "keywords": [
     "git",

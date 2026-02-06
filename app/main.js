@@ -1,4 +1,4 @@
-import { measure } from '@ments/web';
+import { measure } from './lib/measure.js';
 
 // Canvas state
 let canvas, canvasViewport;
@@ -7,7 +7,7 @@ let zoom = 1;
 let isDragging = false;
 let dragStartX, dragStartY;
 let fileCards = new Map();
-let positions = new Map(); // Store file positions
+let positions = new M   ap(); // Store file positions
 
 // Current repo state
 let currentRepo = '';
