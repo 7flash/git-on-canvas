@@ -619,6 +619,105 @@ body {
     color: white;
 }
 
+/* File Content Preview Styles */
+.file-card {
+    width: 400px;
+    min-height: 200px;
+    max-height: 450px;
+}
+
+.file-card-header {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.file-status {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.file-content-preview {
+    margin-top: 8px;
+    max-height: 280px;
+    overflow: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+}
+
+.file-content-preview pre {
+    margin: 0;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.5;
+    white-space: pre;
+    overflow-x: auto;
+}
+
+.file-content-preview code {
+    color: var(--text-secondary);
+}
+
+.file-content-preview .line-num {
+    color: var(--text-muted);
+    opacity: 0.5;
+    user-select: none;
+    display: inline-block;
+    margin-right: 12px;
+}
+
+.file-content-preview .more-lines {
+    color: var(--accent-tertiary);
+    font-style: italic;
+    opacity: 0.8;
+}
+
+.file-content-preview .deleted-notice {
+    color: var(--error);
+    font-style: italic;
+    display: block;
+    padding: 20px;
+    text-align: center;
+}
+
+.file-content-preview .error-notice {
+    color: var(--warning);
+    font-style: italic;
+    display: block;
+    padding: 20px;
+    text-align: center;
+}
+
+/* Status-specific card styling */
+.file-card--added {
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.file-card--added:hover {
+    border-color: rgba(34, 197, 94, 0.6);
+    box-shadow: var(--shadow-md), 0 0 20px rgba(34, 197, 94, 0.15);
+}
+
+.file-card--modified {
+    border-color: rgba(234, 179, 8, 0.3);
+}
+
+.file-card--modified:hover {
+    border-color: rgba(234, 179, 8, 0.6);
+    box-shadow: var(--shadow-md), 0 0 20px rgba(234, 179, 8, 0.15);
+}
+
+.file-card--deleted {
+    border-color: rgba(239, 68, 68, 0.3);
+    opacity: 0.8;
+}
+
+.file-card--deleted:hover {
+    border-color: rgba(239, 68, 68, 0.6);
+    box-shadow: var(--shadow-md), 0 0 20px rgba(239, 68, 68, 0.15);
+}
+
 /* Minimap */
 .minimap {
     position: absolute;
