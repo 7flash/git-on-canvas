@@ -581,6 +581,7 @@ body {
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
+    cursor: default;
 }
 
 /* Styled scrollbar inside file cards */
