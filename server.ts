@@ -128,4 +128,4 @@ console.log('📁 Loading API routes:');
 await loadApiRoutes();
 console.log('📦 Building assets:');
 await buildAssets();
-await serve(handler, { port: 3001 });
+await serve(handler);
