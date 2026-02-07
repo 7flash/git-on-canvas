@@ -77,6 +77,37 @@ function setupCanvasInteraction() {
     measure('canvas:setupInteraction', () => {
         // Mouse wheel zoom
         canvasViewport.addEventListener('wheel', (e) => {
+            // If hovering over a scrollable file card body, let it scroll naturally
+            const cardBody = e.target.closest('.file-card-body');
+            if (cardBody) {
+                // Only let native scroll happen if content is actually scrollable
+                const isScrollable = cardBody.scrollHeight > cardBody.clientHeight;
+                if (isScrollable) {
+                    // Check if we're at scroll boundaries - if so, zoom canvas instead
+                    const atTop = cardBody.scrollTop === 0 && e.deltaY < 0;
+                    const atBottom = (cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1) && e.deltaY > 0;
+                    if (!atTop && !atBottom) {
+                        // Let the card body scroll naturally
+                        e.stopPropagation();
+                        return;
+                    }
+                }
+            }
+
+            // Also allow scrolling inside the file-content-preview
+            const contentPreview = e.target.closest('.file-content-preview');
+            if (contentPreview) {
+                const isScrollable = contentPreview.scrollHeight > contentPreview.clientHeight;
+                if (isScrollable) {
+                    const atTop = contentPreview.scrollTop === 0 && e.deltaY < 0;
+                    const atBottom = (contentPreview.scrollTop + contentPreview.clientHeight >= contentPreview.scrollHeight - 1) && e.deltaY > 0;
+                    if (!atTop && !atBottom) {
+                        e.stopPropagation();
+                        return;
+                    }
+                }
+            }
+
             e.preventDefault();
 
             const rect = canvasViewport.getBoundingClientRect();
