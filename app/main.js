@@ -386,10 +386,11 @@ function renderFilesOnCanvas(files, commitHash) {
     });
 }
 
-// Create a file card element with full content display
+// Create a file card element with diff-colored content
 function createFileCard(file, x, y, commitHash) {
     const card = document.createElement('div');
     card.className = `file-card file-card--${file.status || 'modified'}`;
+    if (file.status === 'modified' && file.prevContent) card.classList.add('file-card--sidebyside');
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
     card.dataset.path = file.path;
@@ -397,31 +398,68 @@ function createFileCard(file, x, y, commitHash) {
     const ext = file.name.split('.').pop().toLowerCase();
     const iconClass = getFileIconClass(ext);
 
-    // Status badge styling
-    const statusColors = {
-        added: '#22c55e',
-        modified: '#eab308',
-        deleted: '#ef4444'
-    };
-    const statusLabels = {
-        added: '+ ADDED',
-        modified: '~ MODIFIED',
-        deleted: '- DELETED'
-    };
+    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
+    const statusLabels = { added: '+ ADDED', modified: '~ MODIFIED', deleted: '- DELETED' };
     const statusColor = statusColors[file.status] || '#a855f7';
     const statusLabel = statusLabels[file.status] || file.status?.toUpperCase() || 'CHANGED';
 
-    // Format full file content
-    let contentPreview = '';
-    if (file.content) {
+    // Build content based on status
+    let contentHTML = '';
+    const addedSet = file.diffLines ? new Set(file.diffLines.added) : new Set();
+    const removedSet = file.diffLines ? new Set(file.diffLines.removed) : new Set();
+
+    if (file.status === 'added' && file.content) {
+        // All lines are new - show in green
         const lines = file.content.split('\n');
-        contentPreview = lines
-            .map((line, i) => `<span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}`)
-            .join('\n');
-    } else if (file.status === 'deleted') {
-        contentPreview = '<span class="deleted-notice">File was deleted in this commit</span>';
-    } else if (file.contentError) {
-        contentPreview = `<span class="error-notice">Error: ${escapeHtml(file.contentError)}</span>`;
+        const code = lines.map((line, i) =>
+            `<span class="diff-line diff-added"><span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`
+        ).join('\n');
+        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
+
+    } else if (file.status === 'deleted' && file.prevContent) {
+        // Show previous content - all lines shown as removed
+        const lines = file.prevContent.split('\n');
+        const code = lines.map((line, i) =>
+            `<span class="diff-line diff-removed"><span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`
+        ).join('\n');
+        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
+
+    } else if (file.status === 'modified' && file.content && file.prevContent) {
+        // Side-by-side: previous (left) + current (right)
+        const prevLines = file.prevContent.split('\n');
+        const currLines = file.content.split('\n');
+
+        const prevCode = prevLines.map((line, i) => {
+            const lineNum = i + 1;
+            const cls = removedSet.has(lineNum) ? 'diff-removed' : '';
+            return `<span class="diff-line ${cls}"><span class="line-num">${String(lineNum).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`;
+        }).join('\n');
+
+        const currCode = currLines.map((line, i) => {
+            const lineNum = i + 1;
+            const cls = addedSet.has(lineNum) ? 'diff-added' : '';
+            return `<span class="diff-line ${cls}"><span class="line-num">${String(lineNum).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`;
+        }).join('\n');
+
+        contentHTML = `
+            <div class="diff-side-by-side">
+                <div class="diff-pane diff-pane-prev">
+                    <div class="diff-pane-label">Before (${prevLines.length} lines)</div>
+                    <div class="file-content-preview"><pre><code>${prevCode}</code></pre></div>
+                </div>
+                <div class="diff-pane diff-pane-curr">
+                    <div class="diff-pane-label">After (${currLines.length} lines)</div>
+                    <div class="file-content-preview"><pre><code>${currCode}</code></pre></div>
+                </div>
+            </div>`;
+    } else if (file.content) {
+        const lines = file.content.split('\n');
+        const code = lines.map((line, i) =>
+            `<span class="diff-line"><span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`
+        ).join('\n');
+        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
+    } else {
+        contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">${file.contentError || 'No content'}</span></code></pre></div>`;
     }
 
     card.innerHTML = `
@@ -434,21 +472,30 @@ function createFileCard(file, x, y, commitHash) {
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(file.path)}</div>
-            <div class="file-meta">
-                <span>${file.lines || 0} lines</span>
-            </div>
-            <div class="file-content-preview">
-                <pre><code>${contentPreview}</code></pre>
-            </div>
-        </div>
-        <div class="file-card-actions">
-            <button class="file-action" onclick="previewFile('${escapeHtml(file.path)}')">Full View</button>
+            ${contentHTML}
         </div>
     `;
 
-    // Setup drag functionality
-    setupCardDrag(card, commitHash);
+    // Sync scroll for side-by-side panes
+    if (file.status === 'modified' && file.prevContent) {
+        requestAnimationFrame(() => {
+            const panes = card.querySelectorAll('.diff-pane .file-content-preview');
+            if (panes.length === 2) {
+                let syncing = false;
+                panes.forEach((pane, idx) => {
+                    pane.addEventListener('scroll', () => {
+                        if (syncing) return;
+                        syncing = true;
+                        const other = panes[1 - idx];
+                        other.scrollTop = pane.scrollTop;
+                        syncing = false;
+                    });
+                });
+            }
+        });
+    }
 
+    setupCardDrag(card, commitHash);
     return card;
 }
 
