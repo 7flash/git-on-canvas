@@ -474,7 +474,8 @@ body {
 /* File Card */
 .file-card {
     position: absolute;
-    width: 200px;
+    width: 520px;
+    max-height: 500px;
     background: var(--bg-card);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
@@ -483,6 +484,8 @@ body {
     transition: box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
     user-select: none;
     backdrop-filter: blur(10px);
+    display: flex;
+    flex-direction: column;
 }
 
 .file-card:hover {
@@ -502,9 +505,13 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 10px 12px;
-    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.35);
     border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    flex-shrink: 0;
 }
 
 .file-icon {
@@ -567,9 +574,31 @@ body {
 }
 
 .file-card-body {
-    padding: 8px 12px;
+    padding: 6px 12px 6px;
     font-size: 0.75rem;
     color: var(--text-muted);
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    min-height: 0;
+}
+
+/* Styled scrollbar inside file cards */
+.file-card-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+.file-card-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.file-card-body::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.3);
+    border-radius: 3px;
+}
+
+.file-card-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.5);
 }
 
 .file-path {
@@ -579,7 +608,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
 }
 
 .file-meta {
@@ -587,6 +616,7 @@ body {
     justify-content: space-between;
     font-size: 0.7rem;
     color: var(--text-muted);
+    margin-bottom: 2px;
 }
 
 .file-card-actions {
@@ -620,11 +650,6 @@ body {
 }
 
 /* File Content Preview Styles */
-.file-card {
-    width: 400px;
-    min-height: 100px;
-}
-
 .file-card-header {
     flex-wrap: wrap;
     gap: 6px;

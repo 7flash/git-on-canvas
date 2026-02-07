@@ -326,10 +326,10 @@ function renderFilesOnCanvas(files, commitHash) {
         fileCards.forEach(card => card.remove());
         fileCards.clear();
 
-        // Better layout for content cards - wider with more spacing
-        const cols = Math.min(files.length, 3); // Max 3 columns
-        const cardWidth = 400;
-        const cardHeight = 300;
+        // Layout for content cards
+        const cols = Math.min(files.length, 2); // Max 2 columns for readability
+        const cardWidth = 520;
+        const cardHeight = 500;
         const gap = 40;
 
         files.forEach((file, index) => {
