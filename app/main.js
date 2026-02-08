@@ -78,29 +78,12 @@ function setupCanvasInteraction() {
         // Mouse wheel zoom
         canvasViewport.addEventListener('wheel', (e) => {
             // If hovering over a scrollable file card body, let it scroll naturally
-            const cardBody = e.target.closest('.file-card-body');
-            if (cardBody) {
-                // Only let native scroll happen if content is actually scrollable
-                const isScrollable = cardBody.scrollHeight > cardBody.clientHeight;
+            const scrollTarget = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane') || e.target.closest('.file-card-body') || e.target.closest('.file-content-preview');
+            if (scrollTarget) {
+                const isScrollable = scrollTarget.scrollHeight > scrollTarget.clientHeight;
                 if (isScrollable) {
-                    // Check if we're at scroll boundaries - if so, zoom canvas instead
-                    const atTop = cardBody.scrollTop === 0 && e.deltaY < 0;
-                    const atBottom = (cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1) && e.deltaY > 0;
-                    if (!atTop && !atBottom) {
-                        // Let the card body scroll naturally
-                        e.stopPropagation();
-                        return;
-                    }
-                }
-            }
-
-            // Also allow scrolling inside the file-content-preview
-            const contentPreview = e.target.closest('.file-content-preview');
-            if (contentPreview) {
-                const isScrollable = contentPreview.scrollHeight > contentPreview.clientHeight;
-                if (isScrollable) {
-                    const atTop = contentPreview.scrollTop === 0 && e.deltaY < 0;
-                    const atBottom = (contentPreview.scrollTop + contentPreview.clientHeight >= contentPreview.scrollHeight - 1) && e.deltaY > 0;
+                    const atTop = scrollTarget.scrollTop === 0 && e.deltaY < 0;
+                    const atBottom = (scrollTarget.scrollTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 1) && e.deltaY > 0;
                     if (!atTop && !atBottom) {
                         e.stopPropagation();
                         return;
@@ -127,9 +110,10 @@ function setupCanvasInteraction() {
             updateZoomUI();
         });
 
-        // Pan with mouse drag
+        // Pan with mouse drag — allow from anywhere that's not inside a file card
         canvasViewport.addEventListener('mousedown', (e) => {
-            if (e.target === canvasViewport || e.target.classList.contains('canvas-grid')) {
+            const insideCard = e.target.closest('.file-card');
+            if (!insideCard) {
                 isDragging = true;
                 dragStartX = e.clientX - offsetX;
                 dragStartY = e.clientY - offsetY;
@@ -359,8 +343,8 @@ function renderFilesOnCanvas(files, commitHash) {
 
         // Layout for content cards
         const cols = Math.min(files.length, 2); // Max 2 columns for readability
-        const cardWidth = 520;
-        const cardHeight = 500;
+        const cardWidth = 580;
+        const cardHeight = 700;
         const gap = 40;
 
         files.forEach((file, index) => {
@@ -408,14 +392,14 @@ function createFileCard(file, x, y, commitHash) {
     if (file.status === 'added' && file.content) {
         const lines = file.content.split('\n');
         const code = lines.map((line, i) =>
-            `<span class="diff-line diff-add"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span><span class="diff-sign">+</span>${escapeHtml(line)}</span>`
+            `<span class="diff-line diff-add"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`
         ).join('\n');
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
 
     } else if (file.status === 'deleted' && file.content) {
         const lines = file.content.split('\n');
         const code = lines.map((line, i) =>
-            `<span class="diff-line diff-del"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span><span class="diff-sign">-</span>${escapeHtml(line)}</span>`
+            `<span class="diff-line diff-del"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`
         ).join('\n');
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
 
@@ -425,20 +409,35 @@ function createFileCard(file, x, y, commitHash) {
             let oldLine = hunk.oldStart;
             let newLine = hunk.newStart;
 
-            const linesHTML = hunk.lines.map(l => {
+            // Split lines into "current" (ctx+add) and "removed" 
+            const currentLines = [];
+            const removedLines = [];
+
+            hunk.lines.forEach(l => {
                 if (l.type === 'add') {
                     const ln = newLine++;
-                    return `<span class="diff-line diff-add"><span class="line-num">${String(ln).padStart(4, ' ')}</span><span class="diff-sign">+</span>${escapeHtml(l.content)}</span>`;
+                    currentLines.push(`<span class="diff-line diff-add"><span class="line-num">${String(ln).padStart(4, ' ')}</span>${escapeHtml(l.content)}</span>`);
                 } else if (l.type === 'del') {
                     const ln = oldLine++;
-                    return `<span class="diff-line diff-del"><span class="line-num">${String(ln).padStart(4, ' ')}</span><span class="diff-sign">-</span>${escapeHtml(l.content)}</span>`;
+                    removedLines.push(`<span class="diff-line diff-del"><span class="line-num">${String(ln).padStart(4, ' ')}</span>${escapeHtml(l.content)}</span>`);
                 } else {
                     oldLine++; newLine++;
-                    return `<span class="diff-line diff-ctx"><span class="line-num">${String(newLine - 1).padStart(4, ' ')}</span> ${escapeHtml(l.content)}</span>`;
+                    const ln = newLine - 1;
+                    currentLines.push(`<span class="diff-line diff-ctx"><span class="line-num">${String(ln).padStart(4, ' ')}</span>${escapeHtml(l.content)}</span>`);
                 }
-            }).join('\n');
+            });
 
-            return `<div class="diff-hunk"><div class="diff-hunk-header">${header}</div><pre><code>${linesHTML}</code></pre></div>`;
+            const removedPane = removedLines.length > 0
+                ? `<div class="hunk-removed-pane"><pre><code>${removedLines.join('\n')}</code></pre></div>`
+                : '';
+
+            return `<div class="diff-hunk">
+                <div class="diff-hunk-header">${header}</div>
+                <div class="diff-hunk-body">
+                    <div class="hunk-current-pane"><pre><code>${currentLines.join('\n')}</code></pre></div>
+                    ${removedPane}
+                </div>
+            </div>`;
         }).join('');
         contentHTML = `<div class="file-content-preview">${hunksHTML}</div>`;
 
@@ -472,13 +471,16 @@ function createFileCard(file, x, y, commitHash) {
     return card;
 }
 
-// Setup card drag
+// Setup card drag — only draggable from the header
 function setupCardDrag(card, commitHash) {
     let cardDragging = false;
     let cardStartX, cardStartY, cardOffsetX, cardOffsetY;
 
     card.addEventListener('mousedown', (e) => {
         if (e.target.tagName === 'BUTTON') return;
+        // Only allow drag from the header area
+        const header = e.target.closest('.file-card-header');
+        if (!header) return;
 
         e.stopPropagation();
         cardDragging = true;
