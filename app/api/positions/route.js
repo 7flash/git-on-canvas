@@ -6,10 +6,11 @@ let db = null;
 
 function getDb() {
     if (!db) {
-        const dbPath = path.join(process.cwd(), 'db', 'positions.sqlite');
+        // User rule: new database file when changing schema
+        const dbPath = path.join(process.cwd(), 'db', 'positions_v2.sqlite');
         db = new Database(dbPath, { create: true });
 
-        // Initialize schema
+        // Initialize schema with width/height
         db.run(`
             CREATE TABLE IF NOT EXISTS positions (
                 id TEXT PRIMARY KEY,
@@ -17,6 +18,8 @@ function getDb() {
                 file_path TEXT NOT NULL,
                 x REAL NOT NULL,
                 y REAL NOT NULL,
+                width REAL,
+                height REAL,
                 created_at INTEGER DEFAULT (strftime('%s', 'now')),
                 updated_at INTEGER DEFAULT (strftime('%s', 'now')),
                 UNIQUE(commit_hash, file_path)
@@ -35,20 +38,20 @@ export async function GET(req) {
             const commitHash = url.searchParams.get('commit');
 
             const database = getDb();
+            const query = commitHash
+                ? 'SELECT * FROM positions WHERE commit_hash = ?'
+                : 'SELECT * FROM positions';
 
-            let positions;
-            if (commitHash) {
-                positions = database.query('SELECT * FROM positions WHERE commit_hash = ?').all(commitHash);
-            } else {
-                positions = database.query('SELECT * FROM positions').all();
-            }
+            const positions = database.query(query).all(commitHash ? [commitHash] : []);
 
             // Convert to map format
             const positionMap = {};
             for (const pos of positions) {
                 positionMap[`${pos.commit_hash}:${pos.file_path}`] = {
                     x: pos.x,
-                    y: pos.y
+                    y: pos.y,
+                    width: pos.width,
+                    height: pos.height
                 };
             }
 
@@ -63,7 +66,8 @@ export async function GET(req) {
 export async function POST(req) {
     return measure('api:positions:save', async () => {
         try {
-            const { commitHash, filePath, x, y } = await req.json();
+            const body = await req.json();
+            const { commitHash, filePath, x, y, width, height } = body;
 
             if (!commitHash || !filePath || x === undefined || y === undefined) {
                 return new Response('commitHash, filePath, x, and y are required', { status: 400 });
@@ -73,9 +77,23 @@ export async function POST(req) {
             const id = `${commitHash}:${filePath}`;
 
             database.run(`
-                INSERT OR REPLACE INTO positions (id, commit_hash, file_path, x, y, updated_at)
-                VALUES (?, ?, ?, ?, ?, strftime('%s', 'now'))
-            `, [id, commitHash, filePath, x, y]);
+                INSERT INTO positions (id, commit_hash, file_path, x, y, width, height, updated_at)
+                VALUES ($id, $commitHash, $filePath, $x, $y, $width, $height, strftime('%s', 'now'))
+                ON CONFLICT(id) DO UPDATE SET
+                    x = excluded.x,
+                    y = excluded.y,
+                    width = COALESCE(excluded.width, positions.width),
+                    height = COALESCE(excluded.height, positions.height),
+                    updated_at = excluded.updated_at
+            `, {
+                $id: id,
+                $commitHash: commitHash,
+                $filePath: filePath,
+                $x: x,
+                $y: y,
+                $width: width || null,
+                $height: height || null
+            });
 
             return Response.json({ success: true });
         } catch (error) {

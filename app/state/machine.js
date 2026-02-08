@@ -120,18 +120,18 @@ export const canvasMachine = createMachine({
                 pan: {
                     entry: assign({ canvasMode: 'pan' }),
                     on: {
-                        SET_MODE_SELECT: 'select',
+                        SET_MODE_MOVE: 'move',
                         SET_MODE_RESIZE: 'resize',
                         SET_MODE_CONNECT: 'connect',
                     }
                 },
-                select: {
-                    entry: assign({ canvasMode: 'select' }),
+                move: {
+                    entry: assign({ canvasMode: 'move' }),
                     on: {
                         SET_MODE_PAN: 'pan',
                         SET_MODE_RESIZE: 'resize',
                         SET_MODE_CONNECT: 'connect',
-                        SELECT_CARD: {
+                        SELECT_CARD: { // Still keep SELECT_CARD event name as it handles selection logic
                             actions: assign({
                                 selectedCards: ({ context, event }) => {
                                     if (event.shift) {
@@ -155,7 +155,7 @@ export const canvasMachine = createMachine({
                     entry: assign({ canvasMode: 'resize' }),
                     on: {
                         SET_MODE_PAN: 'pan',
-                        SET_MODE_SELECT: 'select',
+                        SET_MODE_MOVE: 'move',
                         SET_MODE_CONNECT: 'connect',
                         RESIZE_CARD: {
                             actions: assign({
@@ -171,7 +171,7 @@ export const canvasMachine = createMachine({
                     entry: assign({ canvasMode: 'connect' }),
                     on: {
                         SET_MODE_PAN: 'pan',
-                        SET_MODE_SELECT: 'select',
+                        SET_MODE_MOVE: 'move',
                         SET_MODE_RESIZE: 'resize',
                         START_CONNECTION: {
                             actions: assign({
