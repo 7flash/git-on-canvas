@@ -1198,12 +1198,37 @@ body {
 .file-card.resizing {
     outline: 2px dashed var(--success);
     outline-offset: 2px;
-    cursor: nwse-resize !important;
 }
 
 .file-card.resizing * {
     pointer-events: none;
 }
+
+/* Corner resize visual hint (bottom-right) */
+.file-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    background: linear-gradient(135deg, transparent 50%, rgba(124, 58, 237, 0.25) 50%);
+    border-radius: 0 0 var(--radius-md) 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    z-index: 10;
+}
+
+.file-card:hover::after {
+    opacity: 1;
+}
+
+/* Header shows grab cursor */
+.file-card-header {
+    cursor: grab;
+}
+
 
 /* ─── Line selection & connections ─────────────────── */
 .diff-line.line-selected {

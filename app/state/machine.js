@@ -23,7 +23,6 @@ export const canvasMachine = createMachine({
         allFiles: [],
 
         // Canvas
-        canvasMode: 'pan', // pan | select | resize | connect
         zoom: 1,
         offsetX: 0,
         offsetY: 0,
@@ -33,7 +32,7 @@ export const canvasMachine = createMachine({
         connections: [],
         pendingConnection: null, // { sourceFile, sourceLineStart, sourceLineEnd }
 
-        // Card sizes (for resize mode)
+        // Card sizes
         cardSizes: {},
 
         // Scroll positions
@@ -113,108 +112,10 @@ export const canvasMachine = createMachine({
                 }
             }
         },
-
-        canvasMode: {
-            initial: 'pan',
-            states: {
-                pan: {
-                    entry: assign({ canvasMode: 'pan' }),
-                    on: {
-                        SET_MODE_MOVE: 'move',
-                        SET_MODE_RESIZE: 'resize',
-                        SET_MODE_CONNECT: 'connect',
-                    }
-                },
-                move: {
-                    entry: assign({ canvasMode: 'move' }),
-                    on: {
-                        SET_MODE_PAN: 'pan',
-                        SET_MODE_RESIZE: 'resize',
-                        SET_MODE_CONNECT: 'connect',
-                        SELECT_CARD: { // Still keep SELECT_CARD event name as it handles selection logic
-                            actions: assign({
-                                selectedCards: ({ context, event }) => {
-                                    if (event.shift) {
-                                        // Toggle in multi-select
-                                        const idx = context.selectedCards.indexOf(event.path);
-                                        if (idx >= 0) {
-                                            return context.selectedCards.filter(p => p !== event.path);
-                                        }
-                                        return [...context.selectedCards, event.path];
-                                    }
-                                    return [event.path];
-                                }
-                            }),
-                        },
-                        DESELECT_ALL: {
-                            actions: assign({ selectedCards: [] }),
-                        },
-                    }
-                },
-                resize: {
-                    entry: assign({ canvasMode: 'resize' }),
-                    on: {
-                        SET_MODE_PAN: 'pan',
-                        SET_MODE_MOVE: 'move',
-                        SET_MODE_CONNECT: 'connect',
-                        RESIZE_CARD: {
-                            actions: assign({
-                                cardSizes: ({ context, event }) => ({
-                                    ...context.cardSizes,
-                                    [event.path]: { width: event.width, height: event.height }
-                                })
-                            }),
-                        },
-                    }
-                },
-                connect: {
-                    entry: assign({ canvasMode: 'connect' }),
-                    on: {
-                        SET_MODE_PAN: 'pan',
-                        SET_MODE_MOVE: 'move',
-                        SET_MODE_RESIZE: 'resize',
-                        START_CONNECTION: {
-                            actions: assign({
-                                pendingConnection: ({ event }) => ({
-                                    sourceFile: event.sourceFile,
-                                    sourceLineStart: event.lineStart,
-                                    sourceLineEnd: event.lineEnd,
-                                })
-                            }),
-                        },
-                        COMPLETE_CONNECTION: {
-                            actions: assign({
-                                connections: ({ context, event }) => {
-                                    if (!context.pendingConnection) return context.connections;
-                                    return [...context.connections, {
-                                        id: `conn-${Date.now()}`,
-                                        ...context.pendingConnection,
-                                        targetFile: event.targetFile,
-                                        targetLineStart: event.lineStart,
-                                        targetLineEnd: event.lineEnd,
-                                        comment: event.comment || '',
-                                    }];
-                                },
-                                pendingConnection: null,
-                            }),
-                        },
-                        CANCEL_CONNECTION: {
-                            actions: assign({ pendingConnection: null }),
-                        },
-                        DELETE_CONNECTION: {
-                            actions: assign({
-                                connections: ({ context, event }) =>
-                                    context.connections.filter(c => c.id !== event.id)
-                            }),
-                        },
-                    }
-                }
-            }
-        },
     },
 
     on: {
-        // Global events
+        // Global events — available in any state
         SET_ZOOM: {
             actions: assign({ zoom: ({ event }) => event.zoom }),
         },
@@ -222,6 +123,65 @@ export const canvasMachine = createMachine({
             actions: assign({
                 offsetX: ({ event }) => event.x,
                 offsetY: ({ event }) => event.y,
+            }),
+        },
+        SELECT_CARD: {
+            actions: assign({
+                selectedCards: ({ context, event }) => {
+                    if (event.shift) {
+                        const idx = context.selectedCards.indexOf(event.path);
+                        if (idx >= 0) {
+                            return context.selectedCards.filter(p => p !== event.path);
+                        }
+                        return [...context.selectedCards, event.path];
+                    }
+                    return [event.path];
+                }
+            }),
+        },
+        DESELECT_ALL: {
+            actions: assign({ selectedCards: [] }),
+        },
+        RESIZE_CARD: {
+            actions: assign({
+                cardSizes: ({ context, event }) => ({
+                    ...context.cardSizes,
+                    [event.path]: { width: event.width, height: event.height }
+                })
+            }),
+        },
+        START_CONNECTION: {
+            actions: assign({
+                pendingConnection: ({ event }) => ({
+                    sourceFile: event.sourceFile,
+                    sourceLineStart: event.lineStart,
+                    sourceLineEnd: event.lineEnd,
+                })
+            }),
+        },
+        COMPLETE_CONNECTION: {
+            actions: assign({
+                connections: ({ context, event }) => {
+                    if (!context.pendingConnection) return context.connections;
+                    return [...context.connections, {
+                        id: `conn-${Date.now()}`,
+                        ...context.pendingConnection,
+                        targetFile: event.targetFile,
+                        targetLineStart: event.lineStart,
+                        targetLineEnd: event.lineEnd,
+                        comment: event.comment || '',
+                    }];
+                },
+                pendingConnection: null,
+            }),
+        },
+        CANCEL_CONNECTION: {
+            actions: assign({ pendingConnection: null }),
+        },
+        DELETE_CONNECTION: {
+            actions: assign({
+                connections: ({ context, event }) =>
+                    context.connections.filter(c => c.id !== event.id)
             }),
         },
         SAVE_SCROLL: {

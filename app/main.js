@@ -13,10 +13,8 @@ let positions = new Map();
 let isDragging = false;
 let dragStartX, dragStartY;
 
-// ─── Canvas mode cursors ─────────────────────────────────
-const MODE_CURSORS = { pan: 'grab', move: 'default', resize: 'default', connect: 'crosshair' };
-const MODE_LABELS = { pan: 'Pan', move: 'Move', resize: 'Resize', connect: 'Connect' };
-const MODE_HOTKEYS = { '1': 'pan', '2': 'move', '3': 'resize', '4': 'connect' };
+// ─── Corner detection threshold ──────────────────────────
+const CORNER_SIZE = 24; // px from corner to trigger resize
 
 // ─── Init ────────────────────────────────────────────────
 async function init() {
@@ -33,7 +31,6 @@ async function init() {
         actor.start();
         setupCanvasInteraction();
         setupEventListeners();
-        setupHotkeys();
         await loadSavedPositions();
 
         // Check URL hash for repo path
@@ -57,10 +54,7 @@ async function init() {
             }
         });
 
-        // Subscribe to state changes for UI sync
-        actor.subscribe(state => {
-            syncCanvasModeUI(state.context.canvasMode);
-        });
+
     });
 }
 
@@ -107,10 +101,10 @@ function getPositionKey(filePath, commitHash) {
     return `${commitHash}:${filePath}`;
 }
 
-// ─── Canvas interaction ──────────────────────────────────
+// ─── Canvas interaction (contextual) ─────────────────────
 function setupCanvasInteraction() {
     measure('canvas:setupInteraction', () => {
-        // Wheel zoom
+        // Wheel: scroll file if hovering file, zoom canvas otherwise
         canvasViewport.addEventListener('wheel', (e) => {
             const scrollTarget = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane') || e.target.closest('.file-card-body') || e.target.closest('.file-content-preview');
             if (scrollTarget) {
@@ -119,17 +113,16 @@ function setupCanvasInteraction() {
                     const atTop = scrollTarget.scrollTop === 0 && e.deltaY < 0;
                     const atBottom = (scrollTarget.scrollTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 1) && e.deltaY > 0;
                     if (!atTop && !atBottom) {
-                        // Save scroll position for all-files mode
                         const card = scrollTarget.closest('.file-card');
                         if (card && snap().value?.view === 'allfiles') {
                             debounceSaveScroll(card.dataset.path, scrollTarget.scrollTop);
                         }
-                        e.stopPropagation();
-                        return;
+                        return; // Let the file scroll naturally
                     }
                 }
             }
 
+            // Zoom the canvas
             e.preventDefault();
             const ctx = snap().context;
             const rect = canvasViewport.getBoundingClientRect();
@@ -148,21 +141,20 @@ function setupCanvasInteraction() {
             updateZoomUI();
         });
 
-        // Pan (only in pan mode, or always with middle mouse)
+        // Mousedown on empty canvas = pan
         canvasViewport.addEventListener('mousedown', (e) => {
-            const mode = snap().context.canvasMode;
             const insideCard = e.target.closest('.file-card');
+            if (!insideCard) {
+                // Deselect cards when clicking empty canvas
+                actor.send({ type: 'DESELECT_ALL' });
+                clearSelectionHighlights();
 
-            if (mode === 'pan' && !insideCard) {
+                // Start panning
                 isDragging = true;
                 const ctx = snap().context;
                 dragStartX = e.clientX - ctx.offsetX;
                 dragStartY = e.clientY - ctx.offsetY;
                 canvasViewport.style.cursor = 'grabbing';
-            } else if (mode === 'move' && !insideCard) {
-                // Deselect all when clicking empty space
-                actor.send({ type: 'DESELECT_ALL' });
-                clearSelectionHighlights();
             }
         });
 
@@ -178,8 +170,7 @@ function setupCanvasInteraction() {
         window.addEventListener('mouseup', () => {
             if (isDragging) {
                 isDragging = false;
-                const mode = snap().context.canvasMode;
-                canvasViewport.style.cursor = MODE_CURSORS[mode] || 'grab';
+                canvasViewport.style.cursor = 'grab';
             }
         });
     });
@@ -276,14 +267,6 @@ function setupEventListeners() {
         document.getElementById('modeCommits').addEventListener('click', () => switchView('commits'));
         document.getElementById('modeAllFiles').addEventListener('click', () => switchView('allfiles'));
 
-        // Canvas mode buttons
-        document.querySelectorAll('.canvas-mode-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const mode = btn.dataset.mode;
-                setCanvasMode(mode);
-            });
-        });
-
         // Close preview
         document.getElementById('closePreview').addEventListener('click', closePreview);
         document.querySelector('.modal-backdrop').addEventListener('click', closePreview);
@@ -299,45 +282,6 @@ function setupEventListeners() {
             }
         });
     });
-}
-
-// ─── Hotkeys ─────────────────────────────────────────────
-function setupHotkeys() {
-    window.addEventListener('keydown', (e) => {
-        // Don't trigger if typing in input
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-
-        const mode = MODE_HOTKEYS[e.key];
-        if (mode) {
-            e.preventDefault();
-            setCanvasMode(mode);
-        }
-    });
-}
-
-function setCanvasMode(mode) {
-    const eventMap = {
-        pan: 'SET_MODE_PAN',
-        move: 'SET_MODE_MOVE',
-        resize: 'SET_MODE_RESIZE',
-        connect: 'SET_MODE_CONNECT',
-    };
-    actor.send({ type: eventMap[mode] });
-    syncCanvasModeUI(mode);
-    showToast(`Mode: ${MODE_LABELS[mode]} (${Object.entries(MODE_HOTKEYS).find(([k, v]) => v === mode)?.[0]})`, 'info');
-}
-
-function syncCanvasModeUI(mode) {
-    canvasViewport.style.cursor = MODE_CURSORS[mode] || 'grab';
-    document.querySelectorAll('.canvas-mode-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.mode === mode);
-    });
-    // Show mode indicator
-    const indicator = document.getElementById('modeIndicator');
-    if (indicator) {
-        indicator.textContent = MODE_LABELS[mode];
-        indicator.dataset.mode = mode;
-    }
 }
 
 // ─── Browse folder ───────────────────────────────────────
@@ -817,88 +761,111 @@ function createAllFileCard(file, x, y, savedSize) {
     return card;
 }
 
-// ─── Card interaction (move vs resize) ───────────────────
-function setupCardInteraction(card, commitHash) {
-    let modeStart = null; // 'drag' or 'resize'
-    let startX, startY; // Mouse start
-    let initialSelection = [];
-    let initialPositions = {}; // Map path -> {x,y}
+// ─── Card interaction (contextual: center=move, corner=resize) ───
+function isNearCorner(e, card) {
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = rect.width;
+    const h = rect.height;
+    const c = CORNER_SIZE;
 
+    // Check all 4 corners
+    const topLeft = x < c && y < c;
+    const topRight = x > w - c && y < c;
+    const bottomLeft = x < c && y > h - c;
+    const bottomRight = x > w - c && y > h - c;
+
+    if (bottomRight) return 'nwse-resize';
+    if (bottomLeft) return 'nesw-resize';
+    if (topRight) return 'nesw-resize';
+    if (topLeft) return 'nwse-resize';
+    return null;
+}
+
+function setupCardInteraction(card, commitHash) {
+    let action = null; // 'drag' or 'resize'
+    let startX, startY;
+    let initialSelection = [];
+    let initialPositions = {};
     let resizeStartW, resizeStartH;
+    let resizeCorner = null;
+
+    // Dynamic cursor on mousemove (show resize handles at corners)
+    card.addEventListener('mousemove', (e) => {
+        if (action) return; // Don't override during active action
+        const corner = isNearCorner(e, card);
+        if (corner) {
+            card.style.cursor = corner;
+        } else {
+            const inBody = e.target.closest('.file-card-body');
+            card.style.cursor = inBody ? 'default' : 'grab';
+        }
+    });
+
+    card.addEventListener('mouseleave', () => {
+        if (!action) card.style.cursor = '';
+    });
 
     function onMouseDown(e) {
         if (e.target.tagName === 'BUTTON') return;
-        const mode = snap().context.canvasMode;
+
+        // Skip scrollbar clicks
+        if (e.target.closest('.file-card-body') && e.offsetX > e.target.clientWidth) return;
+
         const ctx = snap().context;
-
-        // Check if clicking scrollbar - rough check
-        if (e.target.closest('.file-card-body') && e.offsetX > e.target.clientWidth) {
-            // Likely scrollbar
-            return;
-        }
-
         startX = e.clientX;
         startY = e.clientY;
 
-        if (mode === 'move') {
-            const isSelected = ctx.selectedCards.includes(card.dataset.path);
+        // Determine action: corner = resize, else = move
+        resizeCorner = isNearCorner(e, card);
 
+        if (resizeCorner) {
+            // ── Resize ──
+            e.stopPropagation();
+            action = 'resize';
+            resizeStartW = card.offsetWidth;
+            resizeStartH = parseInt(card.style.maxHeight) || card.offsetHeight;
+            card.classList.add('resizing');
+            document.body.style.cursor = resizeCorner;
+        } else {
+            // ── Move ──
+            e.stopPropagation();
+            action = 'drag';
+
+            const isSelected = ctx.selectedCards.includes(card.dataset.path);
             if (e.shiftKey) {
                 actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: true });
                 updateSelectionHighlights();
-                // If selected after toggle, drag it. If deselected, don't drag?
-                // Usually shift-click doesn't start drag immediately, but let's allow it if selected.
-                if (snap().context.selectedCards.includes(card.dataset.path)) {
-                    modeStart = 'drag';
-                    initialSelection = snap().context.selectedCards;
-                }
+                initialSelection = snap().context.selectedCards.includes(card.dataset.path)
+                    ? snap().context.selectedCards
+                    : [];
+            } else if (isSelected) {
+                // Keep group selection for drag
+                initialSelection = ctx.selectedCards;
             } else {
-                if (isSelected) {
-                    modeStart = 'drag';
-                    initialSelection = ctx.selectedCards;
-                } else {
-                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
-                    updateSelectionHighlights();
-                    modeStart = 'drag';
-                    initialSelection = [card.dataset.path];
-                }
-            }
-
-            if (modeStart === 'drag') {
-                // Capture initial positions
-                initialPositions = {};
-                initialSelection.forEach(path => {
-                    const c = fileCards.get(path);
-                    if (c) initialPositions[path] = { x: parseInt(c.style.left) || 0, y: parseInt(c.style.top) || 0 };
-                    c.classList.add('dragging');
-                });
-            }
-
-        } else if (mode === 'resize') {
-            const rect = card.getBoundingClientRect();
-            const nearRight = e.clientX > rect.right - 20;
-            const nearBottom = e.clientY > rect.bottom - 20;
-
-            if (nearRight || nearBottom) {
-                e.stopPropagation();
-                modeStart = 'resize';
-                resizeStartW = card.offsetWidth;
-                resizeStartH = parseInt(card.style.maxHeight) || card.offsetHeight;
-                card.classList.add('resizing');
-                document.body.style.cursor = 'nwse-resize';
-            }
-        } else if (mode === 'pan') {
-            const header = e.target.closest('.file-card-header');
-            if (header) {
-                modeStart = 'drag';
+                actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
+                updateSelectionHighlights();
                 initialSelection = [card.dataset.path];
-                initialPositions = { [card.dataset.path]: { x: parseInt(card.style.left) || 0, y: parseInt(card.style.top) || 0 } };
-                card.classList.add('dragging');
             }
+
+            if (initialSelection.length === 0) {
+                action = null;
+                return;
+            }
+
+            // Capture starting positions
+            initialPositions = {};
+            initialSelection.forEach(path => {
+                const c = fileCards.get(path);
+                if (c) {
+                    initialPositions[path] = { x: parseInt(c.style.left) || 0, y: parseInt(c.style.top) || 0 };
+                    c.classList.add('dragging');
+                }
+            });
         }
 
-        if (modeStart) {
-            e.stopPropagation();
+        if (action) {
             window.addEventListener('mousemove', onMouseMove);
             window.addEventListener('mouseup', onMouseUp);
         }
@@ -909,7 +876,7 @@ function setupCardInteraction(card, commitHash) {
         const dx = (e.clientX - startX) / ctx.zoom;
         const dy = (e.clientY - startY) / ctx.zoom;
 
-        if (modeStart === 'drag') {
+        if (action === 'drag') {
             initialSelection.forEach(path => {
                 const c = fileCards.get(path);
                 const pos = initialPositions[path];
@@ -919,7 +886,7 @@ function setupCardInteraction(card, commitHash) {
                 }
             });
             renderConnections();
-        } else if (modeStart === 'resize') {
+        } else if (action === 'resize') {
             card.style.width = `${Math.max(200, resizeStartW + dx)}px`;
             card.style.maxHeight = `${Math.max(100, resizeStartH + dy)}px`;
             renderConnections();
@@ -930,11 +897,10 @@ function setupCardInteraction(card, commitHash) {
         window.removeEventListener('mousemove', onMouseMove);
         window.removeEventListener('mouseup', onMouseUp);
 
-        const moved = Math.abs(e.clientX - startX) > 2 || Math.abs(e.clientY - startY) > 2;
+        const moved = Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3;
 
-        if (modeStart === 'drag') {
+        if (action === 'drag') {
             if (moved) {
-                // Save positions
                 initialSelection.forEach(path => {
                     const c = fileCards.get(path);
                     if (c) {
@@ -943,9 +909,8 @@ function setupCardInteraction(card, commitHash) {
                     }
                 });
             } else {
-                // Click (no drag)
-                // If move mode and no shift, ensure single selection
-                if (snap().context.canvasMode === 'move' && !e.shiftKey) {
+                // Click without drag — single-select
+                if (!e.shiftKey) {
                     actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
                     updateSelectionHighlights();
                 }
@@ -954,7 +919,7 @@ function setupCardInteraction(card, commitHash) {
                     if (c) c.classList.remove('dragging');
                 });
             }
-        } else if (modeStart === 'resize') {
+        } else if (action === 'resize') {
             card.classList.remove('resizing');
             document.body.style.cursor = '';
             const h = parseInt(card.style.maxHeight) || card.offsetHeight;
@@ -962,11 +927,13 @@ function setupCardInteraction(card, commitHash) {
             savePosition(commitHash, card.dataset.path, undefined, undefined, card.offsetWidth, h);
         }
 
-        modeStart = null;
+        action = null;
+        resizeCorner = null;
     }
 
     card.addEventListener('mousedown', onMouseDown);
 }
+
 
 // ─── Selection highlights ────────────────────────────────
 function updateSelectionHighlights() {
@@ -985,8 +952,8 @@ function setupLineSelection(card, filePath) {
     let selectionStart = null;
 
     card.addEventListener('mousedown', (e) => {
-        const mode = snap().context.canvasMode;
-        if (mode !== 'connect') return;
+        // Connections work by Alt+Click on diff lines
+        if (!e.altKey) return;
 
         const diffLine = e.target.closest('.diff-line');
         if (!diffLine) return;
@@ -1002,8 +969,7 @@ function setupLineSelection(card, filePath) {
     });
 
     card.addEventListener('mouseup', (e) => {
-        const mode = snap().context.canvasMode;
-        if (mode !== 'connect' || selectionStart === null) return;
+        if (!e.altKey || selectionStart === null) return;
 
         const diffLine = e.target.closest('.diff-line');
         if (!diffLine) { selectionStart = null; return; }
