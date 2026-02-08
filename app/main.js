@@ -14,9 +14,9 @@ let isDragging = false;
 let dragStartX, dragStartY;
 
 // ─── Canvas mode cursors ─────────────────────────────────
-const MODE_CURSORS = { pan: 'grab', select: 'default', resize: 'default', connect: 'crosshair' };
-const MODE_LABELS = { pan: 'Pan', select: 'Select', resize: 'Resize', connect: 'Connect' };
-const MODE_HOTKEYS = { '1': 'pan', '2': 'select', '3': 'resize', '4': 'connect' };
+const MODE_CURSORS = { pan: 'grab', move: 'default', resize: 'default', connect: 'crosshair' };
+const MODE_LABELS = { pan: 'Pan', move: 'Move', resize: 'Resize', connect: 'Connect' };
+const MODE_HOTKEYS = { '1': 'pan', '2': 'move', '3': 'resize', '4': 'connect' };
 
 // ─── Init ────────────────────────────────────────────────
 async function init() {
@@ -79,15 +79,23 @@ async function loadSavedPositions() {
     });
 }
 
-async function savePosition(commitHash, filePath, x, y) {
+async function savePosition(commitHash, filePath, x, y, width, height) {
     return measure('positions:save', async () => {
         try {
             const posKey = `${commitHash}:${filePath}`;
-            positions.set(posKey, { x, y });
+            const existing = positions.get(posKey) || {};
+            const newPos = {
+                x: x !== undefined ? x : existing.x,
+                y: y !== undefined ? y : existing.y,
+                width: width !== undefined ? width : existing.width,
+                height: height !== undefined ? height : existing.height
+            };
+            positions.set(posKey, newPos);
+
             await fetch('/api/positions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ commitHash, filePath, x, y })
+                body: JSON.stringify({ commitHash, filePath, ...newPos })
             });
         } catch (e) {
             measure('positions:saveError', () => e);
@@ -151,7 +159,7 @@ function setupCanvasInteraction() {
                 dragStartX = e.clientX - ctx.offsetX;
                 dragStartY = e.clientY - ctx.offsetY;
                 canvasViewport.style.cursor = 'grabbing';
-            } else if (mode === 'select' && !insideCard) {
+            } else if (mode === 'move' && !insideCard) {
                 // Deselect all when clicking empty space
                 actor.send({ type: 'DESELECT_ALL' });
                 clearSelectionHighlights();
@@ -310,7 +318,7 @@ function setupHotkeys() {
 function setCanvasMode(mode) {
     const eventMap = {
         pan: 'SET_MODE_PAN',
-        select: 'SET_MODE_SELECT',
+        move: 'SET_MODE_MOVE',
         resize: 'SET_MODE_RESIZE',
         connect: 'SET_MODE_CONNECT',
     };
@@ -595,7 +603,13 @@ function renderAllFilesOnCanvas(files) {
 
             // Check for persisted size
             const ctx = snap().context;
-            const size = ctx.cardSizes?.[file.path];
+            let size = ctx.cardSizes?.[file.path];
+
+            // Fallback to saved size from DB
+            if (!size && positions.has(posKey)) {
+                const pos = positions.get(posKey);
+                if (pos.width) size = { width: pos.width, height: pos.height };
+            }
 
             const card = createAllFileCard(file, x, y, size);
             canvas.appendChild(card);
@@ -632,6 +646,14 @@ function createFileCard(file, x, y, commitHash) {
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
     card.dataset.path = file.path;
+
+    // Apply saved size
+    const posKey = getPositionKey(file.path, commitHash);
+    if (positions.has(posKey)) {
+        const pos = positions.get(posKey);
+        if (pos.width) card.style.width = `${pos.width}px`;
+        if (pos.height) card.style.maxHeight = `${pos.height}px`;
+    }
 
     const ext = file.name.split('.').pop().toLowerCase();
     const iconClass = getFileIconClass(ext);
@@ -721,6 +743,15 @@ function createFileCard(file, x, y, commitHash) {
     `;
 
     setupCardInteraction(card, commitHash);
+
+    // Add scroll listener for connections
+    const body = card.querySelector('.file-card-body');
+    if (body) {
+        body.addEventListener('scroll', () => {
+            renderConnections();
+        });
+    }
+
     return card;
 }
 
@@ -774,18 +805,19 @@ function createAllFileCard(file, x, y, savedSize) {
     setupLineSelection(card, file.path);
     setupCardInteraction(card, 'allfiles');
 
-    // Track scroll position
+    // Track scroll position & update connections
     const body = card.querySelector('.file-card-body');
     if (body) {
         body.addEventListener('scroll', () => {
             debounceSaveScroll(file.path, body.scrollTop);
+            renderConnections(); // Update connection lines on scroll
         });
     }
 
     return card;
 }
 
-// ─── Card interaction (drag, select, resize) ─────────────
+// ─── Card interaction (move vs resize) ───────────────────
 function setupCardInteraction(card, commitHash) {
     let cardDragging = false;
     let cardStartX, cardStartY, cardOffsetX, cardOffsetY;
@@ -797,63 +829,70 @@ function setupCardInteraction(card, commitHash) {
         const mode = snap().context.canvasMode;
 
         if (mode === 'pan') {
-            // Only drag from header
-            const header = e.target.closest('.file-card-header');
-            if (!header) return;
-            startDrag(e);
-        } else if (mode === 'select') {
-            actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: e.shiftKey });
-            updateSelectionHighlights();
-            // Also allow drag in select mode from header
+            // Only drag from header in pan mode
             const header = e.target.closest('.file-card-header');
             if (header) startDrag(e);
+
+        } else if (mode === 'move') {
+            // Move mode: Select and Drag
+            actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: e.shiftKey });
+            updateSelectionHighlights();
+            startDrag(e);
+
         } else if (mode === 'resize') {
-            // Check if near card edge (bottom-right corner)
+            // Resize mode: ONLY resize, no drag
             const rect = card.getBoundingClientRect();
             const edgeThreshold = 20;
             const nearRight = e.clientX > rect.right - edgeThreshold;
             const nearBottom = e.clientY > rect.bottom - edgeThreshold;
+
             if (nearRight || nearBottom) {
                 e.stopPropagation();
-                resizing = true;
-                resizeStartW = card.offsetWidth;
-                resizeStartH = card.offsetHeight;
-                resizeStartMouseX = e.clientX;
-                resizeStartMouseY = e.clientY;
-                card.classList.add('resizing');
-
-                const onMove = (e) => {
-                    if (!resizing) return;
-                    const ctx = snap().context;
-                    const dw = (e.clientX - resizeStartMouseX) / ctx.zoom;
-                    const dh = (e.clientY - resizeStartMouseY) / ctx.zoom;
-                    card.style.width = `${Math.max(200, resizeStartW + dw)}px`;
-                    card.style.maxHeight = `${Math.max(100, resizeStartH + dh)}px`;
-                };
-
-                const onUp = () => {
-                    resizing = false;
-                    card.classList.remove('resizing');
-                    actor.send({
-                        type: 'RESIZE_CARD',
-                        path: card.dataset.path,
-                        width: card.offsetWidth,
-                        height: parseInt(card.style.maxHeight) || card.offsetHeight,
-                    });
-                    window.removeEventListener('mousemove', onMove);
-                    window.removeEventListener('mouseup', onUp);
-                };
-
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
-            } else {
-                // Drag from header in resize mode
-                const header = e.target.closest('.file-card-header');
-                if (header) startDrag(e);
+                startResize(e);
             }
+            // If clicking middle of card in resize mode, do nothing (no drag)
         }
-        // Connect mode handled by line selection
     });
+
+    function startResize(e) {
+        resizing = true;
+        resizeStartW = card.offsetWidth;
+        resizeStartH = card.offsetHeight;
+        resizeStartMouseX = e.clientX;
+        resizeStartMouseY = e.clientY;
+        card.classList.add('resizing');
+        document.body.style.cursor = 'nwse-resize';
+
+        const onMove = (e) => {
+            if (!resizing) return;
+            const ctx = snap().context;
+            const dw = (e.clientX - resizeStartMouseX) / ctx.zoom;
+            const dh = (e.clientY - resizeStartMouseY) / ctx.zoom;
+            card.style.width = `${Math.max(200, resizeStartW + dw)}px`;
+            card.style.maxHeight = `${Math.max(100, resizeStartH + dh)}px`;
+            renderConnections(); // Update lines during resize
+        };
+
+        const onUp = () => {
+            resizing = false;
+            card.classList.remove('resizing');
+            document.body.style.cursor = '';
+
+            // Save dimensions
+            const width = card.offsetWidth;
+            const height = parseInt(card.style.maxHeight) || card.offsetHeight;
+
+            // Send to machine (if needed) and persist
+            actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width, height });
+            savePosition(commitHash, card.dataset.path, undefined, undefined, width, height);
+
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    }
 
     function startDrag(e) {
         e.stopPropagation();
@@ -873,7 +912,6 @@ function setupCardInteraction(card, commitHash) {
             const dy = (e.clientY / ctx.zoom) - cardOffsetY;
             card.style.left = `${cardStartX + dx}px`;
             card.style.top = `${cardStartY + dy}px`;
-            // Re-render connections while dragging
             renderConnections();
         };
 
@@ -972,80 +1010,111 @@ function setupLineSelection(card, filePath) {
 }
 
 // ─── Connections rendering ───────────────────────────────
+// ─── Connections rendering ───────────────────────────────
 function renderConnections() {
     if (!svgOverlay) return;
     svgOverlay.innerHTML = '';
 
     const ctx = snap().context;
+    // Debounce or frame cap? No, immediate is better for drag smoothness.
+
     ctx.connections.forEach(conn => {
         const sourceCard = fileCards.get(conn.sourceFile);
         const targetCard = fileCards.get(conn.targetFile);
         if (!sourceCard || !targetCard) return;
 
-        // Find source line element center
-        const sourceLines = sourceCard.querySelectorAll('.diff-line');
-        const targetLines = targetCard.querySelectorAll('.diff-line');
+        // Helper to get point for a line
+        const getPoint = (card, lineNum, isStart) => {
+            // Find visible line element
+            // Note: line element might be missing if file content isn't loaded or scrolled out?
+            // Actually, Diff DOM is always fully rendered in the card body currently?
+            // No, the card body scrolls. So we need bounding rect.
+            const lineEl = card.querySelector(`.diff-line[data-line="${lineNum}"]`);
+            const canvasRect = canvasViewport.getBoundingClientRect(); // Use viewport for relative calc
 
-        let sourceEl = null, targetEl = null;
-        sourceLines.forEach(l => {
-            const ln = parseInt(l.dataset.line);
-            if (ln >= conn.sourceLineStart && ln <= conn.sourceLineEnd) {
-                if (!sourceEl) sourceEl = l;
-                l.classList.add('line-connected');
+            if (lineEl) {
+                const rect = lineEl.getBoundingClientRect();
+                // Check if rect is visible or reasonable?
+                // Calculate position relative to canvas VIEWPORT (screen), then adjust by offset/zoom
+                // x = (rect.x - canvasRect.x - offsetX) / zoom
+
+                const x = (isStart ? rect.right : rect.left);
+                const y = rect.top + rect.height / 2;
+
+                return {
+                    x: (x - canvasRect.left - ctx.offsetX) / ctx.zoom,
+                    y: (y - canvasRect.top - ctx.offsetY) / ctx.zoom
+                };
+            } else {
+                // Fallback to card center/header if line not found
+                // Or maybe the file is collapsed?
+                const rect = card.getBoundingClientRect();
+                return {
+                    x: (isStart ? rect.right : rect.left - canvasRect.left - ctx.offsetX) / ctx.zoom,
+                    y: (rect.top + 50 - canvasRect.top - ctx.offsetY) / ctx.zoom
+                };
             }
-        });
-        targetLines.forEach(l => {
-            const ln = parseInt(l.dataset.line);
-            if (ln >= conn.targetLineStart && ln <= conn.targetLineEnd) {
-                if (!targetEl) targetEl = l;
-                l.classList.add('line-connected');
-            }
-        });
+        };
 
-        if (!sourceEl || !targetEl) return;
-
-        // Calculate positions relative to canvas
-        const sourceRect = sourceEl.getBoundingClientRect();
-        const targetRect = targetEl.getBoundingClientRect();
-        const canvasRect = canvas.getBoundingClientRect();
-
-        const sx = (sourceRect.right - canvasRect.left) / ctx.zoom;
-        const sy = (sourceRect.top + sourceRect.height / 2 - canvasRect.top) / ctx.zoom;
-        const tx = (targetRect.left - canvasRect.left) / ctx.zoom;
-        const ty = (targetRect.top + targetRect.height / 2 - canvasRect.top) / ctx.zoom;
+        const startPt = getPoint(sourceCard, conn.sourceLineStart, true);
+        const endPt = getPoint(targetCard, conn.targetLineStart, false);
 
         // Draw bezier curve
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const midX = (sx + tx) / 2;
-        path.setAttribute('d', `M ${sx} ${sy} C ${midX} ${sy}, ${midX} ${ty}, ${tx} ${ty}`);
+        const midX = (startPt.x + endPt.x) / 2;
+        path.setAttribute('d', `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`);
         path.setAttribute('stroke', 'var(--accent-primary)');
         path.setAttribute('stroke-width', '2');
         path.setAttribute('fill', 'none');
         path.setAttribute('opacity', '0.7');
         path.setAttribute('stroke-dasharray', '6,3');
-        path.style.pointerEvents = 'stroke';
         path.style.cursor = 'pointer';
 
-        // Click to navigate
         path.addEventListener('click', () => navigateToConnection(conn));
 
-        // Tooltip
+        // Label on path (center)
         if (conn.comment) {
-            const title = document.createElementNS('http://www.w3.org/2000/svg', 'title');
-            title.textContent = conn.comment;
-            path.appendChild(title);
+            const labelX = (startPt.x + endPt.x) / 2;
+            const labelY = (startPt.y + endPt.y) / 2;
+
+            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.style.cursor = 'pointer';
+            group.addEventListener('click', () => navigateToConnection(conn));
+
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', labelX);
+            text.setAttribute('y', labelY);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('alignment-baseline', 'middle');
+            text.setAttribute('fill', 'white');
+            text.setAttribute('font-size', '12');
+            text.textContent = conn.comment;
+
+            // Background for text
+            const bbox = { width: conn.comment.length * 7 + 10, height: 20 }; // approximate
+            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            rect.setAttribute('x', labelX - bbox.width / 2);
+            rect.setAttribute('y', labelY - bbox.height / 2);
+            rect.setAttribute('width', bbox.width);
+            rect.setAttribute('height', bbox.height);
+            rect.setAttribute('rx', '4');
+            rect.setAttribute('fill', '#000');
+            rect.setAttribute('opacity', '0.7');
+
+            group.appendChild(rect);
+            group.appendChild(text);
+            svgOverlay.appendChild(group);
         }
 
         svgOverlay.appendChild(path);
 
-        // Draw small circle at each end
-        [{ x: sx, y: sy }, { x: tx, y: ty }].forEach(pt => {
+        // Draw circles
+        [startPt, endPt].forEach(pt => {
             const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             circle.setAttribute('cx', pt.x);
             circle.setAttribute('cy', pt.y);
-            circle.setAttribute('r', '4');
+            circle.setAttribute('r', '3');
             circle.setAttribute('fill', 'var(--accent-primary)');
-            circle.setAttribute('opacity', '0.8');
             svgOverlay.appendChild(circle);
         });
     });

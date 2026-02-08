@@ -1149,6 +1149,38 @@ body {
     font-weight: 600;
 }
 
+.file-card-body {
+    padding: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-y: auto;
+    /* Enable scrolling within the body */
+    flex: 1;
+    /* Take remaining height */
+    display: flex;
+    flex-direction: column;
+}
+
+.file-path {
+    padding: 8px 14px;
+    font-size: 11px;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    /* Match card background */
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    /* Make it sticky */
+    top: 0;
+    z-index: 5;
+    /* Ensure it stays above code */
+}
+
+.file-content-preview {
+    padding: 10px 0;
+    /* overflow-x: auto; Remove double scroll, handle in body or pre */
+}
+
 .mode-indicator {
     font-size: 11px;
     color: var(--text-muted);
