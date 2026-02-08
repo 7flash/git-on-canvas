@@ -57,6 +57,13 @@ async function loadApiRoutes() {
         apiRoutes['/api/repo/file-content'] = await import(repoFileContentRoute);
         console.log('   ⚡ /api/repo/file-content loaded');
     }
+
+    // Load /api/repo/tree
+    const repoTreeRoute = path.join(apiDir, 'repo', 'tree', 'route.js');
+    if (existsSync(repoTreeRoute)) {
+        apiRoutes['/api/repo/tree'] = await import(repoTreeRoute);
+        console.log('   ⚡ /api/repo/tree loaded');
+    }
 }
 
 // Handler function

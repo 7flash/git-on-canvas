@@ -13,6 +13,7 @@ let positions = new Map(); // Store file positions
 let currentRepo = '';
 let currentCommit = null;
 let commits = [];
+let viewMode = 'commits'; // 'commits' or 'allfiles'
 
 // Initialize app
 async function init() {
@@ -205,6 +206,10 @@ function setupEventListeners() {
         // Fit all button
         document.getElementById('fitAll').addEventListener('click', fitAllFiles);
 
+        // View mode toggles
+        document.getElementById('modeCommits').addEventListener('click', () => setViewMode('commits'));
+        document.getElementById('modeAllFiles').addEventListener('click', () => setViewMode('allfiles'));
+
         // Close preview modal
         document.getElementById('closePreview').addEventListener('click', closePreview);
         document.querySelector('.modal-backdrop').addEventListener('click', closePreview);
@@ -214,6 +219,145 @@ function setupEventListeners() {
             if (e.key === 'Escape') closePreview();
         });
     });
+}
+
+// Set view mode (commits or allfiles)
+function setViewMode(mode) {
+    viewMode = mode;
+    document.getElementById('modeCommits').classList.toggle('active', mode === 'commits');
+    document.getElementById('modeAllFiles').classList.toggle('active', mode === 'allfiles');
+
+    // Show/hide commit timeline
+    document.getElementById('commitTimeline').style.display = mode === 'commits' ? '' : 'none';
+
+    if (mode === 'allfiles') {
+        document.getElementById('currentCommitInfo').innerHTML = `
+            <span style="color: var(--accent-tertiary)">All Files</span>
+            <span style="color: var(--text-muted)">Working tree</span>
+        `;
+        if (currentRepo) {
+            loadAllFiles();
+        }
+    } else {
+        // Restore commit view
+        if (currentCommit) {
+            selectCommit(currentCommit.hash);
+        }
+    }
+}
+
+// Load all files in the working tree
+async function loadAllFiles() {
+    if (!currentRepo) return;
+
+    return measure('allfiles:load', async () => {
+        try {
+            const response = await fetch('/api/repo/tree', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: currentRepo })
+            });
+
+            if (!response.ok) throw new Error(await response.text());
+
+            const data = await response.json();
+            renderAllFilesOnCanvas(data.files);
+            document.getElementById('fileCount').textContent = data.total;
+            showToast(`Showing ${data.total} files`, 'info');
+        } catch (err) {
+            measure('allfiles:loadError', () => err);
+            showToast(`Failed to load files: ${err.message}`, 'error');
+        }
+    });
+}
+
+// Render all files on canvas — simple cards
+function renderAllFilesOnCanvas(files) {
+    measure('canvas:renderAllFiles', () => {
+        fileCards.forEach(card => card.remove());
+        fileCards.clear();
+
+        // Group files by directory
+        const dirs = new Map();
+        files.forEach(f => {
+            const parts = f.path.split('/');
+            const dir = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+            if (!dirs.has(dir)) dirs.set(dir, []);
+            dirs.get(dir).push(f);
+        });
+
+        // Layout: one cluster per directory
+        const cardW = 220;
+        const cardH = 28;
+        const dirGap = 50;
+        const fileGap = 4;
+        let clusterX = 50;
+        let maxRowHeight = 0;
+        let clusterY = 50;
+        const maxClusterWidth = 900;
+
+        dirs.forEach((dirFiles, dirName) => {
+            // Check if this cluster would exceed row width
+            const clusterHeight = 30 + dirFiles.length * (cardH + fileGap);
+            if (clusterX + cardW + dirGap > maxClusterWidth && clusterX > 50) {
+                clusterX = 50;
+                clusterY += maxRowHeight + dirGap;
+                maxRowHeight = 0;
+            }
+            maxRowHeight = Math.max(maxRowHeight, clusterHeight);
+
+            // Directory label card
+            const dirCard = document.createElement('div');
+            dirCard.className = 'dir-label';
+            dirCard.style.cssText = `position:absolute;left:${clusterX}px;top:${clusterY}px;font-size:0.6rem;color:var(--accent-tertiary);font-weight:600;padding:2px 6px;white-space:nowrap;`;
+            dirCard.textContent = dirName === '.' ? '(root)' : dirName;
+            canvas.appendChild(dirCard);
+
+            dirFiles.forEach((file, i) => {
+                const posKey = `allfiles:${file.path}`;
+                let x, y;
+
+                if (positions.has(posKey)) {
+                    const pos = positions.get(posKey);
+                    x = pos.x; y = pos.y;
+                } else {
+                    x = clusterX;
+                    y = clusterY + 22 + i * (cardH + fileGap);
+                }
+
+                const card = createSimpleFileCard(file, x, y);
+                canvas.appendChild(card);
+                fileCards.set(file.path, card);
+            });
+
+            clusterX += cardW + dirGap;
+        });
+    });
+}
+
+// Create a simple file card (for all-files mode)
+function createSimpleFileCard(file, x, y) {
+    const card = document.createElement('div');
+    card.className = 'file-card file-card--simple';
+    card.style.left = `${x}px`;
+    card.style.top = `${y}px`;
+    card.dataset.path = file.path;
+
+    const ext = file.name.split('.').pop().toLowerCase();
+    const iconClass = getFileIconClass(ext);
+
+    card.innerHTML = `
+        <div class="file-card-header" style="padding: 5px 10px;">
+            <div class="file-icon ${iconClass}" style="width:16px;height:16px;">
+                ${getFileIcon(file.type, ext)}
+            </div>
+            <span class="file-name" style="font-size:0.7rem;">${escapeHtml(file.name)}</span>
+        </div>
+    `;
+
+    // Drag from the card itself (simple cards are small)
+    setupCardDrag(card, 'allfiles');
+    return card;
 }
 
 // Load repository
@@ -337,9 +481,10 @@ window.selectCommit = selectCommit;
 // Render files on canvas - now shows only CHANGED files with content
 function renderFilesOnCanvas(files, commitHash) {
     measure('canvas:renderFiles', () => {
-        // Clear existing cards
+        // Clear existing cards and dir labels
         fileCards.forEach(card => card.remove());
         fileCards.clear();
+        canvas.querySelectorAll('.dir-label').forEach(el => el.remove());
 
         // Layout for content cards
         const cols = Math.min(files.length, 2); // Max 2 columns for readability
@@ -478,9 +623,12 @@ function setupCardDrag(card, commitHash) {
 
     card.addEventListener('mousedown', (e) => {
         if (e.target.tagName === 'BUTTON') return;
-        // Only allow drag from the header area
-        const header = e.target.closest('.file-card-header');
-        if (!header) return;
+        // Simple cards can be dragged from anywhere; diff cards only from header
+        const isSimple = card.classList.contains('file-card--simple');
+        if (!isSimple) {
+            const header = e.target.closest('.file-card-header');
+            if (!header) return;
+        }
 
         e.stopPropagation();
         cardDragging = true;
