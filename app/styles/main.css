@@ -629,14 +629,18 @@ body {
 }
 
 .file-card-body {
-    padding: 6px 12px 6px;
-    font-size: 0.75rem;
+    padding: 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.5;
     color: var(--text-muted);
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     min-height: 0;
     cursor: default;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Styled scrollbar inside file cards */
@@ -661,10 +665,16 @@ body {
     font-family: var(--font-mono);
     font-size: 0.7rem;
     color: var(--text-muted);
+    background: var(--bg-card);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 4px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex-shrink: 0;
 }
 
 .file-meta {
@@ -717,11 +727,13 @@ body {
 }
 
 .file-content-preview {
-    margin-top: 8px;
-    overflow: auto;
+    margin-top: 0;
+    overflow-x: auto;
+    overflow-y: visible;
+    /* Let body handle vertical scroll */
     background: rgba(0, 0, 0, 0.3);
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border-subtle);
+    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    /* border: 1px solid var(--border-subtle); Remove border as body handles it */
 }
 
 .file-content-preview pre {
@@ -1149,37 +1161,7 @@ body {
     font-weight: 600;
 }
 
-.file-card-body {
-    padding: 0;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    line-height: 1.5;
-    overflow-y: auto;
-    /* Enable scrolling within the body */
-    flex: 1;
-    /* Take remaining height */
-    display: flex;
-    flex-direction: column;
-}
 
-.file-path {
-    padding: 8px 14px;
-    font-size: 11px;
-    color: var(--text-muted);
-    background: var(--bg-card);
-    /* Match card background */
-    border-bottom: 1px solid var(--border-subtle);
-    position: sticky;
-    /* Make it sticky */
-    top: 0;
-    z-index: 5;
-    /* Ensure it stays above code */
-}
-
-.file-content-preview {
-    padding: 10px 0;
-    /* overflow-x: auto; Remove double scroll, handle in body or pre */
-}
 
 .mode-indicator {
     font-size: 11px;
