@@ -236,8 +236,8 @@ function setupEventListeners() {
             }
         });
 
-        // Browse button
-        document.getElementById('browseRepo').addEventListener('click', browseFolder);
+        // Browse button — paste path from clipboard
+        document.getElementById('browseRepo').addEventListener('click', pasteRepoPath);
 
         // Zoom slider
         document.getElementById('zoomSlider').addEventListener('input', (e) => {
@@ -278,23 +278,58 @@ function setupEventListeners() {
     });
 }
 
-// ─── Browse folder ───────────────────────────────────────
-async function browseFolder() {
-    return measure('repo:browse', async () => {
+// ─── Paste repo path from clipboard ──────────────────────
+async function pasteRepoPath() {
+    return measure('repo:paste', async () => {
         try {
-            showToast('Opening folder picker...', 'info');
-            const response = await fetch('/api/repo/browse', { method: 'POST' });
-            if (!response.ok) throw new Error(await response.text());
-            const data = await response.json();
-            if (!data.cancelled && data.path) {
-                document.getElementById('repoPath').value = data.path;
-                loadRepository(data.path);
+            const text = await navigator.clipboard.readText();
+            if (text && text.trim()) {
+                const input = document.getElementById('repoPath');
+                input.value = text.trim();
+                input.focus();
+                showToast('Pasted from clipboard', 'info');
+            } else {
+                showToast('Clipboard is empty — type or paste a repo path', 'info');
             }
         } catch (err) {
-            measure('repo:browseError', () => err);
-            showToast(`Browse failed: ${err.message}`, 'error');
+            // Clipboard API can fail if denied
+            measure('repo:pasteError', () => err);
+            showToast('Paste failed — type the path manually', 'error');
         }
     });
+}
+
+// ─── Loading progress overlay ────────────────────────────
+let loadingOverlay = null;
+
+function showLoadingProgress(message) {
+    if (!loadingOverlay) {
+        loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'loading-overlay';
+        loadingOverlay.innerHTML = `
+            <div class="loading-content">
+                <div class="loading-spinner"></div>
+                <div class="loading-message"></div>
+                <div class="loading-sub"></div>
+            </div>
+        `;
+        document.body.appendChild(loadingOverlay);
+    }
+    loadingOverlay.querySelector('.loading-message').textContent = message;
+    loadingOverlay.querySelector('.loading-sub').textContent = '';
+    loadingOverlay.classList.add('active');
+}
+
+function updateLoadingProgress(sub) {
+    if (loadingOverlay) {
+        loadingOverlay.querySelector('.loading-sub').textContent = sub;
+    }
+}
+
+function hideLoadingProgress() {
+    if (loadingOverlay) {
+        loadingOverlay.classList.remove('active');
+    }
 }
 
 // ─── View switching ──────────────────────────────────────
@@ -338,7 +373,8 @@ async function loadRepository(repoPath) {
 
     return measure('repo:load', async () => {
         try {
-            showToast('Loading repository...', 'info');
+            showLoadingProgress('Loading repository...');
+            updateLoadingProgress(repoPath);
 
             const response = await fetch('/api/repo/load', {
                 method: 'POST',
@@ -348,6 +384,7 @@ async function loadRepository(repoPath) {
 
             if (!response.ok) throw new Error(await response.text());
 
+            updateLoadingProgress('Parsing commits...');
             const data = await response.json();
             actor.send({ type: 'REPO_LOADED', commits: data.commits });
 
@@ -355,18 +392,23 @@ async function loadRepository(repoPath) {
             window.location.hash = encodeURIComponent(repoPath);
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
 
+            updateLoadingProgress(`Found ${data.commits.length} commits, rendering timeline...`);
             renderCommitTimeline();
 
             // Respect current view mode
             const viewState = snap().value?.view;
             if (viewState === 'allfiles') {
-                loadAllFiles();
+                updateLoadingProgress('Loading all files...');
+                await loadAllFiles();
             } else if (data.commits.length > 0) {
-                selectCommit(data.commits[0].hash);
+                updateLoadingProgress('Loading first commit files...');
+                await selectCommit(data.commits[0].hash);
             }
 
+            hideLoadingProgress();
             showToast(`Loaded ${data.commits.length} commits`, 'success');
         } catch (err) {
+            hideLoadingProgress();
             actor.send({ type: 'REPO_ERROR', error: err.message });
             measure('repo:loadError', () => err);
             showToast(`Failed: ${err.message}`, 'error');
@@ -464,6 +506,9 @@ async function selectCommit(hash) {
         `;
 
         try {
+            showLoadingProgress('Loading commit files...');
+            updateLoadingProgress(`${hash.substring(0, 7)} — ${commit?.message || ''}`);
+
             const response = await fetch('/api/repo/files', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -472,11 +517,14 @@ async function selectCommit(hash) {
 
             if (!response.ok) throw new Error(await response.text());
 
+            updateLoadingProgress('Rendering files on canvas...');
             const data = await response.json();
             actor.send({ type: 'COMMIT_FILES_LOADED', files: data.files });
             renderFilesOnCanvas(data.files, hash);
             document.getElementById('fileCount').textContent = data.files.length;
+            hideLoadingProgress();
         } catch (err) {
+            hideLoadingProgress();
             measure('commit:selectError', () => err);
             showToast(`Failed: ${err.message}`, 'error');
         }
@@ -485,11 +533,19 @@ async function selectCommit(hash) {
 window.selectCommit = selectCommit;
 
 // ─── Render files on canvas (commits mode) ───────────────
+function getAutoColumnCount() {
+    const vpWidth = canvasViewport?.getBoundingClientRect().width || window.innerWidth;
+    const cardWidth = 580;
+    const gap = 40;
+    const margin = 100;
+    return Math.max(1, Math.floor((vpWidth - margin) / (cardWidth + gap)));
+}
+
 function renderFilesOnCanvas(files, commitHash) {
     measure('canvas:renderFiles', () => {
         clearCanvas();
 
-        const cols = Math.min(files.length, 2);
+        const cols = Math.min(files.length, getAutoColumnCount());
         const cardWidth = 580;
         const cardHeight = 700;
         const gap = 40;
@@ -520,7 +576,7 @@ function renderAllFilesOnCanvas(files) {
     measure('canvas:renderAllFiles', () => {
         clearCanvas();
 
-        const cols = 2;
+        const cols = Math.min(files.length, getAutoColumnCount());
         const cardWidth = 580;
         const cardHeight = 700;
         const gap = 40;
@@ -590,7 +646,10 @@ function createFileCard(file, x, y, commitHash) {
     if (positions.has(posKey)) {
         const pos = positions.get(posKey);
         if (pos.width) card.style.width = `${pos.width}px`;
-        if (pos.height) card.style.maxHeight = `${pos.height}px`;
+        if (pos.height) {
+            card.style.height = `${pos.height}px`;
+            card.style.maxHeight = 'none';
+        }
     }
 
     const ext = file.name.split('.').pop().toLowerCase();
@@ -709,7 +768,8 @@ function createAllFileCard(file, x, y, savedSize) {
 
     if (savedSize) {
         card.style.width = `${savedSize.width}px`;
-        card.style.maxHeight = `${savedSize.height}px`;
+        card.style.height = `${savedSize.height}px`;
+        card.style.maxHeight = 'none';
     }
 
     const ext = file.ext || '';
