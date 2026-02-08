@@ -1105,3 +1105,158 @@ body {
         transform: translateX(0);
     }
 }
+
+/* ─── Canvas Mode Toolbar ─────────────────────────── */
+.canvas-mode-toolbar {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.canvas-mode-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 10px;
+    font-family: var(--font-mono);
+}
+
+.canvas-mode-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+    border-color: var(--border-default);
+}
+
+.canvas-mode-btn.active {
+    background: rgba(124, 58, 237, 0.15);
+    border-color: var(--accent-primary);
+    color: var(--accent-tertiary);
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.2);
+}
+
+.canvas-mode-btn span {
+    font-size: 9px;
+    opacity: 0.5;
+    font-weight: 600;
+}
+
+.mode-indicator {
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 4px 0 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 8px;
+}
+
+.mode-indicator strong {
+    color: var(--accent-tertiary);
+    font-weight: 600;
+}
+
+.mode-indicator strong[data-mode="connect"] {
+    color: var(--warning);
+}
+
+.mode-indicator strong[data-mode="select"] {
+    color: var(--info);
+}
+
+.mode-indicator strong[data-mode="resize"] {
+    color: var(--success);
+}
+
+/* ─── Card states ─────────────────────────────────── */
+.file-card.selected {
+    outline: 2px solid var(--info);
+    outline-offset: 2px;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+}
+
+.file-card.resizing {
+    outline: 2px dashed var(--success);
+    outline-offset: 2px;
+    cursor: nwse-resize !important;
+}
+
+.file-card.resizing * {
+    pointer-events: none;
+}
+
+/* ─── Line selection & connections ─────────────────── */
+.diff-line.line-selected {
+    background: rgba(124, 58, 237, 0.25) !important;
+    border-left: 3px solid var(--accent-primary) !important;
+    padding-left: 5px;
+}
+
+.diff-line.line-connected {
+    background: rgba(124, 58, 237, 0.12) !important;
+    cursor: pointer;
+}
+
+.diff-line.line-connected:hover {
+    background: rgba(124, 58, 237, 0.25) !important;
+}
+
+.diff-line.line-flash {
+    animation: lineFlash 1.5s ease-out;
+}
+
+@keyframes lineFlash {
+    0% {
+        background: rgba(124, 58, 237, 0.5);
+    }
+
+    100% {
+        background: transparent;
+    }
+}
+
+/* Connect mode cursor on lines */
+[style*="cursor: crosshair"] .diff-line {
+    cursor: crosshair;
+}
+
+/* More lines truncation notice */
+.more-lines {
+    display: block;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 11px;
+    padding: 8px;
+    font-style: italic;
+    border-top: 1px solid var(--border-subtle);
+}
+
+/* ─── SVG connection overlay ──────────────────────── */
+#connectionOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 100;
+    overflow: visible;
+}
+
+#connectionOverlay path {
+    pointer-events: stroke;
+    cursor: pointer;
+    transition: opacity var(--transition-fast), stroke-width var(--transition-fast);
+}
+
+#connectionOverlay path:hover {
+    opacity: 1 !important;
+    stroke-width: 3 !important;
+    filter: drop-shadow(0 0 6px var(--accent-primary));
+}

@@ -19,6 +19,7 @@
     "@ments/db": "^1.6.1",
     "@ments/web": "^1.14.0",
     "melina": "^1.0.0",
-    "simple-git": "^3.30.0"
+    "simple-git": "^3.30.0",
+    "xstate": "^5.26.0"
   }
 }

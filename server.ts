@@ -7,13 +7,37 @@ const appDir = path.join(process.cwd(), 'app');
 // Pre-build assets
 let mainJsPath: string | null = null;
 let mainCssPath: string | null = null;
+const builtAssets: Record<string, { content: ArrayBuffer; contentType: string }> = {};
 
 async function buildAssets() {
-    // Build main.js
+    // Build main.js — custom build to NOT externalize xstate
     const mainJsFile = path.join(appDir, 'main.js');
     if (existsSync(mainJsFile)) {
-        mainJsPath = await buildScript('app/main.js', false);
-        console.log(`📦 Built main.js -> ${mainJsPath}`);
+        const result = await Bun.build({
+            entrypoints: [mainJsFile],
+            minify: false,
+            target: 'browser',
+            sourcemap: 'linked',
+            // Only externalize server-side deps, NOT xstate
+            external: ['melina', 'simple-git', 'bun:sqlite'],
+            naming: {
+                entry: '[name]-[hash].[ext]',
+                chunk: '[name]-[hash].[ext]',
+                asset: '[name]-[hash].[ext]',
+            },
+        });
+
+        const mainOutput = result.outputs.find(o => o.kind === 'entry-point');
+        if (mainOutput) {
+            mainJsPath = `/${path.basename(mainOutput.path)}`;
+            for (const output of result.outputs) {
+                const content = await output.arrayBuffer();
+                const outputPath = `/${path.basename(output.path)}`;
+                const contentType = output.path.endsWith('.map') ? 'application/json' : 'application/javascript';
+                builtAssets[outputPath] = { content, contentType };
+            }
+            console.log(`📦 Built main.js -> ${mainJsPath} (${result.outputs.length} outputs)`);
+        }
     }
 
     // Build CSS
@@ -23,6 +47,7 @@ async function buildAssets() {
         console.log(`🎨 Built main.css -> ${mainCssPath}`);
     }
 }
+
 
 // Import API route modules
 const apiRoutes: Record<string, any> = {};
@@ -63,6 +88,13 @@ async function loadApiRoutes() {
     if (existsSync(repoTreeRoute)) {
         apiRoutes['/api/repo/tree'] = await import(repoTreeRoute);
         console.log('   ⚡ /api/repo/tree loaded');
+    }
+
+    // Load /api/repo/browse
+    const repoBrowseRoute = path.join(apiDir, 'repo', 'browse', 'route.js');
+    if (existsSync(repoBrowseRoute)) {
+        apiRoutes['/api/repo/browse'] = await import(repoBrowseRoute);
+        console.log('   ⚡ /api/repo/browse loaded');
     }
 }
 
@@ -120,6 +152,17 @@ async function handler(req: Request): Promise<Response> {
                 });
             }
         }
+    }
+
+    // Serve custom-built assets (main.js bundle with xstate inlined)
+    if (builtAssets[pathname]) {
+        const asset = builtAssets[pathname];
+        return new Response(asset.content, {
+            headers: {
+                'Content-Type': asset.contentType,
+                'Cache-Control': 'public, max-age=31536000, immutable',
+            }
+        });
     }
 
     // Fallback - return 404
