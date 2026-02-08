@@ -819,120 +819,153 @@ function createAllFileCard(file, x, y, savedSize) {
 
 // ─── Card interaction (move vs resize) ───────────────────
 function setupCardInteraction(card, commitHash) {
-    let cardDragging = false;
-    let cardStartX, cardStartY, cardOffsetX, cardOffsetY;
-    let resizing = false;
-    let resizeStartW, resizeStartH, resizeStartMouseX, resizeStartMouseY;
+    let modeStart = null; // 'drag' or 'resize'
+    let startX, startY; // Mouse start
+    let initialSelection = [];
+    let initialPositions = {}; // Map path -> {x,y}
 
-    card.addEventListener('mousedown', (e) => {
+    let resizeStartW, resizeStartH;
+
+    function onMouseDown(e) {
         if (e.target.tagName === 'BUTTON') return;
         const mode = snap().context.canvasMode;
+        const ctx = snap().context;
 
-        if (mode === 'pan') {
-            // Only drag from header in pan mode
-            const header = e.target.closest('.file-card-header');
-            if (header) startDrag(e);
+        // Check if clicking scrollbar - rough check
+        if (e.target.closest('.file-card-body') && e.offsetX > e.target.clientWidth) {
+            // Likely scrollbar
+            return;
+        }
 
-        } else if (mode === 'move') {
-            // Move mode: Select and Drag
-            actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: e.shiftKey });
-            updateSelectionHighlights();
-            startDrag(e);
+        startX = e.clientX;
+        startY = e.clientY;
+
+        if (mode === 'move') {
+            const isSelected = ctx.selectedCards.includes(card.dataset.path);
+
+            if (e.shiftKey) {
+                actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: true });
+                updateSelectionHighlights();
+                // If selected after toggle, drag it. If deselected, don't drag?
+                // Usually shift-click doesn't start drag immediately, but let's allow it if selected.
+                if (snap().context.selectedCards.includes(card.dataset.path)) {
+                    modeStart = 'drag';
+                    initialSelection = snap().context.selectedCards;
+                }
+            } else {
+                if (isSelected) {
+                    modeStart = 'drag';
+                    initialSelection = ctx.selectedCards;
+                } else {
+                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
+                    updateSelectionHighlights();
+                    modeStart = 'drag';
+                    initialSelection = [card.dataset.path];
+                }
+            }
+
+            if (modeStart === 'drag') {
+                // Capture initial positions
+                initialPositions = {};
+                initialSelection.forEach(path => {
+                    const c = fileCards.get(path);
+                    if (c) initialPositions[path] = { x: parseInt(c.style.left) || 0, y: parseInt(c.style.top) || 0 };
+                    c.classList.add('dragging');
+                });
+            }
 
         } else if (mode === 'resize') {
-            // Resize mode: ONLY resize, no drag
             const rect = card.getBoundingClientRect();
-            const edgeThreshold = 20;
-            const nearRight = e.clientX > rect.right - edgeThreshold;
-            const nearBottom = e.clientY > rect.bottom - edgeThreshold;
+            const nearRight = e.clientX > rect.right - 20;
+            const nearBottom = e.clientY > rect.bottom - 20;
 
             if (nearRight || nearBottom) {
                 e.stopPropagation();
-                startResize(e);
+                modeStart = 'resize';
+                resizeStartW = card.offsetWidth;
+                resizeStartH = parseInt(card.style.maxHeight) || card.offsetHeight;
+                card.classList.add('resizing');
+                document.body.style.cursor = 'nwse-resize';
             }
-            // If clicking middle of card in resize mode, do nothing (no drag)
+        } else if (mode === 'pan') {
+            const header = e.target.closest('.file-card-header');
+            if (header) {
+                modeStart = 'drag';
+                initialSelection = [card.dataset.path];
+                initialPositions = { [card.dataset.path]: { x: parseInt(card.style.left) || 0, y: parseInt(card.style.top) || 0 } };
+                card.classList.add('dragging');
+            }
         }
-    });
 
-    function startResize(e) {
-        resizing = true;
-        resizeStartW = card.offsetWidth;
-        resizeStartH = card.offsetHeight;
-        resizeStartMouseX = e.clientX;
-        resizeStartMouseY = e.clientY;
-        card.classList.add('resizing');
-        document.body.style.cursor = 'nwse-resize';
+        if (modeStart) {
+            e.stopPropagation();
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+    }
 
-        const onMove = (e) => {
-            if (!resizing) return;
-            const ctx = snap().context;
-            const dw = (e.clientX - resizeStartMouseX) / ctx.zoom;
-            const dh = (e.clientY - resizeStartMouseY) / ctx.zoom;
-            card.style.width = `${Math.max(200, resizeStartW + dw)}px`;
-            card.style.maxHeight = `${Math.max(100, resizeStartH + dh)}px`;
-            renderConnections(); // Update lines during resize
-        };
+    function onMouseMove(e) {
+        const ctx = snap().context;
+        const dx = (e.clientX - startX) / ctx.zoom;
+        const dy = (e.clientY - startY) / ctx.zoom;
 
-        const onUp = () => {
-            resizing = false;
+        if (modeStart === 'drag') {
+            initialSelection.forEach(path => {
+                const c = fileCards.get(path);
+                const pos = initialPositions[path];
+                if (c && pos) {
+                    c.style.left = `${pos.x + dx}px`;
+                    c.style.top = `${pos.y + dy}px`;
+                }
+            });
+            renderConnections();
+        } else if (modeStart === 'resize') {
+            card.style.width = `${Math.max(200, resizeStartW + dx)}px`;
+            card.style.maxHeight = `${Math.max(100, resizeStartH + dy)}px`;
+            renderConnections();
+        }
+    }
+
+    function onMouseUp(e) {
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+
+        const moved = Math.abs(e.clientX - startX) > 2 || Math.abs(e.clientY - startY) > 2;
+
+        if (modeStart === 'drag') {
+            if (moved) {
+                // Save positions
+                initialSelection.forEach(path => {
+                    const c = fileCards.get(path);
+                    if (c) {
+                        c.classList.remove('dragging');
+                        savePosition(commitHash, path, parseInt(c.style.left), parseInt(c.style.top));
+                    }
+                });
+            } else {
+                // Click (no drag)
+                // If move mode and no shift, ensure single selection
+                if (snap().context.canvasMode === 'move' && !e.shiftKey) {
+                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
+                    updateSelectionHighlights();
+                }
+                initialSelection.forEach(path => {
+                    const c = fileCards.get(path);
+                    if (c) c.classList.remove('dragging');
+                });
+            }
+        } else if (modeStart === 'resize') {
             card.classList.remove('resizing');
             document.body.style.cursor = '';
+            const h = parseInt(card.style.maxHeight) || card.offsetHeight;
+            actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width: card.offsetWidth, height: h });
+            savePosition(commitHash, card.dataset.path, undefined, undefined, card.offsetWidth, h);
+        }
 
-            // Save dimensions
-            const width = card.offsetWidth;
-            const height = parseInt(card.style.maxHeight) || card.offsetHeight;
-
-            // Send to machine (if needed) and persist
-            actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width, height });
-            savePosition(commitHash, card.dataset.path, undefined, undefined, width, height);
-
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-        };
-
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
+        modeStart = null;
     }
 
-    function startDrag(e) {
-        e.stopPropagation();
-        cardDragging = true;
-        card.classList.add('dragging');
-        const ctx = snap().context;
-
-        cardStartX = parseInt(card.style.left) || 0;
-        cardStartY = parseInt(card.style.top) || 0;
-        cardOffsetX = e.clientX / ctx.zoom;
-        cardOffsetY = e.clientY / ctx.zoom;
-
-        const onMouseMove = (e) => {
-            if (!cardDragging) return;
-            const ctx = snap().context;
-            const dx = (e.clientX / ctx.zoom) - cardOffsetX;
-            const dy = (e.clientY / ctx.zoom) - cardOffsetY;
-            card.style.left = `${cardStartX + dx}px`;
-            card.style.top = `${cardStartY + dy}px`;
-            renderConnections();
-        };
-
-        const onMouseUp = () => {
-            if (cardDragging) {
-                cardDragging = false;
-                card.classList.remove('dragging');
-                savePosition(
-                    commitHash,
-                    card.dataset.path,
-                    parseInt(card.style.left),
-                    parseInt(card.style.top)
-                );
-            }
-            window.removeEventListener('mousemove', onMouseMove);
-            window.removeEventListener('mouseup', onMouseUp);
-        };
-
-        window.addEventListener('mousemove', onMouseMove);
-        window.addEventListener('mouseup', onMouseUp);
-    }
+    card.addEventListener('mousedown', onMouseDown);
 }
 
 // ─── Selection highlights ────────────────────────────────
