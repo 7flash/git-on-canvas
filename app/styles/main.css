@@ -554,14 +554,13 @@ body {
     top: 0;
     z-index: 2;
     flex-shrink: 0;
-    cursor: grab;
+    cursor: default;
 }
 
 /* Simple file cards (all-files mode) */
 .file-card--simple {
     width: 220px;
     max-height: none;
-    cursor: grab;
 }
 
 .file-card--simple .file-card-header {
@@ -633,10 +632,12 @@ body {
     font-size: 13px;
     line-height: 1.5;
     color: var(--text-muted);
-    overflow: hidden;
+    overflow-y: auto;
     cursor: default;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 /* Styled scrollbar inside file cards */
@@ -853,10 +854,12 @@ body {
 
 .diff-hunk-body {
     display: flex;
+    max-height: 200px;
 }
 
 .hunk-current-pane {
     flex: 1;
+    overflow-y: auto;
     overflow-x: auto;
     min-width: 0;
 }
@@ -864,6 +867,7 @@ body {
 .hunk-removed-pane {
     width: 200px;
     flex-shrink: 0;
+    overflow-y: auto;
     overflow-x: auto;
     border-left: 1px solid rgba(239, 68, 68, 0.2);
     background: rgba(239, 68, 68, 0.03);
@@ -1217,10 +1221,7 @@ body {
     opacity: 1;
 }
 
-/* Header shows grab cursor */
-.file-card-header {
-    cursor: grab;
-}
+/* No special cursor on header — card is draggable from everywhere */
 
 
 /* ─── Line selection & connections ─────────────────── */

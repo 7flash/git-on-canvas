@@ -104,8 +104,19 @@ function getPositionKey(filePath, commitHash) {
 // ─── Canvas interaction (contextual) ─────────────────────
 function setupCanvasInteraction() {
     measure('canvas:setupInteraction', () => {
-        // Wheel: always zoom the canvas (no internal scroll on cards)
+        // Wheel: scroll hunk pane if hovering, zoom canvas otherwise
         canvasViewport.addEventListener('wheel', (e) => {
+            // Check if hovering over a scrollable hunk pane
+            const hunkPane = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane');
+            if (hunkPane && hunkPane.scrollHeight > hunkPane.clientHeight) {
+                // If scrolling is possible (even partially), let it happen
+                // Only zoom if we are strictly at the boundary and trying to go further?
+                // Actually, user wants "bring those scrolls over each hunk... back"
+                // It's better to prioritize scrolling over zooming when over a scrollable area.
+                return;
+            }
+
+            // Zoom the canvas
             e.preventDefault();
             const ctx = snap().context;
             const rect = canvasViewport.getBoundingClientRect();
@@ -756,6 +767,8 @@ function createAllFileCard(file, x, y, savedSize) {
 }
 
 // ─── Card interaction (contextual: center=move, corner=resize) ───
+const CORNER_CURSORS = { tl: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', br: 'nwse-resize' };
+
 function isNearCorner(e, card) {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -764,16 +777,10 @@ function isNearCorner(e, card) {
     const h = rect.height;
     const c = CORNER_SIZE;
 
-    // Check all 4 corners
-    const topLeft = x < c && y < c;
-    const topRight = x > w - c && y < c;
-    const bottomLeft = x < c && y > h - c;
-    const bottomRight = x > w - c && y > h - c;
-
-    if (bottomRight) return 'nwse-resize';
-    if (bottomLeft) return 'nesw-resize';
-    if (topRight) return 'nesw-resize';
-    if (topLeft) return 'nwse-resize';
+    if (x > w - c && y > h - c) return 'br';
+    if (x < c && y > h - c) return 'bl';
+    if (x > w - c && y < c) return 'tr';
+    if (x < c && y < c) return 'tl';
     return null;
 }
 
@@ -782,18 +789,17 @@ function setupCardInteraction(card, commitHash) {
     let startX, startY;
     let initialSelection = [];
     let initialPositions = {};
-    let resizeStartW, resizeStartH;
+    let resizeStartW, resizeStartH, resizeStartLeft, resizeStartTop;
     let resizeCorner = null;
 
     // Dynamic cursor on mousemove (show resize handles at corners)
     card.addEventListener('mousemove', (e) => {
-        if (action) return; // Don't override during active action
+        if (action) return;
         const corner = isNearCorner(e, card);
         if (corner) {
-            card.style.cursor = corner;
+            card.style.cursor = CORNER_CURSORS[corner];
         } else {
-            const inBody = e.target.closest('.file-card-body');
-            card.style.cursor = inBody ? 'default' : 'grab';
+            card.style.cursor = '';
         }
     });
 
@@ -819,9 +825,11 @@ function setupCardInteraction(card, commitHash) {
             e.stopPropagation();
             action = 'resize';
             resizeStartW = card.offsetWidth;
-            resizeStartH = parseInt(card.style.maxHeight) || card.offsetHeight;
+            resizeStartH = card.offsetHeight; // Use current height as start
+            resizeStartLeft = parseInt(card.style.left) || 0;
+            resizeStartTop = parseInt(card.style.top) || 0;
             card.classList.add('resizing');
-            document.body.style.cursor = resizeCorner;
+            document.body.style.cursor = CORNER_CURSORS[resizeCorner];
         } else {
             // ── Move ──
             e.stopPropagation();
@@ -881,8 +889,41 @@ function setupCardInteraction(card, commitHash) {
             });
             renderConnections();
         } else if (action === 'resize') {
-            card.style.width = `${Math.max(200, resizeStartW + dx)}px`;
-            card.style.maxHeight = `${Math.max(100, resizeStartH + dy)}px`;
+            // Calculate min height: header + path + 60px per hunk (min visible)
+            const hunkCount = card.querySelectorAll('.diff-hunk').length || 1;
+            const minH = 100 + hunkCount * 80;
+            const minW = 240;
+
+            let newW, newH, newLeft, newTop;
+
+            if (resizeCorner === 'br') {
+                newW = Math.max(minW, resizeStartW + dx);
+                newH = Math.max(minH, resizeStartH + dy);
+                newLeft = resizeStartLeft;
+                newTop = resizeStartTop;
+            } else if (resizeCorner === 'bl') {
+                newW = Math.max(minW, resizeStartW - dx);
+                newH = Math.max(minH, resizeStartH + dy);
+                newLeft = resizeStartLeft + (resizeStartW - newW);
+                newTop = resizeStartTop;
+            } else if (resizeCorner === 'tr') {
+                newW = Math.max(minW, resizeStartW + dx);
+                newH = Math.max(minH, resizeStartH - dy);
+                newLeft = resizeStartLeft;
+                newTop = resizeStartTop + (resizeStartH - newH);
+            } else if (resizeCorner === 'tl') {
+                newW = Math.max(minW, resizeStartW - dx);
+                newH = Math.max(minH, resizeStartH - dy);
+                newLeft = resizeStartLeft + (resizeStartW - newW);
+                newTop = resizeStartTop + (resizeStartH - newH);
+            }
+
+            card.style.width = `${newW}px`;
+            card.style.width = `${newW}px`;
+            card.style.height = `${newH}px`;
+            card.style.maxHeight = 'none'; // Clear max-height if any
+            card.style.left = `${newLeft}px`;
+            card.style.top = `${newTop}px`;
             renderConnections();
         }
     }
@@ -916,9 +957,11 @@ function setupCardInteraction(card, commitHash) {
         } else if (action === 'resize') {
             card.classList.remove('resizing');
             document.body.style.cursor = '';
-            const h = parseInt(card.style.maxHeight) || card.offsetHeight;
+            const h = card.offsetHeight;
+            const x = parseInt(card.style.left) || 0;
+            const y = parseInt(card.style.top) || 0;
             actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width: card.offsetWidth, height: h });
-            savePosition(commitHash, card.dataset.path, undefined, undefined, card.offsetWidth, h);
+            savePosition(commitHash, card.dataset.path, x, y, card.offsetWidth, h);
         }
 
         action = null;
