@@ -386,11 +386,10 @@ function renderFilesOnCanvas(files, commitHash) {
     });
 }
 
-// Create a file card element with diff-colored content
+// Create a file card element with hunk-based diff display
 function createFileCard(file, x, y, commitHash) {
     const card = document.createElement('div');
     card.className = `file-card file-card--${file.status || 'modified'}`;
-    if (file.status === 'modified' && file.prevContent) card.classList.add('file-card--sidebyside');
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
     card.dataset.path = file.path;
@@ -405,62 +404,54 @@ function createFileCard(file, x, y, commitHash) {
 
     // Build content based on status
     let contentHTML = '';
-    const addedSet = file.diffLines ? new Set(file.diffLines.added) : new Set();
-    const removedSet = file.diffLines ? new Set(file.diffLines.removed) : new Set();
 
     if (file.status === 'added' && file.content) {
-        // All lines are new - show in green
         const lines = file.content.split('\n');
         const code = lines.map((line, i) =>
-            `<span class="diff-line diff-added"><span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`
+            `<span class="diff-line diff-add"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span><span class="diff-sign">+</span>${escapeHtml(line)}</span>`
         ).join('\n');
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
 
-    } else if (file.status === 'deleted' && file.prevContent) {
-        // Show previous content - all lines shown as removed
-        const lines = file.prevContent.split('\n');
-        const code = lines.map((line, i) =>
-            `<span class="diff-line diff-removed"><span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`
-        ).join('\n');
-        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
-
-    } else if (file.status === 'modified' && file.content && file.prevContent) {
-        // Side-by-side: previous (left) + current (right)
-        const prevLines = file.prevContent.split('\n');
-        const currLines = file.content.split('\n');
-
-        const prevCode = prevLines.map((line, i) => {
-            const lineNum = i + 1;
-            const cls = removedSet.has(lineNum) ? 'diff-removed' : '';
-            return `<span class="diff-line ${cls}"><span class="line-num">${String(lineNum).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`;
-        }).join('\n');
-
-        const currCode = currLines.map((line, i) => {
-            const lineNum = i + 1;
-            const cls = addedSet.has(lineNum) ? 'diff-added' : '';
-            return `<span class="diff-line ${cls}"><span class="line-num">${String(lineNum).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`;
-        }).join('\n');
-
-        contentHTML = `
-            <div class="diff-side-by-side">
-                <div class="diff-pane diff-pane-prev">
-                    <div class="diff-pane-label">Before (${prevLines.length} lines)</div>
-                    <div class="file-content-preview"><pre><code>${prevCode}</code></pre></div>
-                </div>
-                <div class="diff-pane diff-pane-curr">
-                    <div class="diff-pane-label">After (${currLines.length} lines)</div>
-                    <div class="file-content-preview"><pre><code>${currCode}</code></pre></div>
-                </div>
-            </div>`;
-    } else if (file.content) {
+    } else if (file.status === 'deleted' && file.content) {
         const lines = file.content.split('\n');
         const code = lines.map((line, i) =>
-            `<span class="diff-line"><span class="line-num">${String(i + 1).padStart(3, ' ')}</span> ${escapeHtml(line)}</span>`
+            `<span class="diff-line diff-del"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span><span class="diff-sign">-</span>${escapeHtml(line)}</span>`
         ).join('\n');
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
+
+    } else if (file.status === 'modified' && file.hunks && file.hunks.length > 0) {
+        const hunksHTML = file.hunks.map(hunk => {
+            const header = `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@${hunk.context ? ' ' + escapeHtml(hunk.context) : ''}`;
+            let oldLine = hunk.oldStart;
+            let newLine = hunk.newStart;
+
+            const linesHTML = hunk.lines.map(l => {
+                if (l.type === 'add') {
+                    const ln = newLine++;
+                    return `<span class="diff-line diff-add"><span class="line-num">${String(ln).padStart(4, ' ')}</span><span class="diff-sign">+</span>${escapeHtml(l.content)}</span>`;
+                } else if (l.type === 'del') {
+                    const ln = oldLine++;
+                    return `<span class="diff-line diff-del"><span class="line-num">${String(ln).padStart(4, ' ')}</span><span class="diff-sign">-</span>${escapeHtml(l.content)}</span>`;
+                } else {
+                    oldLine++; newLine++;
+                    return `<span class="diff-line diff-ctx"><span class="line-num">${String(newLine - 1).padStart(4, ' ')}</span> ${escapeHtml(l.content)}</span>`;
+                }
+            }).join('\n');
+
+            return `<div class="diff-hunk"><div class="diff-hunk-header">${header}</div><pre><code>${linesHTML}</code></pre></div>`;
+        }).join('');
+        contentHTML = `<div class="file-content-preview">${hunksHTML}</div>`;
+
+    } else if (file.contentError) {
+        contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">${escapeHtml(file.contentError)}</span></code></pre></div>`;
     } else {
-        contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">${file.contentError || 'No content'}</span></code></pre></div>`;
+        contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">No changes to display</span></code></pre></div>`;
     }
+
+    const hunkCount = file.hunks?.length || 0;
+    const metaInfo = file.status === 'modified' && hunkCount > 0
+        ? `${hunkCount} hunk${hunkCount > 1 ? 's' : ''}`
+        : `${file.lines || 0} lines`;
 
     card.innerHTML = `
         <div class="file-card-header" style="border-left: 4px solid ${statusColor}">
@@ -469,31 +460,13 @@ function createFileCard(file, x, y, commitHash) {
             </div>
             <span class="file-name">${escapeHtml(file.name)}</span>
             <span class="file-status" style="background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${statusLabel}</span>
+            <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">${metaInfo}</span>
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(file.path)}</div>
             ${contentHTML}
         </div>
     `;
-
-    // Sync scroll for side-by-side panes
-    if (file.status === 'modified' && file.prevContent) {
-        requestAnimationFrame(() => {
-            const panes = card.querySelectorAll('.diff-pane .file-content-preview');
-            if (panes.length === 2) {
-                let syncing = false;
-                panes.forEach((pane, idx) => {
-                    pane.addEventListener('scroll', () => {
-                        if (syncing) return;
-                        syncing = true;
-                        const other = panes[1 - idx];
-                        other.scrollTop = pane.scrollTop;
-                        syncing = false;
-                    });
-                });
-            }
-        });
-    }
 
     setupCardDrag(card, commitHash);
     return card;
