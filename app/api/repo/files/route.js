@@ -13,9 +13,17 @@ export async function POST(req) {
             const git = simpleGit(repoPath);
 
             // Get files CHANGED in this specific commit
-            const diffResult = await git.raw([
-                'diff-tree', '--no-commit-id', '--name-status', '-r', commit
-            ]);
+            // Use --root for initial commits that have no parent
+            let diffResult = '';
+            try {
+                diffResult = await git.raw(['diff-tree', '--no-commit-id', '--name-status', '-r', commit]);
+            } catch (e) { /* ignore */ }
+            // If empty (root commit), try with --root
+            if (!diffResult.trim()) {
+                try {
+                    diffResult = await git.raw(['diff-tree', '--root', '--no-commit-id', '--name-status', '-r', commit]);
+                } catch (e) { /* ignore */ }
+            }
 
             const changedFiles = [];
             const lines = diffResult.trim().split('\n').filter(Boolean);
@@ -29,26 +37,21 @@ export async function POST(req) {
                 const fileStatus = status === 'A' ? 'added' : status === 'D' ? 'deleted' : status === 'M' ? 'modified' : status;
 
                 let content = null;
-                let prevContent = null;
-                let diffLines = null;
+                let hunks = [];
                 let error = null;
 
                 if (fileStatus === 'added') {
-                    // New file - get content at this commit
+                    // New file - get full content
                     try { content = await git.show([`${commit}:${filePath}`]); } catch (e) { error = e.message; }
                 } else if (fileStatus === 'deleted') {
-                    // Deleted file - get content from parent commit
-                    try { prevContent = await git.show([`${commit}~1:${filePath}`]); } catch (e) { error = e.message; }
+                    // Deleted file - get previous content 
+                    try { content = await git.show([`${commit}~1:${filePath}`]); } catch (e) { error = e.message; }
                 } else if (fileStatus === 'modified') {
-                    // Modified - get both versions + unified diff
-                    try { content = await git.show([`${commit}:${filePath}`]); } catch (e) { error = e.message; }
-                    try { prevContent = await git.show([`${commit}~1:${filePath}`]); } catch (e) { /* ignore */ }
-
-                    // Get unified diff for this file
+                    // Modified - parse unified diff into hunks
                     try {
-                        const rawDiff = await git.raw(['diff', `${commit}~1`, commit, '--', filePath]);
-                        diffLines = parseDiff(rawDiff);
-                    } catch (e) { /* ignore diff errors */ }
+                        const rawDiff = await git.raw(['diff', '-U3', `${commit}~1`, commit, '--', filePath]);
+                        hunks = parseHunks(rawDiff);
+                    } catch (e) { error = e.message; }
                 }
 
                 changedFiles.push({
@@ -57,11 +60,9 @@ export async function POST(req) {
                     type: 'file',
                     status: fileStatus,
                     content,
-                    prevContent,
-                    diffLines,
+                    hunks,
                     contentError: error,
-                    lines: content ? content.split('\n').length : 0,
-                    prevLines: prevContent ? prevContent.split('\n').length : 0
+                    lines: content ? content.split('\n').length : 0
                 });
             }
 
@@ -73,38 +74,44 @@ export async function POST(req) {
     });
 }
 
-// Parse unified diff into structured line changes
-function parseDiff(rawDiff) {
-    const lines = rawDiff.split('\n');
-    const changes = { added: new Set(), removed: new Set(), context: new Set() };
-    let currentOldLine = 0;
-    let currentNewLine = 0;
+// Parse unified diff into structured hunks
+function parseHunks(rawDiff) {
+    const allLines = rawDiff.split('\n');
+    const hunks = [];
+    let currentHunk = null;
 
-    for (const line of lines) {
-        // Parse hunk header: @@ -old,count +new,count @@
-        const hunkMatch = line.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    for (const line of allLines) {
+        // Parse hunk header: @@ -old,count +new,count @@ optional context
+        const hunkMatch = line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)/);
         if (hunkMatch) {
-            currentOldLine = parseInt(hunkMatch[1]) - 1;
-            currentNewLine = parseInt(hunkMatch[2]) - 1;
+            if (currentHunk) hunks.push(currentHunk);
+            currentHunk = {
+                oldStart: parseInt(hunkMatch[1]),
+                oldCount: parseInt(hunkMatch[2] || '1'),
+                newStart: parseInt(hunkMatch[3]),
+                newCount: parseInt(hunkMatch[4] || '1'),
+                context: hunkMatch[5]?.trim() || '',
+                lines: []
+            };
             continue;
         }
 
-        if (line.startsWith('---') || line.startsWith('+++') || line.startsWith('diff ') || line.startsWith('index ')) continue;
+        // Skip diff metadata lines
+        if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')) continue;
+
+        if (!currentHunk) continue;
 
         if (line.startsWith('+')) {
-            currentNewLine++;
-            changes.added.add(currentNewLine);
+            currentHunk.lines.push({ type: 'add', content: line.substring(1) });
         } else if (line.startsWith('-')) {
-            currentOldLine++;
-            changes.removed.add(currentOldLine);
-        } else if (!line.startsWith('\\')) {
-            currentOldLine++;
-            currentNewLine++;
+            currentHunk.lines.push({ type: 'del', content: line.substring(1) });
+        } else if (line.startsWith('\\')) {
+            // "\ No newline at end of file" - skip
+        } else {
+            currentHunk.lines.push({ type: 'ctx', content: line.startsWith(' ') ? line.substring(1) : line });
         }
     }
 
-    return {
-        added: Array.from(changes.added),
-        removed: Array.from(changes.removed)
-    };
+    if (currentHunk) hunks.push(currentHunk);
+    return hunks;
 }

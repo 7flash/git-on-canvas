@@ -747,86 +747,72 @@ body {
     width: 960px;
 }
 
-/* Diff line coloring */
+/* Diff line styles */
 .diff-line {
     display: block;
-    min-height: 1.4em;
+    line-height: 1.25;
+    white-space: pre;
 }
 
-.diff-line.diff-added {
+.diff-line.diff-add {
     color: #4ade80;
-    background: rgba(34, 197, 94, 0.08);
+    background: rgba(34, 197, 94, 0.06);
 }
 
-.diff-line.diff-removed {
+.diff-line.diff-del {
     color: #f87171;
-    background: rgba(239, 68, 68, 0.08);
+    background: rgba(239, 68, 68, 0.06);
 }
 
-/* Side-by-side layout */
-.diff-side-by-side {
-    display: flex;
-    gap: 2px;
-    flex: 1;
-    min-height: 0;
-}
-
-.diff-pane {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    min-height: 0;
-}
-
-.diff-pane-label {
-    font-size: 0.65rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 4px 8px;
-    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-    flex-shrink: 0;
-}
-
-.diff-pane-prev .diff-pane-label {
+.diff-line.diff-ctx {
     color: var(--text-muted);
-    background: rgba(255, 255, 255, 0.03);
 }
 
-.diff-pane-curr .diff-pane-label {
+.diff-sign {
+    display: inline-block;
+    width: 12px;
+    text-align: center;
+    font-weight: 700;
+    margin-right: 4px;
+}
+
+.diff-add .diff-sign {
+    color: #22c55e;
+}
+
+.diff-del .diff-sign {
+    color: #ef4444;
+}
+
+/* Hunk container */
+.diff-hunk {
+    margin-bottom: 2px;
+}
+
+.diff-hunk:last-child {
+    margin-bottom: 0;
+}
+
+.diff-hunk-header {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
     color: var(--accent-tertiary);
-    background: rgba(124, 58, 237, 0.06);
+    background: rgba(124, 58, 237, 0.08);
+    padding: 3px 8px;
+    border-left: 2px solid var(--accent-primary);
+    margin-bottom: 0;
+    line-height: 1.3;
 }
 
-.diff-pane .file-content-preview {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: auto;
-    min-height: 0;
-    margin-top: 0;
-    border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+.diff-hunk pre {
+    margin: 0;
 }
 
-/* Styled scrollbar inside diff panes */
-.diff-pane .file-content-preview::-webkit-scrollbar {
-    width: 5px;
+.diff-hunk code {
+    font-size: 0.7rem;
+    line-height: 1.25;
 }
 
-.diff-pane .file-content-preview::-webkit-scrollbar-track {
-    background: transparent;
-}
-
-.diff-pane .file-content-preview::-webkit-scrollbar-thumb {
-    background: rgba(124, 58, 237, 0.25);
-    border-radius: 3px;
-}
-
-/* Side-by-side card body needs flex layout */
-.file-card--sidebyside .file-card-body {
-    display: flex;
-    flex-direction: column;
-}
 
 /* Minimap */
 .minimap {
