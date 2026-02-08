@@ -187,6 +187,50 @@ body {
     transform: scale(0.95);
 }
 
+/* View Mode Toggle */
+.view-mode-toggle {
+    display: flex;
+    gap: 2px;
+    padding: 0 20px;
+    margin-bottom: 4px;
+}
+
+.mode-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 10px;
+    font-size: 0.7rem;
+    font-weight: 500;
+    font-family: var(--font-main);
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.mode-btn:first-child {
+    border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.mode-btn:last-child {
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.mode-btn:hover {
+    background: var(--bg-elevated);
+    color: var(--text-secondary);
+}
+
+.mode-btn.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
+}
+
 /* Commit Timeline */
 .commit-timeline {
     flex: 1;
@@ -514,6 +558,17 @@ body {
     cursor: grab;
 }
 
+/* Simple file cards (all-files mode) */
+.file-card--simple {
+    width: 220px;
+    max-height: none;
+    cursor: grab;
+}
+
+.file-card--simple .file-card-header {
+    border-bottom: none;
+}
+
 .file-icon {
     width: 20px;
     height: 20px;
@@ -671,10 +726,10 @@ body {
 
 .file-content-preview pre {
     margin: 0;
-    padding: 8px 12px;
+    padding: 4px 8px;
     font-family: var(--font-mono);
-    font-size: 0.7rem;
-    line-height: 1.5;
+    font-size: 0.65rem;
+    line-height: 1.1;
     white-space: pre;
     overflow-x: auto;
 }
