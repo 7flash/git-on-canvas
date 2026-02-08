@@ -4,7 +4,7 @@ import { execSync } from 'child_process';
 export async function POST(req) {
     return measure('api:repo:browse', async () => {
         try {
-            // Use PowerShell to open native folder picker on Windows
+            // Use PowerShell with -EncodedCommand to avoid quoting issues
             const psScript = `
 Add-Type -AssemblyName System.Windows.Forms
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -16,10 +16,13 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
 } else {
     Write-Output ""
 }
-`.trim().replace(/\n/g, '; ');
+`.trim();
+
+            // Encode as UTF-16LE base64 for -EncodedCommand
+            const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
 
             const selected = execSync(
-                `powershell -NoProfile -Command "${psScript}"`,
+                `powershell -NoProfile -EncodedCommand ${encoded}`,
                 { encoding: 'utf-8', timeout: 60000 }
             ).trim();
 

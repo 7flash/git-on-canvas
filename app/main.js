@@ -104,25 +104,8 @@ function getPositionKey(filePath, commitHash) {
 // ─── Canvas interaction (contextual) ─────────────────────
 function setupCanvasInteraction() {
     measure('canvas:setupInteraction', () => {
-        // Wheel: scroll file if hovering file, zoom canvas otherwise
+        // Wheel: always zoom the canvas (no internal scroll on cards)
         canvasViewport.addEventListener('wheel', (e) => {
-            const scrollTarget = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane') || e.target.closest('.file-card-body') || e.target.closest('.file-content-preview');
-            if (scrollTarget) {
-                const isScrollable = scrollTarget.scrollHeight > scrollTarget.clientHeight;
-                if (isScrollable) {
-                    const atTop = scrollTarget.scrollTop === 0 && e.deltaY < 0;
-                    const atBottom = (scrollTarget.scrollTop + scrollTarget.clientHeight >= scrollTarget.scrollHeight - 1) && e.deltaY > 0;
-                    if (!atTop && !atBottom) {
-                        const card = scrollTarget.closest('.file-card');
-                        if (card && snap().value?.view === 'allfiles') {
-                            debounceSaveScroll(card.dataset.path, scrollTarget.scrollTop);
-                        }
-                        return; // Let the file scroll naturally
-                    }
-                }
-            }
-
-            // Zoom the canvas
             e.preventDefault();
             const ctx = snap().context;
             const rect = canvasViewport.getBoundingClientRect();
@@ -139,7 +122,7 @@ function setupCanvasInteraction() {
             actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
             updateCanvasTransform();
             updateZoomUI();
-        });
+        }, { passive: false });
 
         // Mousedown on empty canvas = pan
         canvasViewport.addEventListener('mousedown', (e) => {
@@ -679,6 +662,11 @@ function createFileCard(file, x, y, commitHash) {
             <span class="file-name">${escapeHtml(file.name)}</span>
             <span class="file-status" style="background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${statusLabel}</span>
             <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">${metaInfo}</span>
+            <button class="connect-btn" title="Drag to connect to another file" data-path="${escapeHtml(file.path)}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10" stroke-dasharray="3,2"/>
+                </svg>
+            </button>
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(file.path)}</div>
@@ -687,6 +675,7 @@ function createFileCard(file, x, y, commitHash) {
     `;
 
     setupCardInteraction(card, commitHash);
+    setupConnectionDrag(card, file.path);
 
     // Add scroll listener for connections
     const body = card.querySelector('.file-card-body');
@@ -738,6 +727,11 @@ function createAllFileCard(file, x, y, savedSize) {
             </div>
             <span class="file-name">${escapeHtml(file.name)}</span>
             <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">${file.lines} lines</span>
+            <button class="connect-btn" title="Drag to connect to another file" data-path="${escapeHtml(file.path)}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10" stroke-dasharray="3,2"/>
+                </svg>
+            </button>
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(dir)}</div>
@@ -745,8 +739,8 @@ function createAllFileCard(file, x, y, savedSize) {
         </div>
     `;
 
-    // Setup line selection for connect mode
-    setupLineSelection(card, file.path);
+    // Setup connection drag from button
+    setupConnectionDrag(card, file.path);
     setupCardInteraction(card, 'allfiles');
 
     // Track scroll position & update connections
@@ -947,65 +941,186 @@ function clearSelectionHighlights() {
     fileCards.forEach(card => card.classList.remove('selected'));
 }
 
-// ─── Line selection for connections ──────────────────────
-function setupLineSelection(card, filePath) {
-    let selectionStart = null;
+// ─── Connection drag from button ─────────────────────────
+let connectionDragState = null; // { sourceFile, sourceCard, arrowEl }
 
-    card.addEventListener('mousedown', (e) => {
-        // Connections work by Alt+Click on diff lines
-        if (!e.altKey) return;
+function setupConnectionDrag(card, filePath) {
+    const connectBtn = card.querySelector('.connect-btn');
+    if (!connectBtn) return;
 
-        const diffLine = e.target.closest('.diff-line');
-        if (!diffLine) return;
-
+    connectBtn.addEventListener('mousedown', (e) => {
         e.stopPropagation();
-        const lineNum = parseInt(diffLine.dataset.line);
-        if (isNaN(lineNum)) return;
+        e.preventDefault();
 
-        selectionStart = lineNum;
+        // Create arrow element
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        const btnRect = connectBtn.getBoundingClientRect();
+        const vpRect = canvasViewport.getBoundingClientRect();
+        const ctx = snap().context;
 
-        // Highlight the starting line
-        diffLine.classList.add('line-selected');
+        const startX = (btnRect.left + btnRect.width / 2 - vpRect.left - ctx.offsetX) / ctx.zoom;
+        const startY = (btnRect.top + btnRect.height / 2 - vpRect.top - ctx.offsetY) / ctx.zoom;
+
+        arrow.setAttribute('x1', startX);
+        arrow.setAttribute('y1', startY);
+        arrow.setAttribute('x2', startX);
+        arrow.setAttribute('y2', startY);
+        arrow.setAttribute('stroke', 'var(--accent-primary)');
+        arrow.setAttribute('stroke-width', '2.5');
+        arrow.setAttribute('stroke-dasharray', '6,3');
+        arrow.setAttribute('opacity', '0.9');
+        svgOverlay.appendChild(arrow);
+
+        // Add a dragging dot at the end
+        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        dot.setAttribute('cx', startX);
+        dot.setAttribute('cy', startY);
+        dot.setAttribute('r', '5');
+        dot.setAttribute('fill', 'var(--accent-primary)');
+        svgOverlay.appendChild(dot);
+
+        connectionDragState = { sourceFile: filePath, sourceCard: card, arrowEl: arrow, dotEl: dot, startX, startY };
+
+        card.classList.add('connecting');
+        document.body.style.cursor = 'crosshair';
+
+        window.addEventListener('mousemove', onConnDragMove);
+        window.addEventListener('mouseup', onConnDragUp);
+    });
+}
+
+function onConnDragMove(e) {
+    if (!connectionDragState) return;
+    const ctx = snap().context;
+    const vpRect = canvasViewport.getBoundingClientRect();
+    const ex = (e.clientX - vpRect.left - ctx.offsetX) / ctx.zoom;
+    const ey = (e.clientY - vpRect.top - ctx.offsetY) / ctx.zoom;
+
+    connectionDragState.arrowEl.setAttribute('x2', ex);
+    connectionDragState.arrowEl.setAttribute('y2', ey);
+    connectionDragState.dotEl.setAttribute('cx', ex);
+    connectionDragState.dotEl.setAttribute('cy', ey);
+
+    // Highlight target card on hover
+    const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.file-card');
+    fileCards.forEach((c) => c.classList.remove('connect-target'));
+    if (targetCard && targetCard !== connectionDragState.sourceCard) {
+        targetCard.classList.add('connect-target');
+    }
+}
+
+function onConnDragUp(e) {
+    window.removeEventListener('mousemove', onConnDragMove);
+    window.removeEventListener('mouseup', onConnDragUp);
+
+    if (!connectionDragState) return;
+
+    // Clean up arrow
+    connectionDragState.arrowEl.remove();
+    connectionDragState.dotEl.remove();
+    connectionDragState.sourceCard.classList.remove('connecting');
+    fileCards.forEach((c) => c.classList.remove('connect-target'));
+    document.body.style.cursor = '';
+
+    // Find target card
+    const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.file-card');
+    if (!targetCard || targetCard === connectionDragState.sourceCard) {
+        connectionDragState = null;
+        return;
+    }
+
+    const targetPath = targetCard.dataset.path;
+    const sourceFile = connectionDragState.sourceFile;
+    connectionDragState = null;
+
+    // Show connection dialog
+    showConnectionDialog(sourceFile, targetPath);
+}
+
+function showConnectionDialog(sourceFile, targetFile) {
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'connection-dialog-overlay';
+
+    const sourceLineCount = getFileLineCount(sourceFile);
+    const targetLineCount = getFileLineCount(targetFile);
+
+    overlay.innerHTML = `
+        <div class="connection-dialog">
+            <h3>Create Connection</h3>
+            <div class="conn-dialog-row">
+                <div class="conn-dialog-file">
+                    <label>Source</label>
+                    <span class="conn-file-name">${escapeHtml(sourceFile)}</span>
+                    <div class="conn-line-range">
+                        <label>Lines</label>
+                        <input type="number" id="connSourceStart" value="1" min="1" max="${sourceLineCount}" />
+                        <span>–</span>
+                        <input type="number" id="connSourceEnd" value="${Math.min(10, sourceLineCount)}" min="1" max="${sourceLineCount}" />
+                    </div>
+                </div>
+                <div class="conn-dialog-arrow">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M5 12h14M13 6l6 6-6 6"/>
+                    </svg>
+                </div>
+                <div class="conn-dialog-file">
+                    <label>Target</label>
+                    <span class="conn-file-name">${escapeHtml(targetFile)}</span>
+                    <div class="conn-line-range">
+                        <label>Lines</label>
+                        <input type="number" id="connTargetStart" value="1" min="1" max="${targetLineCount}" />
+                        <span>–</span>
+                        <input type="number" id="connTargetEnd" value="${Math.min(10, targetLineCount)}" min="1" max="${targetLineCount}" />
+                    </div>
+                </div>
+            </div>
+            <div class="conn-dialog-comment">
+                <label>Comment</label>
+                <input type="text" id="connComment" placeholder="Describe this connection..." />
+            </div>
+            <div class="conn-dialog-actions">
+                <button class="btn-secondary" id="connCancel">Cancel</button>
+                <button class="btn-primary" id="connCreate">Create Connection</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    // Focus comment input
+    setTimeout(() => overlay.querySelector('#connComment')?.focus(), 100);
+
+    overlay.querySelector('#connCancel').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelector('#connCreate').addEventListener('click', () => {
+        const srcStart = parseInt(overlay.querySelector('#connSourceStart').value) || 1;
+        const srcEnd = parseInt(overlay.querySelector('#connSourceEnd').value) || srcStart;
+        const tgtStart = parseInt(overlay.querySelector('#connTargetStart').value) || 1;
+        const tgtEnd = parseInt(overlay.querySelector('#connTargetEnd').value) || tgtStart;
+        const comment = overlay.querySelector('#connComment').value || '';
+
+        actor.send({ type: 'START_CONNECTION', sourceFile, lineStart: srcStart, lineEnd: srcEnd });
+        actor.send({ type: 'COMPLETE_CONNECTION', targetFile, lineStart: tgtStart, lineEnd: tgtEnd, comment });
+        renderConnections();
+        saveConnections();
+        showToast('Connection created!', 'success');
+        overlay.remove();
     });
 
-    card.addEventListener('mouseup', (e) => {
-        if (!e.altKey || selectionStart === null) return;
-
-        const diffLine = e.target.closest('.diff-line');
-        if (!diffLine) { selectionStart = null; return; }
-
-        const lineEnd = parseInt(diffLine.dataset.line);
-        if (isNaN(lineEnd)) { selectionStart = null; return; }
-
-        const lineStart = Math.min(selectionStart, lineEnd);
-        const lineEndFinal = Math.max(selectionStart, lineEnd);
-
-        // Highlight range
-        card.querySelectorAll('.diff-line').forEach(line => {
-            const ln = parseInt(line.dataset.line);
-            line.classList.toggle('line-selected', ln >= lineStart && ln <= lineEndFinal);
-        });
-
-        const pending = snap().context.pendingConnection;
-
-        if (!pending) {
-            // Start connection
-            actor.send({ type: 'START_CONNECTION', sourceFile: filePath, lineStart, lineEnd: lineEndFinal });
-            showToast(`Selected lines ${lineStart}-${lineEndFinal}. Now click target lines in another file.`, 'info');
-        } else if (pending.sourceFile !== filePath) {
-            // Complete connection — ask for comment
-            const comment = prompt('Connection comment (optional):') || '';
-            actor.send({ type: 'COMPLETE_CONNECTION', targetFile: filePath, lineStart, lineEnd: lineEndFinal, comment });
-            showToast('Connection created!', 'success');
-            renderConnections();
-            // Save connections
-            saveConnections();
-        } else {
-            showToast('Select lines in a different file to create a connection', 'warning');
-        }
-
-        selectionStart = null;
+    // Enter key creates connection
+    overlay.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') overlay.querySelector('#connCreate')?.click();
+        if (e.key === 'Escape') overlay.remove();
     });
+}
+
+function getFileLineCount(filePath) {
+    const card = fileCards.get(filePath);
+    if (!card) return 100;
+    const lines = card.querySelectorAll('.diff-line');
+    return lines.length || 100;
 }
 
 // ─── Connections rendering ───────────────────────────────

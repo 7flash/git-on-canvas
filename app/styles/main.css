@@ -519,7 +519,6 @@ body {
 .file-card {
     position: absolute;
     width: 580px;
-    max-height: 700px;
     background: var(--bg-card);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
@@ -634,10 +633,7 @@ body {
     font-size: 13px;
     line-height: 1.5;
     color: var(--text-muted);
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 0;
+    overflow: hidden;
     cursor: default;
     display: flex;
     flex-direction: column;
@@ -857,12 +853,10 @@ body {
 
 .diff-hunk-body {
     display: flex;
-    max-height: 240px;
 }
 
 .hunk-current-pane {
     flex: 1;
-    overflow-y: auto;
     overflow-x: auto;
     min-width: 0;
 }
@@ -870,7 +864,6 @@ body {
 .hunk-removed-pane {
     width: 200px;
     flex-shrink: 0;
-    overflow-y: auto;
     overflow-x: auto;
     border-left: 1px solid rgba(239, 68, 68, 0.2);
     background: rgba(239, 68, 68, 0.03);
@@ -1298,4 +1291,253 @@ body {
     opacity: 1 !important;
     stroke-width: 3 !important;
     filter: drop-shadow(0 0 6px var(--accent-primary));
+}
+
+/* ─── Connect button in card header ──────────────── */
+.connect-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: grab;
+    transition: all var(--transition-fast);
+    padding: 0;
+    flex-shrink: 0;
+    opacity: 0;
+}
+
+.file-card:hover .connect-btn {
+    opacity: 1;
+}
+
+.connect-btn:hover {
+    background: rgba(124, 58, 237, 0.15);
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    transform: scale(1.1);
+}
+
+.connect-btn:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+/* Card states for connection drag */
+.file-card.connecting {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+    box-shadow: 0 0 25px rgba(124, 58, 237, 0.3);
+}
+
+.file-card.connect-target {
+    outline: 2px dashed var(--success);
+    outline-offset: 3px;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+    transform: scale(1.02);
+    transition: all 0.15s ease;
+}
+
+/* ─── Connection Dialog ──────────────────────────── */
+.connection-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.connection-dialog {
+    background: var(--bg-card);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    min-width: 480px;
+    max-width: 600px;
+    box-shadow: var(--shadow-lg), 0 0 40px rgba(124, 58, 237, 0.15);
+}
+
+.connection-dialog h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.connection-dialog h3::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 16px;
+    background: var(--accent-primary);
+    border-radius: 2px;
+}
+
+.conn-dialog-row {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.conn-dialog-file {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+
+.conn-dialog-file>label {
+    display: block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.conn-file-name {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-primary);
+    word-break: break-all;
+    margin-bottom: 10px;
+}
+
+.conn-line-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.conn-line-range label {
+    font-size: 11px;
+    color: var(--text-muted);
+    min-width: 32px;
+}
+
+.conn-line-range input {
+    width: 60px;
+    padding: 4px 8px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-family: var(--font-mono);
+    text-align: center;
+}
+
+.conn-line-range input:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.conn-line-range span {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.conn-dialog-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--accent-primary);
+    padding: 0 4px;
+}
+
+.conn-dialog-comment {
+    margin-bottom: 20px;
+}
+
+.conn-dialog-comment label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+.conn-dialog-comment input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.conn-dialog-comment input:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.conn-dialog-comment input::placeholder {
+    color: var(--text-muted);
+}
+
+.conn-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-secondary {
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--text-muted);
+}
+
+.btn-primary {
+    padding: 8px 16px;
+    background: var(--accent-primary);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    color: white;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.btn-primary:hover {
+    background: var(--accent-hover);
+    box-shadow: 0 0 15px rgba(124, 58, 237, 0.3);
 }
