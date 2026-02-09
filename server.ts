@@ -178,4 +178,8 @@ console.log('📁 Loading API routes:');
 await loadApiRoutes();
 console.log('📦 Building assets:');
 await buildAssets();
-await serve(handler, { port: 3113 });
+try {
+    await serve(handler);
+} catch (e) {
+    console.error('Failed to start server:', e);
+}

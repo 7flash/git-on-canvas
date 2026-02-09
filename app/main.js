@@ -12,6 +12,7 @@ let fileCards = new Map();
 let positions = new Map();
 let isDragging = false;
 let dragStartX, dragStartY;
+let hiddenFiles = new Set(); // Files hidden by user
 
 // ─── Corner detection threshold ──────────────────────────
 const CORNER_SIZE = 24; // px from corner to trigger resize
@@ -32,6 +33,8 @@ async function init() {
         setupCanvasInteraction();
         setupEventListeners();
         await loadSavedPositions();
+        loadHiddenFiles();
+        updateHiddenUI();
 
         // Check URL hash for repo path
         const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
@@ -106,13 +109,10 @@ function setupCanvasInteraction() {
     measure('canvas:setupInteraction', () => {
         // Wheel: scroll hunk pane if hovering, zoom canvas otherwise
         canvasViewport.addEventListener('wheel', (e) => {
-            // Check if hovering over a scrollable hunk pane
-            const hunkPane = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane');
-            if (hunkPane && hunkPane.scrollHeight > hunkPane.clientHeight) {
-                // If scrolling is possible (even partially), let it happen
-                // Only zoom if we are strictly at the boundary and trying to go further?
-                // Actually, user wants "bring those scrolls over each hunk... back"
-                // It's better to prioritize scrolling over zooming when over a scrollable area.
+            // Check if hovering over a scrollable area (hunk pane or file-card-body)
+            const scrollable = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane') || e.target.closest('.file-card-body');
+            if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) {
+                // Prioritize scrolling over zooming when over a scrollable area
                 return;
             }
 
@@ -239,6 +239,22 @@ function setupEventListeners() {
         // Browse button — paste path from clipboard
         document.getElementById('browseRepo').addEventListener('click', pasteRepoPath);
 
+        // Browse folder button — browser file input
+        document.getElementById('browseFolder').addEventListener('click', () => {
+            document.getElementById('folderPickerInput').click();
+        });
+        document.getElementById('folderPickerInput').addEventListener('change', (e) => {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                // Extract the common root path from the webkitRelativePath
+                const firstPath = files[0].webkitRelativePath;
+                if (firstPath) {
+                    const rootDir = firstPath.split('/')[0];
+                    showToast(`Selected folder: ${rootDir} — type the full path in the input`, 'info');
+                }
+            }
+        });
+
         // Zoom slider
         document.getElementById('zoomSlider').addEventListener('input', (e) => {
             actor.send({ type: 'SET_ZOOM', zoom: parseFloat(e.target.value) });
@@ -261,6 +277,9 @@ function setupEventListeners() {
         document.getElementById('modeCommits').addEventListener('click', () => switchView('commits'));
         document.getElementById('modeAllFiles').addEventListener('click', () => switchView('allfiles'));
 
+        // Hidden files button
+        document.getElementById('showHidden').addEventListener('click', showHiddenFilesModal);
+
         // Close preview
         document.getElementById('closePreview').addEventListener('click', closePreview);
         document.querySelector('.modal-backdrop').addEventListener('click', closePreview);
@@ -269,9 +288,21 @@ function setupEventListeners() {
         window.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 closePreview();
+                // Close hidden files modal if open
+                const hiddenModal = document.getElementById('hiddenFilesModal');
+                if (hiddenModal) hiddenModal.remove();
                 if (snap().context.pendingConnection) {
                     actor.send({ type: 'CANCEL_CONNECTION' });
                     showToast('Connection cancelled', 'info');
+                }
+            }
+            if (e.key === 'Delete' || e.key === 'Backspace') {
+                // Don't interfere with input fields
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                const selected = snap().context.selectedCards;
+                if (selected.length > 0) {
+                    e.preventDefault();
+                    hideSelectedFiles(selected);
                 }
             }
         });
@@ -329,6 +360,151 @@ function updateLoadingProgress(sub) {
 function hideLoadingProgress() {
     if (loadingOverlay) {
         loadingOverlay.classList.remove('active');
+    }
+}
+
+// ─── Hidden files management ─────────────────────────
+function loadHiddenFiles() {
+    try {
+        const saved = localStorage.getItem('gitcanvas:hiddenFiles');
+        if (saved) {
+            const arr = JSON.parse(saved);
+            arr.forEach(f => hiddenFiles.add(f));
+        }
+    } catch (e) { /* ignore */ }
+}
+
+function saveHiddenFiles() {
+    localStorage.setItem('gitcanvas:hiddenFiles', JSON.stringify([...hiddenFiles]));
+}
+
+function updateHiddenUI() {
+    const btn = document.getElementById('showHidden');
+    const badge = document.getElementById('hiddenCount');
+    if (hiddenFiles.size > 0) {
+        btn.style.display = 'inline-flex';
+        badge.textContent = hiddenFiles.size;
+    } else {
+        btn.style.display = 'none';
+    }
+}
+
+function hideSelectedFiles(paths) {
+    measure('files:hide', () => {
+        paths.forEach(p => hiddenFiles.add(p));
+        saveHiddenFiles();
+        actor.send({ type: 'DESELECT_ALL' });
+        clearSelectionHighlights();
+
+        // Remove cards from canvas
+        paths.forEach(p => {
+            const card = fileCards.get(p);
+            if (card) {
+                card.remove();
+                fileCards.delete(p);
+            }
+        });
+
+        updateHiddenUI();
+        showToast(`Hidden ${paths.length} file${paths.length > 1 ? 's' : ''}`, 'info');
+    });
+}
+
+function restoreFile(filePath) {
+    hiddenFiles.delete(filePath);
+    saveHiddenFiles();
+    updateHiddenUI();
+}
+
+function restoreAllHidden() {
+    hiddenFiles.clear();
+    saveHiddenFiles();
+    updateHiddenUI();
+}
+
+function showHiddenFilesModal() {
+    measure('modal:hiddenFiles', () => {
+        if (hiddenFiles.size === 0) {
+            showToast('No hidden files', 'info');
+            return;
+        }
+
+        // Create modal
+        let modal = document.getElementById('hiddenFilesModal');
+        if (modal) modal.remove();
+
+        modal = document.createElement('div');
+        modal.id = 'hiddenFilesModal';
+        modal.className = 'hidden-files-modal';
+
+        const list = [...hiddenFiles].map(f => `
+            <div class="hidden-file-row" data-path="${f}">
+                <span class="hidden-file-path">${f}</span>
+                <button class="btn-restore" data-restore="${f}" title="Restore this file">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                </button>
+            </div>
+        `).join('');
+
+        modal.innerHTML = `
+            <div class="hidden-modal-backdrop"></div>
+            <div class="hidden-modal-content">
+                <div class="hidden-modal-header">
+                    <h3>Hidden Files (${hiddenFiles.size})</h3>
+                    <div class="hidden-modal-actions">
+                        <button class="btn-secondary btn-sm" id="restoreAllHidden">Restore All</button>
+                        <button class="hidden-modal-close">&times;</button>
+                    </div>
+                </div>
+                <div class="hidden-modal-body">${list}</div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Event handlers
+        modal.querySelector('.hidden-modal-backdrop').addEventListener('click', () => modal.remove());
+        modal.querySelector('.hidden-modal-close').addEventListener('click', () => modal.remove());
+        modal.querySelector('#restoreAllHidden').addEventListener('click', () => {
+            restoreAllHidden();
+            modal.remove();
+            // Re-render
+            rerenderCurrentView();
+            showToast('All files restored', 'success');
+        });
+
+        modal.querySelectorAll('.btn-restore').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const path = btn.dataset.restore;
+                restoreFile(path);
+                btn.closest('.hidden-file-row').remove();
+                // Update count
+                const header = modal.querySelector('h3');
+                header.textContent = `Hidden Files (${hiddenFiles.size})`;
+                if (hiddenFiles.size === 0) {
+                    modal.remove();
+                }
+                rerenderCurrentView();
+            });
+        });
+    });
+}
+
+function rerenderCurrentView() {
+    const viewState = snap().value?.view;
+    if (viewState === 'allfiles') {
+        const ctx = snap().context;
+        if (ctx.allFiles.length > 0) {
+            renderAllFilesOnCanvas(ctx.allFiles);
+        }
+    } else {
+        const ctx = snap().context;
+        if (ctx.commitFiles.length > 0) {
+            renderFilesOnCanvas(ctx.commitFiles, ctx.currentCommitHash);
+        }
     }
 }
 
@@ -545,12 +721,16 @@ function renderFilesOnCanvas(files, commitHash) {
     measure('canvas:renderFiles', () => {
         clearCanvas();
 
-        const cols = Math.min(files.length, getAutoColumnCount());
+        // Filter out hidden files
+        const visibleFiles = files.filter(f => !hiddenFiles.has(f.path));
+        updateHiddenUI();
+
+        const cols = Math.min(visibleFiles.length, getAutoColumnCount());
         const cardWidth = 580;
         const cardHeight = 700;
         const gap = 40;
 
-        files.forEach((file, index) => {
+        visibleFiles.forEach((file, index) => {
             const posKey = getPositionKey(file.path, commitHash);
             let x, y;
 
@@ -576,12 +756,16 @@ function renderAllFilesOnCanvas(files) {
     measure('canvas:renderAllFiles', () => {
         clearCanvas();
 
-        const cols = Math.min(files.length, getAutoColumnCount());
+        // Filter out hidden files
+        const visibleFiles = files.filter(f => !hiddenFiles.has(f.path));
+        updateHiddenUI();
+
+        const cols = Math.min(visibleFiles.length, getAutoColumnCount());
         const cardWidth = 580;
         const cardHeight = 700;
         const gap = 40;
 
-        files.forEach((file, index) => {
+        visibleFiles.forEach((file, index) => {
             const posKey = `allfiles:${file.path}`;
             let x, y;
 
@@ -824,6 +1008,17 @@ function createAllFileCard(file, x, y, savedSize) {
     }
 
     return card;
+}
+// ─── Selection highlights ────────────────────────────────
+function updateSelectionHighlights() {
+    const selected = snap().context.selectedCards;
+    fileCards.forEach((card, path) => {
+        card.classList.toggle('selected', selected.includes(path));
+    });
+}
+
+function clearSelectionHighlights() {
+    fileCards.forEach(card => card.classList.remove('selected'));
 }
 
 // ─── Card interaction (contextual: center=move, corner=resize) ───

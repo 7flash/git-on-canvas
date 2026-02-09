@@ -1,3 +1,4 @@
 db/positions.sqlite
 node_modules
 *.sqlite
+*.txt
