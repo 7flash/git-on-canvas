@@ -1,17 +1,14 @@
 /**
- * Home Page — Server Component
+ * Home Page — String-based server component (no React)
  *
- * Renders the canvas viewport. The canvas interaction
- * (pan, zoom, cards, connections) is handled by page.client.tsx.
+ * Returns the canvas viewport as raw HTML.
+ * Client interactivity is mounted by page.client.tsx.
  */
-import React from 'react';
 
-export default function HomePage() {
-    return (
-        <div className="canvas-viewport" id="canvasViewport">
-            <div className="canvas" id="canvas">
-                <div className="canvas-grid" />
-            </div>
+export default function Page() {
+    return `<div class="canvas-viewport" id="canvasViewport">
+        <div class="canvas-content" id="canvasContent">
+            <svg class="connections-overlay" id="connectionsOverlay"></svg>
         </div>
-    );
+    </div>`;
 }
