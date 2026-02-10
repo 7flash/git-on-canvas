@@ -118,14 +118,18 @@ export default function mount(): () => void {
     // ─── Init ────────────────────────────────────────────────
     async function init() {
         return measure('app:init', async () => {
-            canvas = document.getElementById('canvas');
+            canvas = document.getElementById('canvasContent');
             canvasViewport = document.getElementById('canvasViewport');
 
-            // Create SVG overlay for connections
-            svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            svgOverlay.id = 'connectionOverlay';
-            svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:visible;';
-            canvas.appendChild(svgOverlay);
+            // Reuse existing SVG overlay from server-rendered DOM
+            svgOverlay = document.getElementById('connectionsOverlay');
+            if (!svgOverlay) {
+                // Fallback: create overlay if not present
+                svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svgOverlay.id = 'connectionsOverlay';
+                svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:visible;';
+                canvas.appendChild(svgOverlay);
+            }
 
             actor.start();
             setupCanvasInteraction();
