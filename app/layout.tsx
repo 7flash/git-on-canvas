@@ -102,7 +102,9 @@ export default function RootLayout({ children }: { children: string }) {
 
                         <div class="hotkey-legend">
                             <h4>Shortcuts</h4>
-                            <div class="hotkey-row"><kbd>Scroll</kbd> <span>Zoom canvas</span></div>
+                            <div class="hotkey-row"><kbd>Scroll</kbd> <span>Pan canvas vertically</span></div>
+                            <div class="hotkey-row"><kbd>Shift+Scroll</kbd> <span>Pan horizontally</span></div>
+                            <div class="hotkey-row"><kbd>Ctrl+Scroll</kbd> <span>Zoom canvas</span></div>
                             <div class="hotkey-row"><kbd>Drag</kbd> <span>Pan / Move card</span></div>
                             <div class="hotkey-row"><kbd>Shift+Click</kbd> <span>Multi-select</span></div>
                             <div class="hotkey-row"><kbd>Delete</kbd> <span>Hide selected files</span></div>
@@ -171,21 +173,6 @@ export default function RootLayout({ children }: { children: string }) {
                     <pre class="modal-body"><code id="previewContent"></code></pre>
                 </div>
             </div>
-            <script type="module">
-                // Load page.client mount script from Melina meta
-                const meta = document.getElementById('__MELINA_META__');
-                if (meta) {
-                    try {
-                        const data = JSON.parse(meta.textContent);
-                        if (data.client) {
-                            import(data.client).then(mod => {
-                                const mount = mod.default || mod.mount;
-                                if (typeof mount === 'function') mount();
-                            });
-                        }
-                    } catch (e) { /* meta not ready yet */ }
-                }
-            </script>
         </body>
     </html>`;
 }
