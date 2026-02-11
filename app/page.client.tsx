@@ -209,32 +209,65 @@ export default function mount(): () => void {
     // ─── Canvas interaction (contextual) ─────────────────────
     function setupCanvasInteraction() {
         measure('canvas:setupInteraction', () => {
-            // Wheel: scroll file-card-body if hovering over card content, zoom canvas otherwise
+            // Wheel behavior:
+            //   Over .file-card-body → scroll card content (native)
+            //   Ctrl+scroll → zoom canvas (centered on cursor)
+            //   Shift+scroll → pan canvas horizontally
+            //   Plain scroll → pan canvas vertically
             canvasViewport.addEventListener('wheel', (e) => {
-                // Check if hovering over a file card body (the sole scroll container)
-                const cardBody = e.target.closest('.file-card-body');
-                if (cardBody && cardBody.scrollHeight > cardBody.clientHeight) {
-                    // Let native scroll happen inside the file card body
-                    return;
+                // Scroll file card body if hovering over one
+                const cardBody = (e.target as HTMLElement).closest('.file-card-body') as HTMLElement | null;
+                if (cardBody) {
+                    const atTop = cardBody.scrollTop <= 0;
+                    const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1;
+                    const scrollingDown = e.deltaY > 0;
+                    const scrollingUp = e.deltaY < 0;
+
+                    // Only let native scroll happen if there's room to scroll in that direction
+                    if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
+                        // Let native scroll happen — don't preventDefault
+                        e.stopPropagation();
+                        return;
+                    }
+                    // If at the edge, fall through to canvas pan/zoom below
                 }
 
-                // Zoom the canvas
                 e.preventDefault();
+
                 const ctx = snap().context;
-                const rect = canvasViewport.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
 
-                const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                const newZoom = Math.min(3, Math.max(0.1, ctx.zoom * delta));
-                const scale = newZoom / ctx.zoom;
-                const newOffsetX = mouseX - (mouseX - ctx.offsetX) * scale;
-                const newOffsetY = mouseY - (mouseY - ctx.offsetY) * scale;
+                if (e.ctrlKey || e.metaKey) {
+                    // ── Ctrl+scroll = zoom ──
+                    const rect = canvasViewport.getBoundingClientRect();
+                    const mouseX = e.clientX - rect.left;
+                    const mouseY = e.clientY - rect.top;
 
-                actor.send({ type: 'SET_ZOOM', zoom: newZoom });
-                actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
-                updateCanvasTransform();
-                updateZoomUI();
+                    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                    const newZoom = Math.min(3, Math.max(0.1, ctx.zoom * delta));
+                    const scale = newZoom / ctx.zoom;
+                    const newOffsetX = mouseX - (mouseX - ctx.offsetX) * scale;
+                    const newOffsetY = mouseY - (mouseY - ctx.offsetY) * scale;
+
+                    actor.send({ type: 'SET_ZOOM', zoom: newZoom });
+                    actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+                    updateCanvasTransform();
+                    updateZoomUI();
+                } else if (e.shiftKey) {
+                    // ── Shift+scroll = horizontal pan ──
+                    const panSpeed = 1.5;
+                    const dx = e.deltaY * panSpeed;
+                    actor.send({ type: 'SET_OFFSET', x: ctx.offsetX - dx, y: ctx.offsetY });
+                    updateCanvasTransform();
+                    updateMinimap();
+                } else {
+                    // ── Plain scroll = vertical pan ──
+                    const panSpeed = 1.5;
+                    const dy = e.deltaY * panSpeed;
+                    const dx = e.deltaX * panSpeed; // trackpad horizontal gesture
+                    actor.send({ type: 'SET_OFFSET', x: ctx.offsetX - dx, y: ctx.offsetY - dy });
+                    updateCanvasTransform();
+                    updateMinimap();
+                }
             }, { passive: false });
 
             // Mousedown on empty canvas = pan
