@@ -209,12 +209,12 @@ export default function mount(): () => void {
     // ─── Canvas interaction (contextual) ─────────────────────
     function setupCanvasInteraction() {
         measure('canvas:setupInteraction', () => {
-            // Wheel: scroll hunk pane if hovering, zoom canvas otherwise
+            // Wheel: scroll file-card-body if hovering over card content, zoom canvas otherwise
             canvasViewport.addEventListener('wheel', (e) => {
-                // Check if hovering over a scrollable area (hunk pane or file-card-body)
-                const scrollable = e.target.closest('.hunk-current-pane') || e.target.closest('.hunk-removed-pane') || e.target.closest('.file-card-body');
-                if (scrollable && scrollable.scrollHeight > scrollable.clientHeight) {
-                    // Prioritize scrolling over zooming when over a scrollable area
+                // Check if hovering over a file card body (the sole scroll container)
+                const cardBody = e.target.closest('.file-card-body');
+                if (cardBody && cardBody.scrollHeight > cardBody.clientHeight) {
+                    // Let native scroll happen inside the file card body
                     return;
                 }
 
@@ -296,18 +296,91 @@ export default function mount(): () => void {
             const viewport = document.getElementById('minimapViewport');
             const ctx = snap().context;
 
+            if (!minimap || !viewport) return;
+
+            // Remove old labels/dots
+            minimap.querySelectorAll('.minimap-dot, .minimap-label').forEach(el => el.remove());
+
+            // Calculate actual bounding box from all file cards
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string }[] = [];
+
+            fileCards.forEach((card, path) => {
+                const x = parseFloat(card.style.left) || 0;
+                const y = parseFloat(card.style.top) || 0;
+                const w = card.offsetWidth || 580;
+                const h = card.offsetHeight || 200;
+                const name = path.split('/').pop() || path;
+                const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
+
+                minX = Math.min(minX, x);
+                minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x + w);
+                maxY = Math.max(maxY, y + h);
+
+                cardInfos.push({ x, y, w, h, name, status });
+            });
+
+            // If no cards, just hide viewport
+            if (cardInfos.length === 0) {
+                viewport.style.display = 'none';
+                return;
+            }
+            viewport.style.display = '';
+
+            // Add padding around content
+            const pad = 200;
+            minX -= pad; minY -= pad;
+            maxX += pad; maxY += pad;
+
+            const contentW = maxX - minX;
+            const contentH = maxY - minY;
+            const mmW = minimap.offsetWidth;
+            const mmH = minimap.offsetHeight;
+
+            // Scale to fit content in minimap
+            const scale = Math.min(mmW / contentW, mmH / contentH);
+
+            // Render file dots and labels
+            cardInfos.forEach(info => {
+                const dotX = (info.x - minX) * scale;
+                const dotY = (info.y - minY) * scale;
+                const dotW = Math.max(2, info.w * scale);
+                const dotH = Math.max(1, info.h * scale);
+
+                // Colored dot for file
+                const dot = document.createElement('div');
+                const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
+                dot.className = `minimap-dot minimap-dot--${statusClass}`;
+                dot.style.left = `${dotX}px`;
+                dot.style.top = `${dotY}px`;
+                dot.style.width = `${dotW}px`;
+                dot.style.height = `${dotH}px`;
+                minimap.appendChild(dot);
+
+                // File name label
+                const label = document.createElement('div');
+                label.className = 'minimap-label';
+                label.textContent = info.name;
+                label.style.left = `${dotX + dotW + 1}px`;
+                label.style.top = `${dotY}px`;
+                // Scale font to be readable but not overwhelming
+                const fontSize = Math.max(3, Math.min(6, 4 * (mmW / contentW)));
+                label.style.fontSize = `${fontSize}px`;
+                minimap.appendChild(label);
+            });
+
+            // Viewport rectangle: shows what the camera currently sees
             const canvasRect = canvasViewport.getBoundingClientRect();
-            const scale = minimap.offsetWidth / 5000;
+            const vpWorldW = canvasRect.width / ctx.zoom;
+            const vpWorldH = canvasRect.height / ctx.zoom;
+            const vpWorldX = -ctx.offsetX / ctx.zoom;
+            const vpWorldY = -ctx.offsetY / ctx.zoom;
 
-            const vpWidth = (canvasRect.width / ctx.zoom) * scale;
-            const vpHeight = (canvasRect.height / ctx.zoom) * scale;
-            const vpX = (-ctx.offsetX / ctx.zoom) * scale;
-            const vpY = (-ctx.offsetY / ctx.zoom) * scale;
-
-            viewport.style.width = `${vpWidth}px`;
-            viewport.style.height = `${vpHeight}px`;
-            viewport.style.left = `${vpX}px`;
-            viewport.style.top = `${vpY}px`;
+            viewport.style.width = `${vpWorldW * scale}px`;
+            viewport.style.height = `${vpWorldH * scale}px`;
+            viewport.style.left = `${(vpWorldX - minX) * scale}px`;
+            viewport.style.top = `${(vpWorldY - minY) * scale}px`;
         });
     }
 
@@ -850,6 +923,9 @@ export default function mount(): () => void {
                 canvas.appendChild(card);
                 fileCards.set(file.path, card);
             });
+
+            // Update minimap after cards are placed
+            requestAnimationFrame(() => updateMinimap());
         });
     }
 
@@ -908,6 +984,9 @@ export default function mount(): () => void {
 
             // Render connections
             renderConnections();
+
+            // Update minimap after cards are placed
+            requestAnimationFrame(() => updateMinimap());
         });
     }
 
