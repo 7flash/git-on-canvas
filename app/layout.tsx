@@ -1,4 +1,4 @@
-f/**
+/**
  * Root Layout — String-based server component (no React)
  *
  * Returns raw HTML string. The `children` prop is the page content as a string.
@@ -171,6 +171,21 @@ export default function RootLayout({ children }: { children: string }) {
                     <pre class="modal-body"><code id="previewContent"></code></pre>
                 </div>
             </div>
+            <script type="module">
+                // Load page.client mount script from Melina meta
+                const meta = document.getElementById('__MELINA_META__');
+                if (meta) {
+                    try {
+                        const data = JSON.parse(meta.textContent);
+                        if (data.client) {
+                            import(data.client).then(mod => {
+                                const mount = mod.default || mod.mount;
+                                if (typeof mount === 'function') mount();
+                            });
+                        }
+                    } catch (e) { /* meta not ready yet */ }
+                }
+            </script>
         </body>
     </html>`;
 }
