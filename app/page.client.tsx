@@ -210,34 +210,17 @@ export default function mount(): () => void {
     function setupCanvasInteraction() {
         measure('canvas:setupInteraction', () => {
             // Wheel behavior:
-            //   Over .file-card-body → scroll card content (native)
-            //   Ctrl+scroll → zoom canvas (centered on cursor)
+            //   Ctrl+scroll → ALWAYS zoom canvas (blocks browser native zoom)
+            //   Over scrollable hunk/preview → scroll that element
             //   Shift+scroll → pan canvas horizontally
             //   Plain scroll → pan canvas vertically
             canvasViewport.addEventListener('wheel', (e) => {
-                // Scroll file card body if hovering over one
-                const cardBody = (e.target as HTMLElement).closest('.file-card-body') as HTMLElement | null;
-                if (cardBody) {
-                    const atTop = cardBody.scrollTop <= 0;
-                    const atBottom = cardBody.scrollTop + cardBody.clientHeight >= cardBody.scrollHeight - 1;
-                    const scrollingDown = e.deltaY > 0;
-                    const scrollingUp = e.deltaY < 0;
-
-                    // Only let native scroll happen if there's room to scroll in that direction
-                    if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
-                        // Let native scroll happen — don't preventDefault
-                        e.stopPropagation();
-                        return;
-                    }
-                    // If at the edge, fall through to canvas pan/zoom below
-                }
-
-                e.preventDefault();
-
                 const ctx = snap().context;
 
+                // ── Ctrl+scroll = zoom (ALWAYS, even over file cards) ──
+                // Must check first and preventDefault to block browser native zoom
                 if (e.ctrlKey || e.metaKey) {
-                    // ── Ctrl+scroll = zoom ──
+                    e.preventDefault();
                     const rect = canvasViewport.getBoundingClientRect();
                     const mouseX = e.clientX - rect.left;
                     const mouseY = e.clientY - rect.top;
@@ -252,18 +235,44 @@ export default function mount(): () => void {
                     actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
                     updateCanvasTransform();
                     updateZoomUI();
-                } else if (e.shiftKey) {
-                    // ── Shift+scroll = horizontal pan ──
+                    return;
+                }
+
+                // ── Check if hovering over a per-hunk scroll container ──
+                const target = e.target as HTMLElement;
+                const hunkBody = target.closest('.diff-hunk-body') as HTMLElement | null;
+                const previewPre = target.closest('.file-content-preview pre') as HTMLElement | null;
+                const scrollContainer = hunkBody || previewPre;
+
+                if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight + 1) {
+                    const atTop = scrollContainer.scrollTop <= 0;
+                    const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+                    const scrollingDown = e.deltaY > 0;
+                    const scrollingUp = e.deltaY < 0;
+
+                    if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
+                        // Let native scroll happen inside the hunk/preview
+                        e.stopPropagation();
+                        return;
+                    }
+                    // At edge — fall through to canvas pan
+                }
+
+                // ── Canvas pan ──
+                e.preventDefault();
+
+                if (e.shiftKey) {
+                    // Shift+scroll = horizontal pan
                     const panSpeed = 1.5;
                     const dx = e.deltaY * panSpeed;
                     actor.send({ type: 'SET_OFFSET', x: ctx.offsetX - dx, y: ctx.offsetY });
                     updateCanvasTransform();
                     updateMinimap();
                 } else {
-                    // ── Plain scroll = vertical pan ──
+                    // Plain scroll = vertical pan
                     const panSpeed = 1.5;
                     const dy = e.deltaY * panSpeed;
-                    const dx = e.deltaX * panSpeed; // trackpad horizontal gesture
+                    const dx = e.deltaX * panSpeed;
                     actor.send({ type: 'SET_OFFSET', x: ctx.offsetX - dx, y: ctx.offsetY - dy });
                     updateCanvasTransform();
                     updateMinimap();
