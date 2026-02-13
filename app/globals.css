@@ -785,6 +785,15 @@ body {
     cursor: grabbing;
 }
 
+/* Spacebar held → canvas pan mode: make cards non-interactive so clicks hit viewport */
+.canvas-viewport.space-panning {
+    cursor: grab;
+}
+
+.canvas-viewport.space-panning .file-card {
+    pointer-events: none;
+}
+
 .canvas,
 .canvas-content {
     position: absolute;
@@ -929,25 +938,21 @@ body {
     /* When card has explicit height from resize, body fills remaining space */
 }
 
-/* Styled scrollbar for hunk bodies and file preview content */
-.diff-hunk-body::-webkit-scrollbar,
+/* Styled scrollbar for file preview content (all-files mode) */
 .file-content-preview pre::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
-.diff-hunk-body::-webkit-scrollbar-track,
 .file-content-preview pre::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.diff-hunk-body::-webkit-scrollbar-thumb,
 .file-content-preview pre::-webkit-scrollbar-thumb {
     background: rgba(124, 58, 237, 0.3);
     border-radius: 3px;
 }
 
-.diff-hunk-body::-webkit-scrollbar-thumb:hover,
 .file-content-preview pre::-webkit-scrollbar-thumb:hover {
     background: rgba(124, 58, 237, 0.5);
 }
@@ -1019,11 +1024,24 @@ body {
 
 .file-content-preview {
     margin-top: 0;
-    overflow: auto;
+    overflow: hidden;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     flex: 1;
     min-height: 0;
+}
+
+/* Space-bar panning mode */
+.canvas-viewport.space-panning {
+    cursor: grab !important;
+}
+
+.canvas-viewport.space-panning:active {
+    cursor: grabbing !important;
+}
+
+.canvas-viewport.space-panning .file-card {
+    pointer-events: none !important;
 }
 
 .file-content-preview pre {
@@ -1207,6 +1225,10 @@ body {
 
 .diff-hunk pre {
     margin: 0;
+    /* Override .file-content-preview pre: panes handle scrolling, not <pre> */
+    max-height: none;
+    overflow: visible;
+    padding: 4px 8px;
 }
 
 .diff-hunk code {
