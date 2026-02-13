@@ -1,13 +1,10 @@
 /**
- * Git Canvas Server — Modern Melina.js
+ * Git Canvas Server
+ * Uses melina's createAppRouter with proper JSX components.
  */
-import { start } from 'melina';
-import path from 'path';
+import { serve, createAppRouter } from 'melina';
 
-const appDir = path.join(import.meta.dir, 'app');
-
-await start({
-    port: parseInt(process.env.BUN_PORT || "3333"),
-    appDir,
-    defaultTitle: 'Git Canvas — Visual Repository Explorer'
-});
+serve(createAppRouter({
+    appDir: './app',
+    globalCss: './app/globals.css',
+}), { port: parseInt(process.env.BUN_PORT || "3333") });
