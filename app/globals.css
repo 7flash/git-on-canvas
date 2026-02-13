@@ -776,13 +776,9 @@ body {
     flex: 1;
     overflow: hidden;
     position: relative;
-    cursor: grab;
+    cursor: default;
     background:
         radial-gradient(circle at center, rgba(124, 58, 237, 0.03) 0%, transparent 70%);
-}
-
-.canvas-viewport:active {
-    cursor: grabbing;
 }
 
 /* Spacebar held → canvas pan mode: make cards non-interactive so clicks hit viewport */
@@ -825,6 +821,7 @@ body {
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
+    cursor: default;
 }
 
 .file-card:hover {
@@ -851,7 +848,6 @@ body {
     top: 0;
     z-index: 2;
     flex-shrink: 0;
-    cursor: grab;
 }
 
 /* Simple file cards (all-files mode) */
@@ -1291,12 +1287,17 @@ body {
 .minimap-label {
     position: absolute;
     font-family: var(--font-mono);
-    font-size: 4px;
-    color: var(--text-muted);
-    white-space: nowrap;
+    color: rgba(255, 255, 255, 0.9);
     pointer-events: none;
-    opacity: 0.7;
-    line-height: 1;
+    line-height: 1.1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 1px;
+    box-sizing: border-box;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* File Preview Modal */
