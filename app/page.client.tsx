@@ -215,8 +215,8 @@ export default function mount(): () => void {
             // Wheel behavior:
             //   Ctrl+scroll → ALWAYS zoom canvas (blocks browser native zoom)
             //   Over scrollable hunk/preview → scroll that element
-            //   Shift+scroll → pan canvas horizontally
-            //   Plain scroll → pan canvas vertically
+            //   Space held + scroll → pan canvas
+            //   Plain scroll (no Space) → do nothing
             canvasViewport.addEventListener('wheel', (e) => {
                 const ctx = snap().context;
 
@@ -262,18 +262,23 @@ export default function mount(): () => void {
                     return;
                 }
 
-                // ── Canvas pan ──
+                // ── Canvas pan only when Space is held ──
                 e.preventDefault();
 
+                if (!spaceHeld) {
+                    // Plain scroll without Space held = do nothing
+                    return;
+                }
+
                 if (e.shiftKey) {
-                    // Shift+scroll = horizontal pan
+                    // Space + Shift+scroll = horizontal pan
                     const panSpeed = 1.5;
                     const dx = e.deltaY * panSpeed;
                     actor.send({ type: 'SET_OFFSET', x: ctx.offsetX - dx, y: ctx.offsetY });
                     updateCanvasTransform();
                     updateMinimap();
                 } else {
-                    // Plain scroll = vertical pan
+                    // Space + scroll = vertical pan
                     const panSpeed = 1.5;
                     const dy = e.deltaY * panSpeed;
                     const dx = e.deltaX * panSpeed;
@@ -514,15 +519,15 @@ export default function mount(): () => void {
                 dot.style.height = `${dotH}px`;
                 minimap.appendChild(dot);
 
-                // File name label
+                // Vertical file name label — rotated 90° to run along the dot height
                 const label = document.createElement('div');
                 label.className = 'minimap-label';
                 label.textContent = info.name;
-                label.style.left = `${dotX + dotW + 1}px`;
+                // Position at top-left of the dot, rotated downward
+                label.style.left = `${dotX}px`;
                 label.style.top = `${dotY}px`;
-                // Scale font to be readable but not overwhelming
-                const fontSize = Math.max(3, Math.min(6, 4 * (mmW / contentW)));
-                label.style.fontSize = `${fontSize}px`;
+                // Max height for label = dotH so it doesn't overflow
+                label.style.maxWidth = `${dotH}px`;
                 minimap.appendChild(label);
             });
 
@@ -1688,20 +1693,21 @@ export default function mount(): () => void {
         let moveStartPositions = []; // [{card, startLeft, startTop}] for group move
         const DRAG_THRESHOLD = 3; // px dead zone to distinguish click from drag
 
-        // Dynamic cursor on mousemove
+        // Dynamic cursor on mousemove — grab anywhere, resize at corners
         card.addEventListener('mousemove', (e) => {
             if (action) return;
             const selected = snap().context.selectedCards;
             const isMulti = selected.length > 1;
-            const isOnHeader = !!e.target.closest('.file-card-header');
             const corner = isNearCorner(e, card);
+            // Inside scrollable code content → default cursor (let text selection work)
+            const insideCode = e.target.closest('.hunk-current-pane, .hunk-removed-pane, .file-content-preview pre');
 
             if (corner && !isMulti) {
                 card.style.cursor = CORNER_CURSORS[corner];
-            } else if (isOnHeader) {
-                card.style.cursor = 'grab';
-            } else {
+            } else if (insideCode) {
                 card.style.cursor = 'default';
+            } else {
+                card.style.cursor = 'grab';
             }
         });
 
