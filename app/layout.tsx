@@ -120,6 +120,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>Scroll</kbd> <span>Pan canvas</span></div>
                                 <div className="hotkey-row"><kbd>⇧ Scroll</kbd> <span>Pan horizontal</span></div>
                                 <div className="hotkey-row"><kbd>⌃ Scroll</kbd> <span>Zoom in/out</span></div>
+                                <div className="hotkey-row"><kbd>Space+Drag</kbd> <span>Pan canvas</span></div>
                                 <div className="hotkey-row"><kbd>Drag header</kbd> <span>Move card</span></div>
                                 <div className="hotkey-row"><kbd>Corner drag</kbd> <span>Resize</span></div>
                                 <div className="hotkey-row"><kbd>Click</kbd> <span>Select</span></div>

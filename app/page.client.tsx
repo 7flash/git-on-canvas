@@ -110,6 +110,7 @@ export default function mount(): () => void {
     let positions = new Map();
     let isDragging = false;
     let dragStartX, dragStartY;
+    let spaceHeld = false; // Spacebar held → canvas pan mode
     let hiddenFiles = new Set(); // Files hidden by user
 
     // ─── Corner detection threshold ──────────────────────────
@@ -288,16 +289,15 @@ export default function mount(): () => void {
             let isRectSelecting = false;
 
             // Mousedown on empty canvas:
-            //   Middle-click or Alt+click = pan
+            //   Space held, middle-click or Alt+click = pan
             //   Regular click = rectangle selection
             canvasViewport.addEventListener('mousedown', (e) => {
-                const insideCard = e.target.closest('.file-card');
-                if (insideCard) return;
-
                 const ctx = snap().context;
 
-                // Middle-click or Alt+click = pan
-                if (e.button === 1 || e.altKey) {
+                // Space held, middle-click or Alt+click = pan
+                // When Space is held, CSS pointer-events:none on cards means
+                // clicks always hit the viewport, so this works over cards too.
+                if (e.button === 1 || e.altKey || spaceHeld) {
                     isDragging = true;
                     dragStartX = e.clientX - ctx.offsetX;
                     dragStartY = e.clientY - ctx.offsetY;
@@ -305,6 +305,9 @@ export default function mount(): () => void {
                     e.preventDefault();
                     return;
                 }
+
+                const insideCard = e.target.closest('.file-card');
+                if (insideCard) return;
 
                 // Left click on empty canvas = start rectangle selection
                 if (e.button === 0) {
@@ -776,7 +779,17 @@ export default function mount(): () => void {
 
             // Keyboard shortcuts
             window.addEventListener('keydown', (e) => {
-                // Don't interfere with input fields
+                // Space-bar canvas panning (fires even in input fields for consistency)
+                if (e.code === 'Space' && !e.repeat) {
+                    // Don't hijack space in input fields
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    e.preventDefault();
+                    spaceHeld = true;
+                    canvasViewport.classList.add('space-panning');
+                    return;
+                }
+
+                // Don't interfere with input fields for all other shortcuts
                 if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
                 if (e.key === 'Escape') {
@@ -821,6 +834,31 @@ export default function mount(): () => void {
                     });
                     updateSelectionHighlights();
                     updateArrangeToolbar();
+                }
+            });
+
+            // Space-bar release
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    spaceHeld = false;
+                    canvasViewport.classList.remove('space-panning');
+                    // If we were panning with space and released, stop the drag
+                    if (isDragging) {
+                        isDragging = false;
+                        canvasViewport.style.cursor = '';
+                    }
+                }
+            });
+
+            // Also handle window blur to reset space state
+            window.addEventListener('blur', () => {
+                if (spaceHeld) {
+                    spaceHeld = false;
+                    canvasViewport.classList.remove('space-panning');
+                    if (isDragging) {
+                        isDragging = false;
+                        canvasViewport.style.cursor = '';
+                    }
                 }
             });
         });
