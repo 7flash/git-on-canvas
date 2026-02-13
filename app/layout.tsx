@@ -60,7 +60,7 @@ export default function RootLayout({ children }: { children: any }) {
                             <input type="file" id="folderPickerInput" style={{ display: 'none' }} />
                         </div>
 
-                        {/* View mode tabs */}
+                        {/* View mode */}
                         <div className="view-tabs">
                             <button id="modeCommits" className="view-tab active">
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
@@ -70,13 +70,13 @@ export default function RootLayout({ children }: { children: any }) {
                                 </svg>
                                 Commits
                             </button>
-                            <button id="modeAllFiles" className="view-tab">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                    <polyline points="14 2 14 8 20 8" />
-                                </svg>
-                                Files
-                            </button>
+                            <label className="view-toggle" id="allFilesToggle" title="Show all repository files alongside diffs">
+                                <input type="checkbox" id="allFilesCheckbox" />
+                                <span className="toggle-track">
+                                    <span className="toggle-thumb"></span>
+                                </span>
+                                <span className="toggle-label">All files</span>
+                            </label>
                         </div>
 
                         <div className="commit-timeline" id="commitTimeline">
@@ -117,14 +117,20 @@ export default function RootLayout({ children }: { children: any }) {
                             </div>
 
                             <div className="hotkey-legend">
-                                <div className="hotkey-row"><kbd>Scroll</kbd> <span>Pan</span></div>
-                                <div className="hotkey-row"><kbd>⇧ Scroll</kbd> <span>Pan H</span></div>
-                                <div className="hotkey-row"><kbd>⌃ Scroll</kbd> <span>Zoom</span></div>
-                                <div className="hotkey-row"><kbd>Del</kbd> <span>Hide</span></div>
-                                <div className="hotkey-row"><kbd>Drag</kbd> <span>Select</span></div>
-                                <div className="hotkey-row"><kbd>H</kbd> <span>Row</span></div>
-                                <div className="hotkey-row"><kbd>V</kbd> <span>Col</span></div>
-                                <div className="hotkey-row"><kbd>G</kbd> <span>Grid</span></div>
+                                <div className="hotkey-row"><kbd>Scroll</kbd> <span>Pan canvas</span></div>
+                                <div className="hotkey-row"><kbd>⇧ Scroll</kbd> <span>Pan horizontal</span></div>
+                                <div className="hotkey-row"><kbd>⌃ Scroll</kbd> <span>Zoom in/out</span></div>
+                                <div className="hotkey-row"><kbd>Drag header</kbd> <span>Move card</span></div>
+                                <div className="hotkey-row"><kbd>Corner drag</kbd> <span>Resize</span></div>
+                                <div className="hotkey-row"><kbd>Click</kbd> <span>Select</span></div>
+                                <div className="hotkey-row"><kbd>⇧ Click</kbd> <span>Multi-select</span></div>
+                                <div className="hotkey-row"><kbd>Drag canvas</kbd> <span>Rect select</span></div>
+                                <div className="hotkey-row"><kbd>Del</kbd> <span>Hide file</span></div>
+                                <div className="hotkey-row"><kbd>H</kbd> <span>Arrange row</span></div>
+                                <div className="hotkey-row"><kbd>V</kbd> <span>Arrange col</span></div>
+                                <div className="hotkey-row"><kbd>G</kbd> <span>Arrange grid</span></div>
+                                <div className="hotkey-row"><kbd>⌃A</kbd> <span>Select all</span></div>
+                                <div className="hotkey-row"><kbd>Esc</kbd> <span>Deselect</span></div>
                             </div>
                         </div>
                     </nav>

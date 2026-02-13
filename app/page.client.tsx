@@ -240,38 +240,25 @@ export default function mount(): () => void {
                     return;
                 }
 
-                // ── Check if hovering over a per-hunk scroll container ──
+                // ── Check if hovering over a scrollable pane ──
                 const target = e.target as HTMLElement;
-                const hunkBody = target.closest('.diff-hunk-body') as HTMLElement | null;
+                const hunkPane = target.closest('.hunk-current-pane, .hunk-removed-pane') as HTMLElement | null;
                 const previewPre = target.closest('.file-content-preview pre') as HTMLElement | null;
-                const scrollContainer = hunkBody || previewPre;
+                const scrollContainer = hunkPane || previewPre;
 
                 if (scrollContainer) {
-                    // ── Shift+scroll over hunk/preview = horizontal scroll ──
-                    if (e.shiftKey && scrollContainer.scrollWidth > scrollContainer.clientWidth + 1) {
-                        const atLeft = scrollContainer.scrollLeft <= 0;
-                        const atRight = scrollContainer.scrollLeft + scrollContainer.clientWidth >= scrollContainer.scrollWidth - 1;
-                        if ((e.deltaY > 0 && !atRight) || (e.deltaY < 0 && !atLeft)) {
-                            e.preventDefault();
-                            scrollContainer.scrollLeft += e.deltaY;
-                            return;
-                        }
-                        // At edge — fall through to canvas pan
-                    }
+                    // Always consume scroll events inside scrollable content — never propagate to canvas
+                    e.preventDefault();
+                    e.stopPropagation();
 
-                    // ── Plain scroll over hunk/preview = vertical scroll ──
-                    if (!e.shiftKey && scrollContainer.scrollHeight > scrollContainer.clientHeight + 1) {
-                        const atTop = scrollContainer.scrollTop <= 0;
-                        const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
-                        const scrollingDown = e.deltaY > 0;
-                        const scrollingUp = e.deltaY < 0;
-
-                        if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
-                            e.stopPropagation();
-                            return;
-                        }
-                        // At edge — fall through to canvas pan
+                    if (e.shiftKey) {
+                        // Shift+scroll = horizontal scroll within pane
+                        scrollContainer.scrollLeft += e.deltaY;
+                    } else {
+                        // Plain scroll = vertical scroll within pane
+                        scrollContainer.scrollTop += e.deltaY;
                     }
+                    return;
                 }
 
                 // ── Canvas pan ──
@@ -765,9 +752,15 @@ export default function mount(): () => void {
             // Fit All
             document.getElementById('fitAll').addEventListener('click', fitAllFiles);
 
-            // View mode toggles
-            document.getElementById('modeCommits').addEventListener('click', () => switchView('commits'));
-            document.getElementById('modeAllFiles').addEventListener('click', () => switchView('allfiles'));
+            // All Files toggle (checkbox)
+            document.getElementById('allFilesCheckbox').addEventListener('change', (e) => {
+                const checked = e.target.checked;
+                if (checked) {
+                    switchView('allfiles');
+                } else {
+                    switchView('commits');
+                }
+            });
 
             // Hidden files button
             document.getElementById('showHidden').addEventListener('click', showHiddenFilesModal);
@@ -1040,8 +1033,9 @@ export default function mount(): () => void {
             actor.send({ type: 'SWITCH_TO_COMMITS' });
         }
 
-        document.getElementById('modeCommits').classList.toggle('active', mode === 'commits');
-        document.getElementById('modeAllFiles').classList.toggle('active', mode === 'allfiles');
+        // Sync toggle checkbox state
+        const checkbox = document.getElementById('allFilesCheckbox');
+        if (checkbox) checkbox.checked = mode === 'allfiles';
 
         // Change the canvas content based on mode
         if (mode === 'allfiles') {
@@ -1052,7 +1046,7 @@ export default function mount(): () => void {
             const ctx = snap().context;
             if (ctx.repoPath) loadAllFiles();
         } else {
-            // Just re-render existing commit files without re-fetching
+            // Re-render existing commit files, or select the first commit if none selected
             const ctx = snap().context;
             if (ctx.currentCommitHash && ctx.commitFiles.length > 0) {
                 renderFilesOnCanvas(ctx.commitFiles, ctx.currentCommitHash);
@@ -1062,6 +1056,9 @@ export default function mount(): () => void {
                 <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
             `;
                 document.getElementById('fileCount').textContent = ctx.commitFiles.length;
+            } else if (ctx.commits.length > 0) {
+                // No commit was selected before — pick the first one
+                selectCommit(ctx.commits[0].hash);
             }
         }
     }
@@ -1190,9 +1187,9 @@ export default function mount(): () => void {
             actor.send({ type: 'SELECT_COMMIT', hash });
             actor.send({ type: 'SWITCH_TO_COMMITS' });
 
-            // Update view mode UI
-            document.getElementById('modeCommits').classList.add('active');
-            document.getElementById('modeAllFiles').classList.remove('active');
+            // Update view mode UI — uncheck "All Files" toggle
+            const checkbox = document.getElementById('allFilesCheckbox');
+            if (checkbox) checkbox.checked = false;
 
             document.querySelectorAll('.commit-item').forEach(el => {
                 el.classList.toggle('active', el.dataset.hash === hash);
@@ -1250,29 +1247,68 @@ export default function mount(): () => void {
             const visibleFiles = files.filter(f => !hiddenFiles.has(f.path));
             updateHiddenUI();
 
-            const cols = Math.min(visibleFiles.length, getAutoColumnCount());
+            // Estimate card heights based on content
             const cardWidth = 580;
-            const cardHeight = 700;
             const gap = 40;
+            const headerH = 56; // header + path row
+
+            function estimateCardHeight(file) {
+                if (file.status === 'added' || file.status === 'deleted') {
+                    const lineCount = file.content ? file.content.split('\n').length : 10;
+                    return Math.min(700, headerH + Math.max(100, lineCount * 14));
+                }
+                if (file.status === 'modified' && file.hunks && file.hunks.length > 0) {
+                    let totalLines = 0;
+                    file.hunks.forEach(h => { totalLines += (h.lines?.length || 5) + 2; });
+                    return Math.min(700, headerH + Math.max(100, totalLines * 14));
+                }
+                return 200; // default for no-content/error
+            }
+
+            // Files with custom positions vs files needing layout
+            const customPosFiles = [];
+            const needsLayoutFiles = [];
 
             visibleFiles.forEach((file, index) => {
                 const posKey = getPositionKey(file.path, commitHash);
-                let x, y;
-
                 if (positions.has(posKey)) {
-                    const pos = positions.get(posKey);
-                    x = pos.x; y = pos.y;
+                    customPosFiles.push({ file, index });
                 } else {
-                    const col = index % cols;
-                    const row = Math.floor(index / cols);
-                    x = 50 + col * (cardWidth + gap);
-                    y = 50 + row * (cardHeight + gap);
+                    needsLayoutFiles.push({ file, index });
                 }
+            });
 
-                const card = createFileCard(file, x, y, commitHash);
+            // Render files with custom positions
+            customPosFiles.forEach(({ file }) => {
+                const posKey = getPositionKey(file.path, commitHash);
+                const pos = positions.get(posKey);
+                const card = createFileCard(file, pos.x, pos.y, commitHash);
                 canvas.appendChild(card);
                 fileCards.set(file.path, card);
             });
+
+            // Auto-grid layout for files without custom positions
+            if (needsLayoutFiles.length > 0) {
+                const cols = Math.min(needsLayoutFiles.length, getAutoColumnCount());
+                // Track column bottom positions for waterfall/masonry layout
+                const colBottoms = new Array(cols).fill(50); // start y
+
+                needsLayoutFiles.forEach(({ file }, i) => {
+                    const h = estimateCardHeight(file);
+                    // Find shortest column
+                    let minCol = 0;
+                    for (let c = 1; c < cols; c++) {
+                        if (colBottoms[c] < colBottoms[minCol]) minCol = c;
+                    }
+                    const x = 50 + minCol * (cardWidth + gap);
+                    const y = colBottoms[minCol];
+                    colBottoms[minCol] = y + h + gap;
+
+                    const card = createFileCard(file, x, y, commitHash);
+                    canvas.appendChild(card);
+                    fileCards.set(file.path, card);
+                });
+            }
 
             // Update minimap and fit all after cards are placed
             requestAnimationFrame(() => {
@@ -1291,47 +1327,77 @@ export default function mount(): () => void {
             const visibleFiles = files.filter(f => !hiddenFiles.has(f.path));
             updateHiddenUI();
 
-            const cols = Math.min(visibleFiles.length, getAutoColumnCount());
             const cardWidth = 580;
-            const cardHeight = 700;
             const gap = 40;
+            const cols = Math.min(visibleFiles.length, getAutoColumnCount());
+
+            // Files with custom positions vs files needing layout
+            const customPosFiles = [];
+            const needsLayoutFiles = [];
 
             visibleFiles.forEach((file, index) => {
                 const posKey = `allfiles:${file.path}`;
-                let x, y;
-
                 if (positions.has(posKey)) {
-                    const pos = positions.get(posKey);
-                    x = pos.x; y = pos.y;
+                    customPosFiles.push({ file, index });
                 } else {
-                    const col = index % cols;
-                    const row = Math.floor(index / cols);
-                    x = 50 + col * (cardWidth + gap);
-                    y = 50 + row * (cardHeight + gap);
+                    needsLayoutFiles.push({ file, index });
                 }
+            });
 
-                // Check for persisted size
+            // Render files with custom positions
+            customPosFiles.forEach(({ file }) => {
+                const posKey = `allfiles:${file.path}`;
+                const pos = positions.get(posKey);
+                let size = null;
                 const ctx = snap().context;
-                let size = ctx.cardSizes?.[file.path];
-
-                // Fallback to saved size from DB
-                if (!size && positions.has(posKey)) {
-                    const pos = positions.get(posKey);
-                    if (pos.width) size = { width: pos.width, height: pos.height };
+                if (ctx.cardSizes?.[file.path]) {
+                    size = ctx.cardSizes[file.path];
+                } else if (pos.width) {
+                    size = { width: pos.width, height: pos.height };
                 }
-
-                const card = createAllFileCard(file, x, y, size);
+                const card = createAllFileCard(file, pos.x, pos.y, size);
                 canvas.appendChild(card);
                 fileCards.set(file.path, card);
+            });
 
-                // Restore scroll position
+            // Auto-grid layout for files without custom positions
+            if (needsLayoutFiles.length > 0) {
+                const estimateH = (f) => {
+                    const lineCount = f.lines || (f.content ? f.content.split('\n').length : 10);
+                    return Math.min(500, 56 + Math.max(100, Math.min(lineCount, 30) * 14));
+                };
+                const colBottoms = new Array(cols).fill(50);
+
+                needsLayoutFiles.forEach(({ file }) => {
+                    const h = estimateH(file);
+                    let minCol = 0;
+                    for (let c = 1; c < cols; c++) {
+                        if (colBottoms[c] < colBottoms[minCol]) minCol = c;
+                    }
+                    const x = 50 + minCol * (cardWidth + gap);
+                    const y = colBottoms[minCol];
+                    colBottoms[minCol] = y + h + gap;
+
+                    const ctx = snap().context;
+                    let size = ctx.cardSizes?.[file.path] || null;
+                    const card = createAllFileCard(file, x, y, size);
+                    canvas.appendChild(card);
+                    fileCards.set(file.path, card);
+                });
+            }
+
+            // Restore scroll positions
+            visibleFiles.forEach(file => {
                 const scrollKey = `scroll:${file.path}`;
                 if (positions.has(scrollKey)) {
                     const savedScroll = positions.get(scrollKey);
-                    requestAnimationFrame(() => {
-                        const body = card.querySelector('.file-card-body');
-                        if (body) body.scrollTop = savedScroll.x; // x stores scrollTop
-                    });
+                    const card = fileCards.get(file.path);
+                    if (card) {
+                        requestAnimationFrame(() => {
+                            const body = card.querySelector('.file-card-body');
+                            if (body) body.scrollTop = savedScroll.x;
+                        });
+                    }
                 }
             });
 
@@ -1577,16 +1643,28 @@ export default function mount(): () => void {
     }
 
     function setupCardInteraction(card, commitHash) {
-        let action = null; // 'resize' only
+        let action = null; // null | 'resize' | 'move' | 'pending'
         let startX, startY;
         let resizeStartW, resizeStartH, resizeStartLeft, resizeStartTop;
         let resizeCorner = null;
+        let moveStartPositions = []; // [{card, startLeft, startTop}] for group move
+        const DRAG_THRESHOLD = 3; // px dead zone to distinguish click from drag
 
-        // Dynamic cursor on mousemove (show resize handles at corners)
+        // Dynamic cursor on mousemove
         card.addEventListener('mousemove', (e) => {
             if (action) return;
+            const selected = snap().context.selectedCards;
+            const isMulti = selected.length > 1;
+            const isOnHeader = !!e.target.closest('.file-card-header');
             const corner = isNearCorner(e, card);
-            card.style.cursor = corner ? CORNER_CURSORS[corner] : 'default';
+
+            if (corner && !isMulti) {
+                card.style.cursor = CORNER_CURSORS[corner];
+            } else if (isOnHeader) {
+                card.style.cursor = 'grab';
+            } else {
+                card.style.cursor = 'default';
+            }
         });
 
         card.addEventListener('mouseleave', () => {
@@ -1594,16 +1672,24 @@ export default function mount(): () => void {
         });
 
         function onMouseDown(e) {
-            if (e.target.tagName === 'BUTTON') return;
-            if (e.target.closest('.file-card-body') && e.offsetX > e.target.clientWidth) return;
+            if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+            // Don't intercept scrollbar clicks in body
+            const bodyEl = e.target.closest('.file-card-body');
+            if (bodyEl && (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight)) return;
+            // Don't intercept clicks inside scrollable code content (let native selection work for text)
+            const insideCode = e.target.closest('.hunk-current-pane, .hunk-removed-pane, .file-content-preview pre');
+            if (insideCode && !e.target.closest('.file-card-header')) return;
 
+            e.stopPropagation();
             startX = e.clientX;
             startY = e.clientY;
 
+            const selected = snap().context.selectedCards;
+            const isMulti = selected.length > 1;
             resizeCorner = isNearCorner(e, card);
 
-            if (resizeCorner) {
-                e.stopPropagation();
+            if (resizeCorner && !isMulti) {
+                // Single-card resize
                 action = 'resize';
                 resizeStartW = card.offsetWidth;
                 resizeStartH = card.offsetHeight;
@@ -1611,58 +1697,109 @@ export default function mount(): () => void {
                 resizeStartTop = parseInt(card.style.top) || 0;
                 card.classList.add('resizing');
                 document.body.style.cursor = CORNER_CURSORS[resizeCorner];
-                window.addEventListener('mousemove', onMouseMove);
-                window.addEventListener('mouseup', onMouseUp);
             } else {
-                e.stopPropagation();
-                action = 'select';
-                window.addEventListener('mouseup', onMouseUp);
+                // Could be click or move — wait for drag threshold
+                action = 'pending';
             }
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
         }
 
         function onMouseMove(e) {
-            if (action !== 'resize') return;
-
             const ctx = snap().context;
             const dx = (e.clientX - startX) / ctx.zoom;
             const dy = (e.clientY - startY) / ctx.zoom;
 
-            const minH = 120;
-            const minW = 240;
-            let newW, newH, newLeft, newTop;
+            if (action === 'pending') {
+                // Check drag threshold
+                const screenDist = Math.sqrt((e.clientX - startX) ** 2 + (e.clientY - startY) ** 2);
+                if (screenDist < DRAG_THRESHOLD) return;
 
-            if (resizeCorner === 'br') {
-                newW = Math.max(minW, resizeStartW + dx);
-                newH = Math.max(minH, resizeStartH + dy);
-                newLeft = resizeStartLeft; newTop = resizeStartTop;
-            } else if (resizeCorner === 'bl') {
-                newW = Math.max(minW, resizeStartW - dx);
-                newH = Math.max(minH, resizeStartH + dy);
-                newLeft = resizeStartLeft + (resizeStartW - newW); newTop = resizeStartTop;
-            } else if (resizeCorner === 'tr') {
-                newW = Math.max(minW, resizeStartW + dx);
-                newH = Math.max(minH, resizeStartH - dy);
-                newLeft = resizeStartLeft; newTop = resizeStartTop + (resizeStartH - newH);
-            } else if (resizeCorner === 'tl') {
-                newW = Math.max(minW, resizeStartW - dx);
-                newH = Math.max(minH, resizeStartH - dy);
-                newLeft = resizeStartLeft + (resizeStartW - newW);
-                newTop = resizeStartTop + (resizeStartH - newH);
+                // Transition from pending to move
+                action = 'move';
+                card.style.cursor = 'grabbing';
+                document.body.style.cursor = 'grabbing';
+
+                // Ensure this card is selected
+                const selected = snap().context.selectedCards;
+                const cardPath = card.dataset.path;
+                if (!selected.includes(cardPath)) {
+                    if (!e.shiftKey && !e.ctrlKey) {
+                        actor.send({ type: 'SELECT_CARD', path: cardPath, shift: false });
+                    } else {
+                        actor.send({ type: 'SELECT_CARD', path: cardPath, shift: true });
+                    }
+                    updateSelectionHighlights();
+                    updateArrangeToolbar();
+                }
+
+                // Capture starting positions of all selected cards for group move
+                const nowSelected = snap().context.selectedCards;
+                moveStartPositions = [];
+                nowSelected.forEach(path => {
+                    const c = fileCards.get(path);
+                    if (c) {
+                        moveStartPositions.push({
+                            card: c,
+                            path,
+                            startLeft: parseInt(c.style.left) || 0,
+                            startTop: parseInt(c.style.top) || 0,
+                        });
+                    }
+                });
             }
 
-            card.style.width = `${newW}px`;
-            card.style.height = `${newH}px`;
-            card.style.maxHeight = 'none';
-            card.style.left = `${newLeft}px`;
-            card.style.top = `${newTop}px`;
-            renderConnections();
+            if (action === 'move') {
+                // Move all selected cards
+                moveStartPositions.forEach(info => {
+                    info.card.style.left = `${info.startLeft + dx}px`;
+                    info.card.style.top = `${info.startTop + dy}px`;
+                });
+                renderConnections();
+                updateMinimap();
+                return;
+            }
+
+            if (action === 'resize') {
+                const minH = 120;
+                const minW = 240;
+                let newW, newH, newLeft, newTop;
+
+                if (resizeCorner === 'br') {
+                    newW = Math.max(minW, resizeStartW + dx);
+                    newH = Math.max(minH, resizeStartH + dy);
+                    newLeft = resizeStartLeft; newTop = resizeStartTop;
+                } else if (resizeCorner === 'bl') {
+                    newW = Math.max(minW, resizeStartW - dx);
+                    newH = Math.max(minH, resizeStartH + dy);
+                    newLeft = resizeStartLeft + (resizeStartW - newW); newTop = resizeStartTop;
+                } else if (resizeCorner === 'tr') {
+                    newW = Math.max(minW, resizeStartW + dx);
+                    newH = Math.max(minH, resizeStartH - dy);
+                    newLeft = resizeStartLeft; newTop = resizeStartTop + (resizeStartH - newH);
+                } else if (resizeCorner === 'tl') {
+                    newW = Math.max(minW, resizeStartW - dx);
+                    newH = Math.max(minH, resizeStartH - dy);
+                    newLeft = resizeStartLeft + (resizeStartW - newW);
+                    newTop = resizeStartTop + (resizeStartH - newH);
+                }
+
+                card.style.width = `${newW}px`;
+                card.style.height = `${newH}px`;
+                card.style.maxHeight = 'none';
+                card.style.left = `${newLeft}px`;
+                card.style.top = `${newTop}px`;
+                renderConnections();
+            }
         }
 
         function onMouseUp(e) {
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
 
-            if (action === 'select') {
+            if (action === 'pending') {
+                // Was a click (no drag beyond threshold)
                 if (e.shiftKey || e.ctrlKey) {
                     actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: true });
                 } else {
@@ -1670,6 +1807,16 @@ export default function mount(): () => void {
                 }
                 updateSelectionHighlights();
                 updateArrangeToolbar();
+            } else if (action === 'move') {
+                // Save new positions for all moved cards
+                document.body.style.cursor = '';
+                card.style.cursor = 'grab';
+                moveStartPositions.forEach(info => {
+                    const x = parseInt(info.card.style.left) || 0;
+                    const y = parseInt(info.card.style.top) || 0;
+                    savePosition(commitHash, info.path, x, y);
+                });
+                moveStartPositions = [];
             } else if (action === 'resize') {
                 card.classList.remove('resizing');
                 document.body.style.cursor = '';
