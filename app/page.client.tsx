@@ -113,8 +113,9 @@ export default function mount(): () => void {
     let spaceHeld = false; // Spacebar held → canvas pan mode
     let hiddenFiles = new Set(); // Files hidden by user
 
-    // ─── Corner detection threshold ──────────────────────────
-    const CORNER_SIZE = 24; // px from corner to trigger resize
+    // ─── Corner detection threshold ──────────────────────────────
+    const CORNER_SIZE = 24; // px from corner to trigger resize (top corners)
+    const CORNER_SIZE_BOTTOM = 40; // px for bottom corners (bigger target)
 
     // ─── Init ────────────────────────────────────────────────
     async function init() {
@@ -519,15 +520,29 @@ export default function mount(): () => void {
                 dot.style.height = `${dotH}px`;
                 minimap.appendChild(dot);
 
-                // Vertical file name label — rotated 90° to run along the dot height
+                // File name label — rendered INSIDE the rectangle
                 const label = document.createElement('div');
                 label.className = 'minimap-label';
                 label.textContent = info.name;
-                // Position at top-left of the dot, rotated downward
                 label.style.left = `${dotX}px`;
                 label.style.top = `${dotY}px`;
-                // Max height for label = dotH so it doesn't overflow
-                label.style.maxWidth = `${dotH}px`;
+                label.style.width = `${dotW}px`;
+                label.style.height = `${dotH}px`;
+
+                // Choose font size and direction based on rectangle aspect ratio
+                if (dotH > dotW * 1.5) {
+                    // Tall rectangle — vertical text (rotated 90°)
+                    const fontSize = Math.max(3, Math.min(dotW * 0.7, 7));
+                    label.style.fontSize = `${fontSize}px`;
+                    label.style.writingMode = 'vertical-rl';
+                    label.style.textOrientation = 'mixed';
+                    label.style.whiteSpace = 'nowrap';
+                } else {
+                    // Wide or square rectangle — horizontal text
+                    const fontSize = Math.max(3, Math.min(dotH * 0.6, dotW * 0.15, 7));
+                    label.style.fontSize = `${fontSize}px`;
+                    label.style.whiteSpace = 'nowrap';
+                }
                 minimap.appendChild(label);
             });
 
@@ -1677,9 +1692,10 @@ export default function mount(): () => void {
         const w = rect.width;
         const h = rect.height;
         const c = CORNER_SIZE;
+        const cb = CORNER_SIZE_BOTTOM; // bigger hit area for bottom corners
 
-        if (x > w - c && y > h - c) return 'br';
-        if (x < c && y > h - c) return 'bl';
+        if (x > w - cb && y > h - cb) return 'br';
+        if (x < cb && y > h - cb) return 'bl';
         if (x > w - c && y < c) return 'tr';
         if (x < c && y < c) return 'tl';
         return null;
@@ -1693,26 +1709,22 @@ export default function mount(): () => void {
         let moveStartPositions = []; // [{card, startLeft, startTop}] for group move
         const DRAG_THRESHOLD = 3; // px dead zone to distinguish click from drag
 
-        // Dynamic cursor on mousemove — grab anywhere, resize at corners
+        // Dynamic cursor on mousemove — default everywhere, resize at corners
         card.addEventListener('mousemove', (e) => {
             if (action) return;
             const selected = snap().context.selectedCards;
             const isMulti = selected.length > 1;
             const corner = isNearCorner(e, card);
-            // Inside scrollable code content → default cursor (let text selection work)
-            const insideCode = e.target.closest('.hunk-current-pane, .hunk-removed-pane, .file-content-preview pre');
 
             if (corner && !isMulti) {
                 card.style.cursor = CORNER_CURSORS[corner];
-            } else if (insideCode) {
-                card.style.cursor = 'default';
             } else {
-                card.style.cursor = 'grab';
+                card.style.cursor = '';
             }
         });
 
         card.addEventListener('mouseleave', () => {
-            if (!action) card.style.cursor = 'default';
+            if (!action) card.style.cursor = '';
         });
 
         function onMouseDown(e) {
@@ -1854,7 +1866,7 @@ export default function mount(): () => void {
             } else if (action === 'move') {
                 // Save new positions for all moved cards
                 document.body.style.cursor = '';
-                card.style.cursor = 'grab';
+                card.style.cursor = '';
                 moveStartPositions.forEach(info => {
                     const x = parseInt(info.card.style.left) || 0;
                     const y = parseInt(info.card.style.top) || 0;
