@@ -134,6 +134,8 @@ export default function mount(): () => void {
             actor.start();
             setupCanvasInteraction();
             setupEventListeners();
+            setupChangedFilesPanel();
+            setupMinimapClick();
             await loadSavedPositions();
             loadHiddenFiles();
             updateHiddenUI();
@@ -244,18 +246,32 @@ export default function mount(): () => void {
                 const previewPre = target.closest('.file-content-preview pre') as HTMLElement | null;
                 const scrollContainer = hunkBody || previewPre;
 
-                if (scrollContainer && scrollContainer.scrollHeight > scrollContainer.clientHeight + 1) {
-                    const atTop = scrollContainer.scrollTop <= 0;
-                    const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
-                    const scrollingDown = e.deltaY > 0;
-                    const scrollingUp = e.deltaY < 0;
-
-                    if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
-                        // Let native scroll happen inside the hunk/preview
-                        e.stopPropagation();
-                        return;
+                if (scrollContainer) {
+                    // ── Shift+scroll over hunk/preview = horizontal scroll ──
+                    if (e.shiftKey && scrollContainer.scrollWidth > scrollContainer.clientWidth + 1) {
+                        const atLeft = scrollContainer.scrollLeft <= 0;
+                        const atRight = scrollContainer.scrollLeft + scrollContainer.clientWidth >= scrollContainer.scrollWidth - 1;
+                        if ((e.deltaY > 0 && !atRight) || (e.deltaY < 0 && !atLeft)) {
+                            e.preventDefault();
+                            scrollContainer.scrollLeft += e.deltaY;
+                            return;
+                        }
+                        // At edge — fall through to canvas pan
                     }
-                    // At edge — fall through to canvas pan
+
+                    // ── Plain scroll over hunk/preview = vertical scroll ──
+                    if (!e.shiftKey && scrollContainer.scrollHeight > scrollContainer.clientHeight + 1) {
+                        const atTop = scrollContainer.scrollTop <= 0;
+                        const atBottom = scrollContainer.scrollTop + scrollContainer.clientHeight >= scrollContainer.scrollHeight - 1;
+                        const scrollingDown = e.deltaY > 0;
+                        const scrollingUp = e.deltaY < 0;
+
+                        if ((scrollingDown && !atBottom) || (scrollingUp && !atTop)) {
+                            e.stopPropagation();
+                            return;
+                        }
+                        // At edge — fall through to canvas pan
+                    }
                 }
 
                 // ── Canvas pan ──
@@ -394,6 +410,8 @@ export default function mount(): () => void {
                 const dot = document.createElement('div');
                 const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
                 dot.className = `minimap-dot minimap-dot--${statusClass}`;
+                dot.dataset.path = info.name;
+                dot.title = info.name;
                 dot.style.left = `${dotX}px`;
                 dot.style.top = `${dotY}px`;
                 dot.style.width = `${dotW}px`;
@@ -423,6 +441,157 @@ export default function mount(): () => void {
             viewport.style.height = `${vpWorldH * scale}px`;
             viewport.style.left = `${(vpWorldX - minX) * scale}px`;
             viewport.style.top = `${(vpWorldY - minY) * scale}px`;
+        });
+    }
+
+    // ─── Jump to a specific file on the canvas ───────────────
+    function jumpToFile(filePath) {
+        measure('canvas:jumpToFile', () => {
+            const card = fileCards.get(filePath);
+            if (!card) return;
+
+            const cardX = parseFloat(card.style.left) || 0;
+            const cardY = parseFloat(card.style.top) || 0;
+            const cardW = card.offsetWidth || 580;
+            const cardH = card.offsetHeight || 200;
+
+            const vpRect = canvasViewport.getBoundingClientRect();
+            const ctx = snap().context;
+
+            // Center the card in the viewport
+            const targetZoom = Math.min(ctx.zoom, 1); // don't zoom in past 1x
+            const newOffsetX = vpRect.width / 2 - (cardX + cardW / 2) * targetZoom;
+            const newOffsetY = vpRect.height / 2 - (cardY + cardH / 2) * targetZoom;
+
+            actor.send({ type: 'SET_ZOOM', zoom: targetZoom });
+            actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+            updateCanvasTransform();
+            updateZoomUI();
+            updateMinimap();
+
+            // Flash highlight the card
+            card.style.outline = '2px solid var(--accent-primary)';
+            card.style.outlineOffset = '4px';
+            setTimeout(() => {
+                card.style.outline = '';
+                card.style.outlineOffset = '';
+            }, 1500);
+        });
+    }
+
+    // ─── Changed Files Panel ─────────────────────────────────
+    function renderChangedFilesList(files) {
+        measure('panel:renderChangedFiles', () => {
+            const list = document.getElementById('changedFilesList');
+            if (!list) return;
+            list.innerHTML = '';
+
+            files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'changed-file-item';
+
+                const statusDot = document.createElement('span');
+                const status = file.status === 'A' ? 'added' : file.status === 'D' ? 'deleted' : 'modified';
+                statusDot.className = `file-status ${status}`;
+
+                const fileName = document.createElement('span');
+                fileName.className = 'file-name';
+                fileName.textContent = file.path;
+                fileName.title = file.path;
+
+                item.appendChild(statusDot);
+                item.appendChild(fileName);
+
+                item.addEventListener('click', () => {
+                    jumpToFile(file.path);
+                });
+
+                list.appendChild(item);
+            });
+        });
+    }
+
+    function setupChangedFilesPanel() {
+        measure('panel:setupChangedFiles', () => {
+            const toggleBtn = document.getElementById('toggleChangedFiles');
+            const panel = document.getElementById('changedFilesPanel');
+            const closeBtn = document.getElementById('closeChangedFiles');
+
+            if (toggleBtn && panel) {
+                toggleBtn.addEventListener('click', () => {
+                    const isVisible = panel.style.display !== 'none';
+                    panel.style.display = isVisible ? 'none' : 'flex';
+                });
+            }
+
+            if (closeBtn && panel) {
+                closeBtn.addEventListener('click', () => {
+                    panel.style.display = 'none';
+                });
+            }
+        });
+    }
+
+    // ─── Minimap click handler ───────────────────────────────
+    function setupMinimapClick() {
+        measure('minimap:setupClick', () => {
+            const minimap = document.getElementById('minimap');
+            if (!minimap) return;
+
+            minimap.addEventListener('click', (e) => {
+                const target = e.target as HTMLElement;
+
+                // If clicked a minimap dot, jump to that file
+                if (target.classList.contains('minimap-dot') && target.dataset.path) {
+                    // Find the file by name suffix
+                    for (const [path] of fileCards) {
+                        const name = path.split('/').pop() || path;
+                        if (name === target.dataset.path) {
+                            jumpToFile(path);
+                            return;
+                        }
+                    }
+                    return;
+                }
+
+                // If clicked empty space on minimap, pan to that world position
+                const rect = minimap.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                // Reverse the minimap scale to get world coords
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                fileCards.forEach((card) => {
+                    const x = parseFloat(card.style.left) || 0;
+                    const y = parseFloat(card.style.top) || 0;
+                    const w = card.offsetWidth || 580;
+                    const h = card.offsetHeight || 200;
+                    minX = Math.min(minX, x); minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+                });
+                if (minX === Infinity) return;
+
+                const pad = 200;
+                minX -= pad; minY -= pad;
+                maxX += pad; maxY += pad;
+                const contentW = maxX - minX;
+                const contentH = maxY - minY;
+                const mmW = minimap.offsetWidth;
+                const mmH = minimap.offsetHeight;
+                const scale = Math.min(mmW / contentW, mmH / contentH);
+
+                const worldX = clickX / scale + minX;
+                const worldY = clickY / scale + minY;
+
+                const ctx = snap().context;
+                const vpRect = canvasViewport.getBoundingClientRect();
+                const newOffsetX = vpRect.width / 2 - worldX * ctx.zoom;
+                const newOffsetY = vpRect.height / 2 - worldY * ctx.zoom;
+
+                actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+                updateCanvasTransform();
+                updateMinimap();
+            });
         });
     }
 
@@ -914,6 +1083,7 @@ export default function mount(): () => void {
                 const data = await response.json();
                 actor.send({ type: 'COMMIT_FILES_LOADED', files: data.files });
                 renderFilesOnCanvas(data.files, hash);
+                renderChangedFilesList(data.files);
                 document.getElementById('fileCount').textContent = data.files.length;
                 hideLoadingProgress();
             } catch (err) {
@@ -966,8 +1136,11 @@ export default function mount(): () => void {
                 fileCards.set(file.path, card);
             });
 
-            // Update minimap after cards are placed
-            requestAnimationFrame(() => updateMinimap());
+            // Update minimap and fit all after cards are placed
+            requestAnimationFrame(() => {
+                updateMinimap();
+                setTimeout(() => fitAllFiles(), 50);
+            });
         });
     }
 
@@ -1027,8 +1200,11 @@ export default function mount(): () => void {
             // Render connections
             renderConnections();
 
-            // Update minimap after cards are placed
-            requestAnimationFrame(() => updateMinimap());
+            // Update minimap and fit all after cards are placed
+            requestAnimationFrame(() => {
+                updateMinimap();
+                setTimeout(() => fitAllFiles(), 50);
+            });
         });
     }
 
