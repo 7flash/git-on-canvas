@@ -295,20 +295,53 @@ export default function mount(): () => void {
                 }
             }, { passive: false });
 
-            // Mousedown on empty canvas = pan
+            // Selection rectangle element
+            let selectionRect = null;
+            let selRectStartWorldX = 0, selRectStartWorldY = 0;
+            let isRectSelecting = false;
+
+            // Mousedown on empty canvas:
+            //   Middle-click or Alt+click = pan
+            //   Regular click = rectangle selection
             canvasViewport.addEventListener('mousedown', (e) => {
                 const insideCard = e.target.closest('.file-card');
-                if (!insideCard) {
-                    // Deselect cards when clicking empty canvas
-                    actor.send({ type: 'DESELECT_ALL' });
-                    clearSelectionHighlights();
+                if (insideCard) return;
 
-                    // Start panning
+                const ctx = snap().context;
+
+                // Middle-click or Alt+click = pan
+                if (e.button === 1 || e.altKey) {
                     isDragging = true;
-                    const ctx = snap().context;
                     dragStartX = e.clientX - ctx.offsetX;
                     dragStartY = e.clientY - ctx.offsetY;
                     canvasViewport.style.cursor = 'grabbing';
+                    e.preventDefault();
+                    return;
+                }
+
+                // Left click on empty canvas = start rectangle selection
+                if (e.button === 0) {
+                    if (!e.shiftKey) {
+                        // Deselect all when starting fresh selection
+                        actor.send({ type: 'DESELECT_ALL' });
+                        clearSelectionHighlights();
+                    }
+
+                    isRectSelecting = true;
+                    const vpRect = canvasViewport.getBoundingClientRect();
+                    // Convert screen click to world coordinates
+                    selRectStartWorldX = (e.clientX - vpRect.left - ctx.offsetX) / ctx.zoom;
+                    selRectStartWorldY = (e.clientY - vpRect.top - ctx.offsetY) / ctx.zoom;
+
+                    // Create selection rectangle element in canvas (world space)
+                    selectionRect = document.createElement('div');
+                    selectionRect.className = 'selection-rect';
+                    selectionRect.style.left = `${selRectStartWorldX}px`;
+                    selectionRect.style.top = `${selRectStartWorldY}px`;
+                    selectionRect.style.width = '0px';
+                    selectionRect.style.height = '0px';
+                    canvas.appendChild(selectionRect);
+                    canvasViewport.style.cursor = 'crosshair';
                 }
             });
 
@@ -318,13 +351,86 @@ export default function mount(): () => void {
                     const newY = e.clientY - dragStartY;
                     actor.send({ type: 'SET_OFFSET', x: newX, y: newY });
                     updateCanvasTransform();
+                    return;
+                }
+
+                if (isRectSelecting && selectionRect) {
+                    const ctx = snap().context;
+                    const vpRect = canvasViewport.getBoundingClientRect();
+                    const worldX = (e.clientX - vpRect.left - ctx.offsetX) / ctx.zoom;
+                    const worldY = (e.clientY - vpRect.top - ctx.offsetY) / ctx.zoom;
+
+                    const rx = Math.min(selRectStartWorldX, worldX);
+                    const ry = Math.min(selRectStartWorldY, worldY);
+                    const rw = Math.abs(worldX - selRectStartWorldX);
+                    const rh = Math.abs(worldY - selRectStartWorldY);
+
+                    selectionRect.style.left = `${rx}px`;
+                    selectionRect.style.top = `${ry}px`;
+                    selectionRect.style.width = `${rw}px`;
+                    selectionRect.style.height = `${rh}px`;
+
+                    // Live-highlight cards inside the rectangle
+                    const selected = [];
+                    fileCards.forEach((card, path) => {
+                        const cx = parseFloat(card.style.left) || 0;
+                        const cy = parseFloat(card.style.top) || 0;
+                        const cw = card.offsetWidth || 580;
+                        const ch = card.offsetHeight || 200;
+
+                        // Check AABB overlap
+                        const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
+                        card.classList.toggle('selected', overlaps);
+                        if (overlaps) selected.push(path);
+                    });
                 }
             });
 
-            window.addEventListener('mouseup', () => {
+            window.addEventListener('mouseup', (e) => {
                 if (isDragging) {
                     isDragging = false;
                     canvasViewport.style.cursor = 'grab';
+                    return;
+                }
+
+                if (isRectSelecting) {
+                    isRectSelecting = false;
+                    canvasViewport.style.cursor = 'grab';
+
+                    // Collect selected cards from the rectangle
+                    if (selectionRect) {
+                        const rx = parseFloat(selectionRect.style.left);
+                        const ry = parseFloat(selectionRect.style.top);
+                        const rw = parseFloat(selectionRect.style.width);
+                        const rh = parseFloat(selectionRect.style.height);
+
+                        const selected = [];
+                        fileCards.forEach((card, path) => {
+                            const cx = parseFloat(card.style.left) || 0;
+                            const cy = parseFloat(card.style.top) || 0;
+                            const cw = card.offsetWidth || 580;
+                            const ch = card.offsetHeight || 200;
+
+                            const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
+                            if (overlaps) selected.push(path);
+                        });
+
+                        // Apply selection to state
+                        if (selected.length > 0) {
+                            // Assign all at once
+                            selected.forEach((path, i) => {
+                                actor.send({ type: 'SELECT_CARD', path, shift: i > 0 || e.shiftKey });
+                            });
+                        } else if (!e.shiftKey) {
+                            actor.send({ type: 'DESELECT_ALL' });
+                        }
+
+                        updateSelectionHighlights();
+                        updateArrangeToolbar();
+
+                        selectionRect.remove();
+                        selectionRect = null;
+                    }
                 }
             });
         });
@@ -666,12 +772,20 @@ export default function mount(): () => void {
             // Hidden files button
             document.getElementById('showHidden').addEventListener('click', showHiddenFilesModal);
 
+            // Arrange buttons
+            document.getElementById('arrangeRow')?.addEventListener('click', arrangeRow);
+            document.getElementById('arrangeCol')?.addEventListener('click', arrangeColumn);
+            document.getElementById('arrangeGrid')?.addEventListener('click', arrangeGrid);
+
             // Close preview
             document.getElementById('closePreview').addEventListener('click', closePreview);
             document.querySelector('.modal-backdrop').addEventListener('click', closePreview);
 
             // Keyboard shortcuts
             window.addEventListener('keydown', (e) => {
+                // Don't interfere with input fields
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
                 if (e.key === 'Escape') {
                     closePreview();
                     // Close hidden files modal if open
@@ -681,15 +795,39 @@ export default function mount(): () => void {
                         actor.send({ type: 'CANCEL_CONNECTION' });
                         showToast('Connection cancelled', 'info');
                     }
+                    // Deselect all cards
+                    actor.send({ type: 'DESELECT_ALL' });
+                    clearSelectionHighlights();
+                    updateArrangeToolbar();
                 }
                 if (e.key === 'Delete' || e.key === 'Backspace') {
-                    // Don't interfere with input fields
-                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
                     const selected = snap().context.selectedCards;
                     if (selected.length > 0) {
                         e.preventDefault();
                         hideSelectedFiles(selected);
                     }
+                }
+                // Arrangement hotkeys
+                if (e.key === 'h' || e.key === 'H') {
+                    const selected = snap().context.selectedCards;
+                    if (selected.length >= 2) { e.preventDefault(); arrangeRow(); }
+                }
+                if (e.key === 'v' || e.key === 'V') {
+                    const selected = snap().context.selectedCards;
+                    if (selected.length >= 2) { e.preventDefault(); arrangeColumn(); }
+                }
+                if (e.key === 'g' || e.key === 'G') {
+                    const selected = snap().context.selectedCards;
+                    if (selected.length >= 2) { e.preventDefault(); arrangeGrid(); }
+                }
+                // Select all with Ctrl+A
+                if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                    e.preventDefault();
+                    fileCards.forEach((card, path) => {
+                        actor.send({ type: 'SELECT_CARD', path, shift: true });
+                    });
+                    updateSelectionHighlights();
+                    updateArrangeToolbar();
                 }
             });
         });
@@ -1420,7 +1558,7 @@ export default function mount(): () => void {
         fileCards.forEach(card => card.classList.remove('selected'));
     }
 
-    // ─── Card interaction (contextual: center=move, corner=resize) ───
+    // ─── Card interaction (click-select + corner-resize) ───
     const CORNER_CURSORS = { tl: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', br: 'nwse-resize' };
 
     function isNearCorner(e, card) {
@@ -1439,10 +1577,8 @@ export default function mount(): () => void {
     }
 
     function setupCardInteraction(card, commitHash) {
-        let action = null; // 'drag' or 'resize'
+        let action = null; // 'resize' only
         let startX, startY;
-        let initialSelection = [];
-        let initialPositions = {};
         let resizeStartW, resizeStartH, resizeStartLeft, resizeStartTop;
         let resizeCorner = null;
 
@@ -1450,172 +1586,97 @@ export default function mount(): () => void {
         card.addEventListener('mousemove', (e) => {
             if (action) return;
             const corner = isNearCorner(e, card);
-            if (corner) {
-                card.style.cursor = CORNER_CURSORS[corner];
-            } else {
-                card.style.cursor = '';
-            }
+            card.style.cursor = corner ? CORNER_CURSORS[corner] : 'default';
         });
 
         card.addEventListener('mouseleave', () => {
-            if (!action) card.style.cursor = '';
+            if (!action) card.style.cursor = 'default';
         });
 
         function onMouseDown(e) {
             if (e.target.tagName === 'BUTTON') return;
-
-            // Skip scrollbar clicks
             if (e.target.closest('.file-card-body') && e.offsetX > e.target.clientWidth) return;
 
-            const ctx = snap().context;
             startX = e.clientX;
             startY = e.clientY;
 
-            // Determine action: corner = resize, else = move
             resizeCorner = isNearCorner(e, card);
 
             if (resizeCorner) {
-                // ── Resize ──
                 e.stopPropagation();
                 action = 'resize';
                 resizeStartW = card.offsetWidth;
-                resizeStartH = card.offsetHeight; // Use current height as start
+                resizeStartH = card.offsetHeight;
                 resizeStartLeft = parseInt(card.style.left) || 0;
                 resizeStartTop = parseInt(card.style.top) || 0;
                 card.classList.add('resizing');
                 document.body.style.cursor = CORNER_CURSORS[resizeCorner];
-            } else {
-                // ── Move ──
-                e.stopPropagation();
-                action = 'drag';
-
-                const isSelected = ctx.selectedCards.includes(card.dataset.path);
-                if (e.shiftKey) {
-                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: true });
-                    updateSelectionHighlights();
-                    initialSelection = snap().context.selectedCards.includes(card.dataset.path)
-                        ? snap().context.selectedCards
-                        : [];
-                } else if (isSelected) {
-                    // Keep group selection for drag
-                    initialSelection = ctx.selectedCards;
-                } else {
-                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
-                    updateSelectionHighlights();
-                    initialSelection = [card.dataset.path];
-                }
-
-                if (initialSelection.length === 0) {
-                    action = null;
-                    return;
-                }
-
-                // Capture starting positions
-                initialPositions = {};
-                initialSelection.forEach(path => {
-                    const c = fileCards.get(path);
-                    if (c) {
-                        initialPositions[path] = { x: parseInt(c.style.left) || 0, y: parseInt(c.style.top) || 0 };
-                        c.classList.add('dragging');
-                    }
-                });
-            }
-
-            if (action) {
                 window.addEventListener('mousemove', onMouseMove);
+                window.addEventListener('mouseup', onMouseUp);
+            } else {
+                e.stopPropagation();
+                action = 'select';
                 window.addEventListener('mouseup', onMouseUp);
             }
         }
 
         function onMouseMove(e) {
+            if (action !== 'resize') return;
+
             const ctx = snap().context;
             const dx = (e.clientX - startX) / ctx.zoom;
             const dy = (e.clientY - startY) / ctx.zoom;
 
-            if (action === 'drag') {
-                initialSelection.forEach(path => {
-                    const c = fileCards.get(path);
-                    const pos = initialPositions[path];
-                    if (c && pos) {
-                        c.style.left = `${pos.x + dx}px`;
-                        c.style.top = `${pos.y + dy}px`;
-                    }
-                });
-                renderConnections();
-            } else if (action === 'resize') {
-                // Calculate min height: header + path + 60px per hunk (min visible)
-                const hunkCount = card.querySelectorAll('.diff-hunk').length || 1;
-                const minH = 100 + hunkCount * 80;
-                const minW = 240;
+            const minH = 120;
+            const minW = 240;
+            let newW, newH, newLeft, newTop;
 
-                let newW, newH, newLeft, newTop;
-
-                if (resizeCorner === 'br') {
-                    newW = Math.max(minW, resizeStartW + dx);
-                    newH = Math.max(minH, resizeStartH + dy);
-                    newLeft = resizeStartLeft;
-                    newTop = resizeStartTop;
-                } else if (resizeCorner === 'bl') {
-                    newW = Math.max(minW, resizeStartW - dx);
-                    newH = Math.max(minH, resizeStartH + dy);
-                    newLeft = resizeStartLeft + (resizeStartW - newW);
-                    newTop = resizeStartTop;
-                } else if (resizeCorner === 'tr') {
-                    newW = Math.max(minW, resizeStartW + dx);
-                    newH = Math.max(minH, resizeStartH - dy);
-                    newLeft = resizeStartLeft;
-                    newTop = resizeStartTop + (resizeStartH - newH);
-                } else if (resizeCorner === 'tl') {
-                    newW = Math.max(minW, resizeStartW - dx);
-                    newH = Math.max(minH, resizeStartH - dy);
-                    newLeft = resizeStartLeft + (resizeStartW - newW);
-                    newTop = resizeStartTop + (resizeStartH - newH);
-                }
-
-                card.style.width = `${newW}px`;
-                card.style.width = `${newW}px`;
-                card.style.height = `${newH}px`;
-                card.style.maxHeight = 'none'; // Clear max-height if any
-                card.style.left = `${newLeft}px`;
-                card.style.top = `${newTop}px`;
-                renderConnections();
+            if (resizeCorner === 'br') {
+                newW = Math.max(minW, resizeStartW + dx);
+                newH = Math.max(minH, resizeStartH + dy);
+                newLeft = resizeStartLeft; newTop = resizeStartTop;
+            } else if (resizeCorner === 'bl') {
+                newW = Math.max(minW, resizeStartW - dx);
+                newH = Math.max(minH, resizeStartH + dy);
+                newLeft = resizeStartLeft + (resizeStartW - newW); newTop = resizeStartTop;
+            } else if (resizeCorner === 'tr') {
+                newW = Math.max(minW, resizeStartW + dx);
+                newH = Math.max(minH, resizeStartH - dy);
+                newLeft = resizeStartLeft; newTop = resizeStartTop + (resizeStartH - newH);
+            } else if (resizeCorner === 'tl') {
+                newW = Math.max(minW, resizeStartW - dx);
+                newH = Math.max(minH, resizeStartH - dy);
+                newLeft = resizeStartLeft + (resizeStartW - newW);
+                newTop = resizeStartTop + (resizeStartH - newH);
             }
+
+            card.style.width = `${newW}px`;
+            card.style.height = `${newH}px`;
+            card.style.maxHeight = 'none';
+            card.style.left = `${newLeft}px`;
+            card.style.top = `${newTop}px`;
+            renderConnections();
         }
 
         function onMouseUp(e) {
             window.removeEventListener('mousemove', onMouseMove);
             window.removeEventListener('mouseup', onMouseUp);
 
-            const moved = Math.abs(e.clientX - startX) > 3 || Math.abs(e.clientY - startY) > 3;
-
-            if (action === 'drag') {
-                if (moved) {
-                    initialSelection.forEach(path => {
-                        const c = fileCards.get(path);
-                        if (c) {
-                            c.classList.remove('dragging');
-                            savePosition(commitHash, path, parseInt(c.style.left), parseInt(c.style.top));
-                        }
-                    });
+            if (action === 'select') {
+                if (e.shiftKey || e.ctrlKey) {
+                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: true });
                 } else {
-                    // Click without drag — single-select
-                    if (!e.shiftKey) {
-                        actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
-                        updateSelectionHighlights();
-                    }
-                    initialSelection.forEach(path => {
-                        const c = fileCards.get(path);
-                        if (c) c.classList.remove('dragging');
-                    });
+                    actor.send({ type: 'SELECT_CARD', path: card.dataset.path, shift: false });
                 }
+                updateSelectionHighlights();
+                updateArrangeToolbar();
             } else if (action === 'resize') {
                 card.classList.remove('resizing');
                 document.body.style.cursor = '';
-                const h = card.offsetHeight;
                 const x = parseInt(card.style.left) || 0;
                 const y = parseInt(card.style.top) || 0;
-                actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width: card.offsetWidth, height: h });
-                savePosition(commitHash, card.dataset.path, x, y, card.offsetWidth, h);
+                actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width: card.offsetWidth, height: card.offsetHeight });
+                savePosition(commitHash, card.dataset.path, x, y, card.offsetWidth, card.offsetHeight);
             }
 
             action = null;
@@ -1625,6 +1686,114 @@ export default function mount(): () => void {
         card.addEventListener('mousedown', onMouseDown);
     }
 
+    // ─── Arrange toolbar visibility ──────────────────────────
+    function updateArrangeToolbar() {
+        measure('arrange:updateToolbar', () => {
+            const toolbar = document.getElementById('arrangeToolbar');
+            if (!toolbar) return;
+            const selected = snap().context.selectedCards;
+            toolbar.style.display = selected.length >= 2 ? 'flex' : 'none';
+        });
+    }
+
+    // ─── Arrangement functions ───────────────────────────────
+    function getSelectedCardsInfo() {
+        const selected = snap().context.selectedCards;
+        const infos = [];
+        selected.forEach(path => {
+            const card = fileCards.get(path);
+            if (card) {
+                infos.push({
+                    path, card,
+                    x: parseFloat(card.style.left) || 0,
+                    y: parseFloat(card.style.top) || 0,
+                    w: card.offsetWidth || 580,
+                    h: card.offsetHeight || 400,
+                });
+            }
+        });
+        infos.sort((a, b) => a.x - b.x || a.y - b.y);
+        return infos;
+    }
+
+    function arrangeRow() {
+        measure('arrange:row', () => {
+            const infos = getSelectedCardsInfo();
+            if (infos.length < 2) return;
+            const startX = Math.min(...infos.map(i => i.x));
+            const startY = Math.min(...infos.map(i => i.y));
+            const gap = 40;
+            let curX = startX;
+            const commitHash = snap().context.currentCommitHash || 'allfiles';
+            infos.forEach(info => {
+                info.card.style.left = `${curX}px`;
+                info.card.style.top = `${startY}px`;
+                savePosition(commitHash, info.path, curX, startY);
+                curX += info.w + gap;
+            });
+            renderConnections();
+            updateMinimap();
+            showToast(`Arranged ${infos.length} files in a row`, 'info');
+        });
+    }
+
+    function arrangeColumn() {
+        measure('arrange:column', () => {
+            const infos = getSelectedCardsInfo();
+            if (infos.length < 2) return;
+            const startX = Math.min(...infos.map(i => i.x));
+            const startY = Math.min(...infos.map(i => i.y));
+            const gap = 40;
+            let curY = startY;
+            const commitHash = snap().context.currentCommitHash || 'allfiles';
+            infos.forEach(info => {
+                info.card.style.left = `${startX}px`;
+                info.card.style.top = `${curY}px`;
+                savePosition(commitHash, info.path, startX, curY);
+                curY += info.h + gap;
+            });
+            renderConnections();
+            updateMinimap();
+            showToast(`Arranged ${infos.length} files in a column`, 'info');
+        });
+    }
+
+    function arrangeGrid() {
+        measure('arrange:grid', () => {
+            const infos = getSelectedCardsInfo();
+            if (infos.length < 2) return;
+            const cols = Math.ceil(Math.sqrt(infos.length));
+            const startX = Math.min(...infos.map(i => i.x));
+            const startY = Math.min(...infos.map(i => i.y));
+            const gapX = 40, gapY = 40;
+
+            const colWidths = [];
+            const rowHeights = [];
+            infos.forEach((info, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                colWidths[col] = Math.max(colWidths[col] || 0, info.w);
+                rowHeights[row] = Math.max(rowHeights[row] || 0, info.h);
+            });
+
+            const commitHash = snap().context.currentCommitHash || 'allfiles';
+            infos.forEach((info, i) => {
+                const col = i % cols;
+                const row = Math.floor(i / cols);
+                let x = startX;
+                for (let c = 0; c < col; c++) x += (colWidths[c] || 580) + gapX;
+                let y = startY;
+                for (let r = 0; r < row; r++) y += (rowHeights[r] || 400) + gapY;
+                info.card.style.left = `${x}px`;
+                info.card.style.top = `${y}px`;
+                savePosition(commitHash, info.path, x, y);
+            });
+
+            renderConnections();
+            updateMinimap();
+            showToast(`Arranged ${infos.length} files in a ${cols}-col grid`, 'info');
+        });
+    }
 
     // ─── Selection highlights ────────────────────────────────
     function updateSelectionHighlights() {
@@ -1637,6 +1806,7 @@ export default function mount(): () => void {
     function clearSelectionHighlights() {
         fileCards.forEach(card => card.classList.remove('selected'));
     }
+
 
     // ─── Connection drag from button ─────────────────────────
     let connectionDragState = null; // { sourceFile, sourceCard, arrowEl }

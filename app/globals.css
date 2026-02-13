@@ -864,13 +864,13 @@ body {
     font-size: 13px;
     line-height: 1.5;
     color: var(--text-muted);
-    overflow: visible;
+    overflow: hidden;
     cursor: default;
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    /* No max-height or scroll — card expands to fit all hunks */
+    /* When card has explicit height from resize, body fills remaining space */
 }
 
 /* Styled scrollbar for hunk bodies and file preview content */
@@ -963,9 +963,11 @@ body {
 
 .file-content-preview {
     margin-top: 0;
-    overflow: visible;
+    overflow: auto;
     background: rgba(0, 0, 0, 0.3);
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    flex: 1;
+    min-height: 0;
 }
 
 .file-content-preview pre {
@@ -1093,6 +1095,19 @@ body {
     max-height: 300px;
     overflow-y: auto;
     overflow-x: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+/* When card is resized (has explicit height), let hunks fill available space */
+.file-card[style*="height"] .file-content-preview {
+    flex: 1;
+    overflow: auto;
+}
+
+.file-card[style*="height"] .diff-hunk-body {
+    max-height: none;
+    flex: 1;
 }
 
 .hunk-current-pane {
@@ -1990,4 +2005,70 @@ body {
 .file-card.selected {
     border-color: var(--accent-primary);
     box-shadow: 0 0 0 2px var(--accent-glow), var(--shadow-md);
+}
+
+/* Resizing card */
+.file-card.resizing {
+    opacity: 0.9;
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+
+/* Selection rectangle on canvas */
+.selection-rect {
+    position: absolute;
+    border: 1.5px dashed var(--accent-primary);
+    background: rgba(124, 58, 237, 0.08);
+    pointer-events: none;
+    z-index: 500;
+    border-radius: 3px;
+}
+
+/* Arrange toolbar */
+.arrange-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 2px 8px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-sm);
+    animation: fadeIn 150ms ease;
+}
+
+.arrange-label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-right: 2px;
+}
+
+.arrange-toolbar .btn-ghost {
+    padding: 3px 5px;
+}
+
+.arrange-toolbar .btn-ghost:hover {
+    background: var(--accent-primary);
+    color: white;
+}
+
+/* Card resize handle visual hint at bottom-right corner */
+.file-card::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--border-subtle);
+    border-bottom: 2px solid var(--border-subtle);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    pointer-events: none;
+}
+
+.file-card:hover::after {
+    opacity: 0.5;
 }
