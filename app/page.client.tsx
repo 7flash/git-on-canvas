@@ -1775,7 +1775,6 @@ export default function mount(): () => void {
                 // Transition from pending to move
                 action = 'move';
                 card.style.cursor = 'grabbing';
-                document.body.style.cursor = 'grabbing';
 
                 // Ensure this card is selected
                 const selected = snap().context.selectedCards;
@@ -1796,6 +1795,7 @@ export default function mount(): () => void {
                 nowSelected.forEach(path => {
                     const c = fileCards.get(path);
                     if (c) {
+                        c.style.cursor = 'grabbing';
                         moveStartPositions.push({
                             card: c,
                             path,
@@ -1867,6 +1867,10 @@ export default function mount(): () => void {
                 // Save new positions for all moved cards
                 document.body.style.cursor = '';
                 card.style.cursor = '';
+                // Also reset all other moved cards' cursors
+                moveStartPositions.forEach(info => {
+                    info.card.style.cursor = '';
+                });
                 moveStartPositions.forEach(info => {
                     const x = parseInt(info.card.style.left) || 0;
                     const y = parseInt(info.card.style.top) || 0;

@@ -817,7 +817,7 @@ body {
     border-radius: var(--radius-md);
     overflow: hidden;
     transition: box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
-    user-select: none;
+    user-select: auto;
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
@@ -848,6 +848,7 @@ body {
     top: 0;
     z-index: 2;
     flex-shrink: 0;
+    user-select: none;
 }
 
 /* Simple file cards (all-files mode) */
@@ -1025,6 +1026,8 @@ body {
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     flex: 1;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 /* Space-bar panning mode */
@@ -1145,6 +1148,10 @@ body {
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-sm);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
 }
 
 .diff-hunk:last-child {
@@ -1159,12 +1166,13 @@ body {
     padding: 2px 8px;
     border-left: 2px solid var(--accent-primary);
     line-height: 1.2;
+    flex-shrink: 0;
 }
 
 .diff-hunk-body {
     display: flex;
     max-height: 300px;
-    overflow: hidden;
+    overflow: auto;
     flex: 1;
     min-height: 0;
 }
@@ -1172,12 +1180,13 @@ body {
 /* When card is resized (has explicit height), let hunks fill available space */
 .file-card[style*="height"] .file-content-preview {
     flex: 1;
-    overflow: auto;
+    overflow: hidden;
 }
 
 .file-card[style*="height"] .diff-hunk-body {
     max-height: none;
     flex: 1;
+    overflow: auto;
 }
 
 .hunk-current-pane {
