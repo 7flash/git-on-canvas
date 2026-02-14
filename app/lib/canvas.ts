@@ -1,0 +1,279 @@
+// @ts-nocheck
+/**
+ * Canvas transform, zoom, minimap, fit-all.
+ */
+import { measure } from './measure.js';
+import type { CanvasContext } from './context';
+
+// ─── Update canvas CSS transform from state ─────────────
+export function updateCanvasTransform(ctx: CanvasContext) {
+    measure('canvas:updateTransform', () => {
+        const state = ctx.snap().context;
+        ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
+        updateMinimap(ctx);
+    });
+}
+
+// ─── Update zoom slider UI ──────────────────────────────
+export function updateZoomUI(ctx: CanvasContext) {
+    measure('zoom:updateUI', () => {
+        const state = ctx.snap().context;
+        const slider = document.getElementById('zoomSlider') as HTMLInputElement;
+        const value = document.getElementById('zoomValue');
+        if (slider) slider.value = state.zoom;
+        if (value) value.textContent = `${Math.round(state.zoom * 100)}%`;
+    });
+}
+
+// ─── Update minimap ─────────────────────────────────────
+export function updateMinimap(ctx: CanvasContext) {
+    measure('minimap:update', () => {
+        const minimap = document.getElementById('minimap');
+        const viewport = document.getElementById('minimapViewport');
+        const state = ctx.snap().context;
+
+        if (!minimap || !viewport) return;
+
+        // Remove old labels/dots
+        minimap.querySelectorAll('.minimap-dot, .minimap-label').forEach(el => el.remove());
+
+        // Calculate actual bounding box from all file cards
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string }[] = [];
+
+        ctx.fileCards.forEach((card, path) => {
+            const x = parseFloat(card.style.left) || 0;
+            const y = parseFloat(card.style.top) || 0;
+            const w = card.offsetWidth || 580;
+            const h = card.offsetHeight || 200;
+            const name = path.split('/').pop() || path;
+            const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
+
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + w);
+            maxY = Math.max(maxY, y + h);
+
+            cardInfos.push({ x, y, w, h, name, status });
+        });
+
+        // If no cards, just hide viewport
+        if (cardInfos.length === 0) {
+            viewport.style.display = 'none';
+            return;
+        }
+        viewport.style.display = '';
+
+        // Add padding around content
+        const pad = 200;
+        minX -= pad; minY -= pad;
+        maxX += pad; maxY += pad;
+
+        const contentW = maxX - minX;
+        const contentH = maxY - minY;
+        const mmW = minimap.offsetWidth;
+        const mmH = minimap.offsetHeight;
+
+        // Scale to fit content in minimap
+        const scale = Math.min(mmW / contentW, mmH / contentH);
+
+        // Render file dots and labels
+        cardInfos.forEach(info => {
+            const dotX = (info.x - minX) * scale;
+            const dotY = (info.y - minY) * scale;
+            const dotW = Math.max(2, info.w * scale);
+            const dotH = Math.max(1, info.h * scale);
+
+            // Colored dot for file
+            const dot = document.createElement('div');
+            const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
+            dot.className = `minimap-dot minimap-dot--${statusClass}`;
+            dot.dataset.path = info.name;
+            dot.title = info.name;
+            dot.style.left = `${dotX}px`;
+            dot.style.top = `${dotY}px`;
+            dot.style.width = `${dotW}px`;
+            dot.style.height = `${dotH}px`;
+            minimap.appendChild(dot);
+
+            // File name label
+            const label = document.createElement('div');
+            label.className = 'minimap-label';
+            label.textContent = info.name;
+            label.style.left = `${dotX}px`;
+            label.style.top = `${dotY}px`;
+            label.style.width = `${dotW}px`;
+            label.style.height = `${dotH}px`;
+
+            if (dotH > dotW * 1.5) {
+                const fontSize = Math.max(3, Math.min(dotW * 0.7, 7));
+                label.style.fontSize = `${fontSize}px`;
+                label.style.writingMode = 'vertical-rl';
+                label.style.textOrientation = 'mixed';
+                label.style.whiteSpace = 'nowrap';
+            } else {
+                const fontSize = Math.max(3, Math.min(dotH * 0.6, dotW * 0.15, 7));
+                label.style.fontSize = `${fontSize}px`;
+                label.style.whiteSpace = 'nowrap';
+            }
+            minimap.appendChild(label);
+        });
+
+        // Viewport rectangle
+        const canvasRect = ctx.canvasViewport.getBoundingClientRect();
+        const vpWorldW = canvasRect.width / state.zoom;
+        const vpWorldH = canvasRect.height / state.zoom;
+        const vpWorldX = -state.offsetX / state.zoom;
+        const vpWorldY = -state.offsetY / state.zoom;
+
+        viewport.style.width = `${vpWorldW * scale}px`;
+        viewport.style.height = `${vpWorldH * scale}px`;
+        viewport.style.left = `${(vpWorldX - minX) * scale}px`;
+        viewport.style.top = `${(vpWorldY - minY) * scale}px`;
+    });
+}
+
+// ─── Jump to a specific file on the canvas ──────────────
+export function jumpToFile(ctx: CanvasContext, filePath: string) {
+    measure('canvas:jumpToFile', () => {
+        const card = ctx.fileCards.get(filePath);
+        if (!card) return;
+
+        const cardX = parseFloat(card.style.left) || 0;
+        const cardY = parseFloat(card.style.top) || 0;
+        const cardW = card.offsetWidth || 580;
+        const cardH = card.offsetHeight || 200;
+
+        const vpRect = ctx.canvasViewport.getBoundingClientRect();
+        const state = ctx.snap().context;
+
+        const targetZoom = Math.min(state.zoom, 1);
+        const newOffsetX = vpRect.width / 2 - (cardX + cardW / 2) * targetZoom;
+        const newOffsetY = vpRect.height / 2 - (cardY + cardH / 2) * targetZoom;
+
+        ctx.actor.send({ type: 'SET_ZOOM', zoom: targetZoom });
+        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+        updateCanvasTransform(ctx);
+        updateZoomUI(ctx);
+        updateMinimap(ctx);
+
+        // Flash highlight
+        card.style.outline = '2px solid var(--accent-primary)';
+        card.style.outlineOffset = '4px';
+        setTimeout(() => {
+            card.style.outline = '';
+            card.style.outlineOffset = '';
+        }, 1500);
+    });
+}
+
+// ─── Fit all files in viewport ──────────────────────────
+export function fitAllFiles(ctx: CanvasContext) {
+    measure('canvas:fitAll', () => {
+        if (ctx.fileCards.size === 0) return;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        ctx.fileCards.forEach(card => {
+            const x = parseInt(card.style.left);
+            const y = parseInt(card.style.top);
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + (card.offsetWidth || 580));
+            maxY = Math.max(maxY, y + (card.offsetHeight || 700));
+        });
+
+        const viewportRect = ctx.canvasViewport.getBoundingClientRect();
+        const contentWidth = maxX - minX + 100;
+        const contentHeight = maxY - minY + 100;
+
+        const newZoom = Math.min(
+            viewportRect.width / contentWidth,
+            viewportRect.height / contentHeight,
+            1
+        );
+
+        const newOffsetX = (viewportRect.width - contentWidth * newZoom) / 2 - minX * newZoom + 50;
+        const newOffsetY = (viewportRect.height - contentHeight * newZoom) / 2 - minY * newZoom + 50;
+
+        ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
+        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+        updateCanvasTransform(ctx);
+        updateZoomUI(ctx);
+    });
+}
+
+// ─── Setup minimap click handler ────────────────────────
+export function setupMinimapClick(ctx: CanvasContext) {
+    measure('minimap:setupClick', () => {
+        const minimap = document.getElementById('minimap');
+        if (!minimap) return;
+
+        minimap.addEventListener('click', (e) => {
+            const target = e.target as HTMLElement;
+
+            if (target.classList.contains('minimap-dot') && target.dataset.path) {
+                for (const [path] of ctx.fileCards) {
+                    const name = path.split('/').pop() || path;
+                    if (name === target.dataset.path) {
+                        jumpToFile(ctx, path);
+                        return;
+                    }
+                }
+                return;
+            }
+
+            const rect = minimap.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            ctx.fileCards.forEach((card) => {
+                const x = parseFloat(card.style.left) || 0;
+                const y = parseFloat(card.style.top) || 0;
+                const w = card.offsetWidth || 580;
+                const h = card.offsetHeight || 200;
+                minX = Math.min(minX, x); minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x + w); maxY = Math.max(maxY, y + h);
+            });
+            if (minX === Infinity) return;
+
+            const pad = 200;
+            minX -= pad; minY -= pad;
+            maxX += pad; maxY += pad;
+            const contentW = maxX - minX;
+            const contentH = maxY - minY;
+            const mmW = minimap.offsetWidth;
+            const mmH = minimap.offsetHeight;
+            const scale = Math.min(mmW / contentW, mmH / contentH);
+
+            const worldX = clickX / scale + minX;
+            const worldY = clickY / scale + minY;
+
+            const state = ctx.snap().context;
+            const vpRect = ctx.canvasViewport.getBoundingClientRect();
+            const newOffsetX = vpRect.width / 2 - worldX * state.zoom;
+            const newOffsetY = vpRect.height / 2 - worldY * state.zoom;
+
+            ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+            updateCanvasTransform(ctx);
+            updateMinimap(ctx);
+        });
+    });
+}
+
+// ─── Clear all cards from canvas ────────────────────────
+export function clearCanvas(ctx: CanvasContext) {
+    ctx.fileCards.forEach(card => card.remove());
+    ctx.fileCards.clear();
+    ctx.canvas.querySelectorAll('.dir-label').forEach(el => el.remove());
+    if (ctx.svgOverlay) ctx.svgOverlay.innerHTML = '';
+}
+
+// ─── Auto column count based on viewport width ─────────
+export function getAutoColumnCount(ctx: CanvasContext): number {
+    const vpWidth = ctx.canvasViewport?.getBoundingClientRect().width || window.innerWidth;
+    const cardWidth = 580;
+    const gap = 40;
+    const margin = 100;
+    return Math.max(1, Math.floor((vpWidth - margin) / (cardWidth + gap)));
+}
