@@ -114,8 +114,7 @@ export default function mount(): () => void {
     let hiddenFiles = new Set(); // Files hidden by user
 
     // ─── Corner detection threshold ──────────────────────────────
-    const CORNER_SIZE = 24; // px from corner to trigger resize (top corners)
-    const CORNER_SIZE_BOTTOM = 40; // px for bottom corners (bigger target)
+    const CORNER_SIZE = 40; // px from corner to trigger resize (all corners)
 
     // ─── Init ────────────────────────────────────────────────
     async function init() {
@@ -1582,6 +1581,11 @@ export default function mount(): () => void {
                     <circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10" stroke-dasharray="3,2"/>
                 </svg>
             </button>
+            <button class="connect-btn expand-btn" title="Expand file (selectable text)" data-path="${escapeHtml(file.path)}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                </svg>
+            </button>
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(file.path)}</div>
@@ -1592,6 +1596,15 @@ export default function mount(): () => void {
         setupCardInteraction(card, commitHash);
         setupConnectionDrag(card, file.path);
 
+        // Expand button → open modal with full file content (selectable text)
+        const expandBtn = card.querySelector('.expand-btn');
+        if (expandBtn) {
+            expandBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openFileModal(file);
+            });
+        }
+
         // Add scroll listener for connections
         const body = card.querySelector('.file-card-body');
         if (body) {
@@ -1601,6 +1614,52 @@ export default function mount(): () => void {
         }
 
         return card;
+    }
+
+    // ─── File expand modal ──────────────────────────────────────
+    function openFileModal(file) {
+        const modal = document.getElementById('filePreviewModal');
+        const pathEl = document.getElementById('previewFilePath');
+        const contentEl = document.getElementById('previewContent');
+        const closeBtn = document.getElementById('closePreview');
+        if (!modal || !pathEl || !contentEl) return;
+
+        pathEl.textContent = file.path;
+
+        // Build full content with diff highlighting
+        let html = '';
+        if (file.hunks && file.hunks.length > 0) {
+            file.hunks.forEach((hunk, i) => {
+                if (i > 0) html += '\n';
+                // Hunk header
+                html += `<span style="color: var(--accent-tertiary); opacity: 0.7;">@@ ${escapeHtml(hunk.header || '')} @@</span>\n`;
+                hunk.lines.forEach(line => {
+                    const prefix = line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' ';
+                    const cls = line.type === 'add' ? 'diff-add' : line.type === 'del' ? 'diff-del' : '';
+                    html += `<span class="diff-line ${cls}">${prefix} ${escapeHtml(line.content)}</span>\n`;
+                });
+            });
+        } else if (file.content) {
+            html = escapeHtml(file.content);
+        } else {
+            html = '<span style="color: var(--text-muted); font-style: italic;">No content available</span>';
+        }
+
+        contentEl.innerHTML = html;
+        modal.classList.add('active');
+
+        function closeModal() {
+            modal.classList.remove('active');
+            document.removeEventListener('keydown', onEsc);
+        }
+
+        function onEsc(e) {
+            if (e.key === 'Escape') closeModal();
+        }
+
+        document.addEventListener('keydown', onEsc);
+        closeBtn?.addEventListener('click', closeModal, { once: true });
+        modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal, { once: true });
     }
 
     // ─── Create all-file card (working tree) ─────────────────
@@ -1692,10 +1751,9 @@ export default function mount(): () => void {
         const w = rect.width;
         const h = rect.height;
         const c = CORNER_SIZE;
-        const cb = CORNER_SIZE_BOTTOM; // bigger hit area for bottom corners
 
-        if (x > w - cb && y > h - cb) return 'br';
-        if (x < cb && y > h - cb) return 'bl';
+        if (x > w - c && y > h - c) return 'br';
+        if (x < c && y > h - c) return 'bl';
         if (x > w - c && y < c) return 'tr';
         if (x < c && y < c) return 'tl';
         return null;
@@ -1732,9 +1790,6 @@ export default function mount(): () => void {
             // Don't intercept scrollbar clicks in body
             const bodyEl = e.target.closest('.file-card-body');
             if (bodyEl && (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight)) return;
-            // Don't intercept clicks inside scrollable code content (let native selection work for text)
-            const insideCode = e.target.closest('.hunk-current-pane, .hunk-removed-pane, .file-content-preview pre');
-            if (insideCode && !e.target.closest('.file-card-header')) return;
 
             e.stopPropagation();
             startX = e.clientX;
