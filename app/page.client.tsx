@@ -1384,6 +1384,15 @@ export default function mount(): () => void {
             const visibleFiles = files.filter(f => !hiddenFiles.has(f.path));
             updateHiddenUI();
 
+            // Build a map of commit-changed files for overlay
+            const ctx = snap().context;
+            const commitFileMap = new Map();
+            if (ctx.currentCommitHash && ctx.commitFiles && ctx.commitFiles.length > 0) {
+                ctx.commitFiles.forEach(cf => {
+                    commitFileMap.set(cf.path, cf);
+                });
+            }
+
             const cardWidth = 580;
             const gap = 40;
             const cols = Math.min(visibleFiles.length, getAutoColumnCount());
@@ -1401,18 +1410,34 @@ export default function mount(): () => void {
                 }
             });
 
+            // Helper: create the right card type (diff or plain)
+            function createCardForFile(file, x, y, size) {
+                const commitFile = commitFileMap.get(file.path);
+                if (commitFile) {
+                    // This file was changed in the selected commit — show diff view
+                    const card = createFileCard(commitFile, x, y, ctx.currentCommitHash);
+                    if (size) {
+                        card.style.width = `${size.width}px`;
+                        card.style.height = `${size.height}px`;
+                        card.style.maxHeight = 'none';
+                    }
+                    return card;
+                } else {
+                    return createAllFileCard(file, x, y, size);
+                }
+            }
+
             // Render files with custom positions
             customPosFiles.forEach(({ file }) => {
                 const posKey = `allfiles:${file.path}`;
                 const pos = positions.get(posKey);
                 let size = null;
-                const ctx = snap().context;
                 if (ctx.cardSizes?.[file.path]) {
                     size = ctx.cardSizes[file.path];
                 } else if (pos.width) {
                     size = { width: pos.width, height: pos.height };
                 }
-                const card = createAllFileCard(file, pos.x, pos.y, size);
+                const card = createCardForFile(file, pos.x, pos.y, size);
                 canvas.appendChild(card);
                 fileCards.set(file.path, card);
             });
@@ -1435,9 +1460,8 @@ export default function mount(): () => void {
                     const y = colBottoms[minCol];
                     colBottoms[minCol] = y + h + gap;
 
-                    const ctx = snap().context;
                     let size = ctx.cardSizes?.[file.path] || null;
-                    const card = createAllFileCard(file, x, y, size);
+                    const card = createCardForFile(file, x, y, size);
                     canvas.appendChild(card);
                     fileCards.set(file.path, card);
                 });
@@ -1621,36 +1645,50 @@ export default function mount(): () => void {
         const modal = document.getElementById('filePreviewModal');
         const pathEl = document.getElementById('previewFilePath');
         const contentEl = document.getElementById('previewContent');
-        const closeBtn = document.getElementById('closePreview');
+        const lineCountEl = document.getElementById('previewLineCount');
+        const statusEl = document.getElementById('previewFileStatus');
+        const tabsEl = document.getElementById('modalViewTabs');
         if (!modal || !pathEl || !contentEl) return;
 
         pathEl.textContent = file.path;
+        contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Loading...</span>';
+        modal.classList.add('active');
 
-        // Build full content with diff highlighting
-        let html = '';
-        if (file.hunks && file.hunks.length > 0) {
-            file.hunks.forEach((hunk, i) => {
-                if (i > 0) html += '\n';
-                // Hunk header
-                html += `<span style="color: var(--accent-tertiary); opacity: 0.7;">@@ ${escapeHtml(hunk.header || '')} @@</span>\n`;
-                hunk.lines.forEach(line => {
-                    const prefix = line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' ';
-                    const cls = line.type === 'add' ? 'diff-add' : line.type === 'del' ? 'diff-del' : '';
-                    html += `<span class="diff-line ${cls}">${prefix} ${escapeHtml(line.content)}</span>\n`;
-                });
-            });
-        } else if (file.content) {
-            html = escapeHtml(file.content);
-        } else {
-            html = '<span style="color: var(--text-muted); font-style: italic;">No content available</span>';
+        // Show status badge if file has a status
+        if (statusEl) {
+            const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
+            const statusLabels = { added: 'ADDED', modified: 'MODIFIED', deleted: 'DELETED' };
+            if (file.status && statusColors[file.status]) {
+                statusEl.textContent = statusLabels[file.status];
+                statusEl.style.display = '';
+                statusEl.style.background = statusColors[file.status] + '20';
+                statusEl.style.color = statusColors[file.status];
+            } else {
+                statusEl.style.display = 'none';
+            }
         }
 
-        contentEl.innerHTML = html;
-        modal.classList.add('active');
+        // Line count badge
+        if (lineCountEl) {
+            lineCountEl.textContent = file.lines ? `${file.lines.toLocaleString()} lines` : '';
+        }
+
+        // Determine if diff is available for this file
+        const hasDiff = !!(file.status && (file.hunks?.length > 0 || file.content));
+
+        // Cache rendered HTML: { full: string, diff: string }
+        const rendered = { full: '', diff: '' };
+        let currentView = 'full';
 
         function closeModal() {
             modal.classList.remove('active');
             document.removeEventListener('keydown', onEsc);
+            // Clean up tab listeners
+            if (tabsEl) {
+                tabsEl.querySelectorAll('.modal-tab').forEach(t => {
+                    t.replaceWith(t.cloneNode(true));
+                });
+            }
         }
 
         function onEsc(e) {
@@ -1658,8 +1696,288 @@ export default function mount(): () => void {
         }
 
         document.addEventListener('keydown', onEsc);
-        closeBtn?.addEventListener('click', closeModal, { once: true });
+        document.getElementById('closePreview')?.addEventListener('click', closeModal, { once: true });
         modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal, { once: true });
+
+        // Setup tab switching
+        if (tabsEl) {
+            const tabs = tabsEl.querySelectorAll('.modal-tab');
+            // Show/hide diff tab based on availability
+            tabs.forEach(tab => {
+                if (tab.dataset.view === 'diff') {
+                    tab.style.display = hasDiff ? '' : 'none';
+                }
+                // Reset active state
+                tab.classList.toggle('active', tab.dataset.view === 'full');
+            });
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const view = tab.dataset.view;
+                    if (view === currentView) return;
+                    currentView = view;
+                    tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
+
+                    if (view === 'diff' && rendered.diff) {
+                        contentEl.innerHTML = rendered.diff;
+                    } else if (view === 'full' && rendered.full) {
+                        contentEl.innerHTML = rendered.full;
+                    }
+                });
+            });
+        }
+
+        // Build diff HTML (cached)
+        if (hasDiff) {
+            rendered.diff = buildModalDiffHTML(file);
+        }
+
+        // Fetch full file content from server
+        measure('modal:fetchContent', async () => {
+            try {
+                const ctx = snap().context;
+                let content = '';
+
+                // Try to get content from the commit (for diff files)
+                if (ctx.currentCommitHash && file.path) {
+                    const response = await fetch('/api/repo/file-content', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            path: ctx.repoPath,
+                            commit: ctx.currentCommitHash,
+                            filePath: file.path
+                        })
+                    });
+                    if (response.ok) {
+                        const data = await response.json();
+                        content = data.content || '';
+                    }
+                }
+
+                // Fall back to file.content if available
+                if (!content && file.content) {
+                    content = file.content;
+                }
+
+                if (!content) {
+                    contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">No content available</span>';
+                    return;
+                }
+
+                // Update line count from actual content
+                const lineCount = content.split('\n').length;
+                if (lineCountEl) {
+                    lineCountEl.textContent = `${lineCount.toLocaleString()} lines`;
+                }
+
+                // Basic syntax highlighting
+                const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+                rendered.full = highlightSyntax(content, ext);
+
+                // Show current view
+                if (currentView === 'full') {
+                    contentEl.innerHTML = rendered.full;
+                }
+
+            } catch (err) {
+                measure('modal:fetchError', () => err);
+                // Fall back to file.content if fetch failed
+                if (file.content) {
+                    const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+                    rendered.full = highlightSyntax(file.content, ext);
+                    if (currentView === 'full') {
+                        contentEl.innerHTML = rendered.full;
+                    }
+                } else {
+                    contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${escapeHtml(err.message)}</span>`;
+                }
+            }
+        });
+    }
+
+    // Build diff HTML for the modal view
+    function buildModalDiffHTML(file) {
+        let html = '';
+
+        if (file.status === 'added' && file.content) {
+            const lines = file.content.split('\n');
+            html = lines.map((line, i) =>
+                `<span class="diff-line diff-add" data-line="${i + 1}"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>+  ${escapeHtml(line)}</span>`
+            ).join('\n');
+        } else if (file.status === 'deleted' && file.content) {
+            const lines = file.content.split('\n');
+            html = lines.map((line, i) =>
+                `<span class="diff-line diff-del" data-line="${i + 1}"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>-  ${escapeHtml(line)}</span>`
+            ).join('\n');
+        } else if (file.status === 'modified' && file.hunks?.length > 0) {
+            const hunkSections = file.hunks.map(hunk => {
+                const header = `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@${hunk.context ? ' ' + escapeHtml(hunk.context) : ''}`;
+                let oldLine = hunk.oldStart;
+                let newLine = hunk.newStart;
+
+                const lineItems = hunk.lines.map(l => {
+                    if (l.type === 'add') {
+                        const ln = newLine++;
+                        return `<span class="diff-line diff-add" data-line="${ln}"><span class="line-num">${String(ln).padStart(4, ' ')}</span>+  ${escapeHtml(l.content)}</span>`;
+                    } else if (l.type === 'del') {
+                        const ln = oldLine++;
+                        return `<span class="diff-line diff-del" data-line="${ln}"><span class="line-num">${String(ln).padStart(4, ' ')}</span>-  ${escapeHtml(l.content)}</span>`;
+                    } else {
+                        oldLine++; newLine++;
+                        const ln = newLine - 1;
+                        return `<span class="diff-line diff-ctx" data-line="${ln}"><span class="line-num">${String(ln).padStart(4, ' ')}</span>   ${escapeHtml(l.content)}</span>`;
+                    }
+                }).join('\n');
+
+                return `<span class="diff-line diff-hunk-header-line" style="color:var(--accent-tertiary);background:rgba(124,58,237,0.08);font-weight:500;">${header}</span>\n${lineItems}`;
+            });
+            html = hunkSections.join('\n\n');
+        }
+
+        return html || '<span style="color: var(--text-muted); font-style: italic;">No diff available</span>';
+    }
+
+    function highlightSyntax(content, ext) {
+        const lines = content.split('\n');
+        // Determine language hints for coloring
+        const isJSLike = ['js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs'].includes(ext);
+        const isPyLike = ['py', 'pyw'].includes(ext);
+        const isCSSLike = ['css', 'scss', 'less', 'sass'].includes(ext);
+        const isHTMLLike = ['html', 'htm', 'xml', 'svg', 'jsx', 'tsx'].includes(ext);
+        const isRustGo = ['rs', 'go'].includes(ext);
+        const isJSON = ext === 'json';
+        const isMD = ['md', 'mdx'].includes(ext);
+        const isYAML = ['yml', 'yaml', 'toml'].includes(ext);
+        const isShell = ['sh', 'bash', 'zsh', 'fish', 'bat', 'cmd', 'ps1'].includes(ext);
+        const isSQL = ext === 'sql';
+
+        return lines.map((line, i) => {
+            const lineNum = `<span class="line-num">${String(i + 1).padStart(4, ' ')}</span>`;
+            let highlighted = escapeHtml(line);
+
+            if (isJSON) {
+                // JSON: keys, strings, numbers, booleans, null
+                highlighted = highlighted
+                    .replace(/(&quot;[^&]*?&quot;)\s*:/g, '<span style="color:#7dd3fc">$1</span>:')
+                    .replace(/:(\s*)(&quot;[^&]*?&quot;)/g, ':$1<span style="color:#86efac">$2</span>')
+                    .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span style="color:#fbbf24">$1</span>')
+                    .replace(/\b(true|false|null)\b/g, '<span style="color:#c084fc">$1</span>');
+            } else if (isCSSLike) {
+                // CSS: selectors, properties, values
+                highlighted = highlighted
+                    .replace(/(\/\*.*?\*\/)/g, '<span style="color:#6b7280;font-style:italic">$1</span>')
+                    .replace(/(\/\/.*$)/g, '<span style="color:#6b7280;font-style:italic">$1</span>')
+                    .replace(/([.#][\w-]+)/g, '<span style="color:#7dd3fc">$1</span>')
+                    .replace(/(:\s*)([^;{}]+)(;)/g, '$1<span style="color:#86efac">$2</span>$3')
+                    .replace(/\b(\d+(?:\.\d+)?(?:px|em|rem|%|vh|vw|s|ms)?)\b/g, '<span style="color:#fbbf24">$1</span>');
+            } else if (isMD) {
+                // Markdown: headings, bold, italic, links, code
+                highlighted = highlighted
+                    .replace(/^(#{1,6}\s.*)$/, '<span style="color:#c084fc;font-weight:600">$1</span>')
+                    .replace(/(\*\*[^*]+\*\*)/g, '<span style="color:#f0abfc;font-weight:600">$1</span>')
+                    .replace(/(\*[^*]+\*)/g, '<span style="color:#f0abfc;font-style:italic">$1</span>')
+                    .replace(/(`[^`]+`)/g, '<span style="color:#86efac;background:rgba(134,239,172,0.08);padding:1px 3px;border-radius:2px">$1</span>')
+                    .replace(/(\[[^\]]+\]\([^)]+\))/g, '<span style="color:#7dd3fc;text-decoration:underline">$1</span>')
+                    .replace(/^(\s*[-*+]\s)/g, '<span style="color:#fbbf24">$1</span>')
+                    .replace(/^(\s*\d+\.\s)/g, '<span style="color:#fbbf24">$1</span>')
+                    .replace(/^(&gt;\s.*)/g, '<span style="color:#6b7280;font-style:italic;border-left:2px solid #6b7280;padding-left:8px">$1</span>');
+            } else if (isYAML) {
+                // YAML/TOML: keys, values, comments
+                highlighted = highlighted
+                    .replace(/(#.*$)/g, '<span style="color:#6b7280;font-style:italic">$1</span>')
+                    .replace(/^(\s*[\w.-]+)(\s*[:=])/g, '<span style="color:#7dd3fc">$1</span>$2')
+                    .replace(/:\s*(&quot;[^&]*?&quot;)/g, ': <span style="color:#86efac">$1</span>')
+                    .replace(/:\s*(&amp;#x27;[^&]*?&amp;#x27;)/g, ': <span style="color:#86efac">$1</span>')
+                    .replace(/\b(true|false|yes|no|null|~)\b/gi, '<span style="color:#c084fc">$1</span>')
+                    .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span style="color:#fbbf24">$1</span>')
+                    .replace(/^(\s*-\s)/g, '<span style="color:#fbbf24">$1</span>')
+                    .replace(/(\[[\w.-]+\])/g, '<span style="color:#c084fc;font-weight:500">$1</span>');
+            } else if (isShell) {
+                // Shell: comments, strings, variables, keywords
+                highlighted = highlighted
+                    .replace(/(#.*$)/g, '<span style="color:#6b7280;font-style:italic">$1</span>')
+                    .replace(/(\$[\w{][^}\s]*}?)/g, '<span style="color:#7dd3fc">$1</span>')
+                    .replace(/(&quot;[^&]*?&quot;)/g, '<span style="color:#86efac">$1</span>')
+                    .replace(/(&amp;#x27;[^&]*?&amp;#x27;)/g, '<span style="color:#86efac">$1</span>');
+                const shKeywords = 'if|then|else|elif|fi|for|while|do|done|case|esac|function|return|exit|echo|export|source|local|set|unset|cd|mkdir|rm|cp|mv|cat|grep|sed|awk|chmod|chown';
+                highlighted = highlighted.replace(
+                    new RegExp(`\\b(${shKeywords})\\b`, 'g'),
+                    '<span style="color:#c084fc">$1</span>'
+                );
+            } else if (isSQL) {
+                // SQL: keywords, strings, numbers
+                const sqlKeywords = 'SELECT|FROM|WHERE|INSERT|INTO|UPDATE|SET|DELETE|CREATE|DROP|ALTER|TABLE|INDEX|VIEW|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AND|OR|NOT|IN|EXISTS|BETWEEN|LIKE|ORDER|BY|GROUP|HAVING|LIMIT|OFFSET|UNION|ALL|AS|IS|NULL|PRIMARY|KEY|FOREIGN|REFERENCES|UNIQUE|DEFAULT|CHECK|CONSTRAINT|VALUES|COUNT|SUM|AVG|MIN|MAX|DISTINCT';
+                highlighted = highlighted
+                    .replace(/(--.*$)/g, '<span style="color:#6b7280;font-style:italic">$1</span>')
+                    .replace(/(&amp;#x27;[^&]*?&amp;#x27;)/g, '<span style="color:#86efac">$1</span>');
+                highlighted = highlighted.replace(
+                    new RegExp(`\\b(${sqlKeywords})\\b`, 'gi'),
+                    '<span style="color:#c084fc">$1</span>'
+                );
+                highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?)\b/g, '<span style="color:#fbbf24">$1</span>');
+            } else if (isJSLike || isPyLike || isRustGo) {
+                // Comments (simple line comments)
+                const commentIdx = highlighted.indexOf('//');
+                const hashIdx = isPyLike ? highlighted.indexOf('#') : -1;
+                if (commentIdx >= 0 && !isInsideString(line, line.indexOf('//'))) {
+                    const before = highlighted.substring(0, commentIdx);
+                    const comment = highlighted.substring(commentIdx);
+                    highlighted = before + `<span style="color:#6b7280;font-style:italic">${comment}</span>`;
+                } else if (hashIdx >= 0 && isPyLike && !isInsideString(line, line.indexOf('#'))) {
+                    const before = highlighted.substring(0, hashIdx);
+                    const comment = highlighted.substring(hashIdx);
+                    highlighted = before + `<span style="color:#6b7280;font-style:italic">${comment}</span>`;
+                }
+
+                // Strings
+                highlighted = highlighted
+                    .replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)/g, '<span style="color:#86efac">$1</span>')
+                    .replace(/(&amp;#x27;(?:[^&]|&(?!#x27;))*?&amp;#x27;)/g, '<span style="color:#86efac">$1</span>')
+                    .replace(/(`[^`]*?`)/g, '<span style="color:#86efac">$1</span>');
+
+                // Decorators (@ symbols for TS/Python)
+                if (isJSLike || isPyLike) {
+                    highlighted = highlighted.replace(
+                        /(@[\w.]+)/g,
+                        '<span style="color:#fb923c">$1</span>'
+                    );
+                }
+
+                // Keywords
+                const keywords = isJSLike
+                    ? 'const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|try|catch|finally|throw|new|delete|typeof|instanceof|in|of|class|extends|super|import|export|from|default|async|await|yield|this|null|undefined|true|false|void|static|get|set|type|interface|enum|as|is'
+                    : isPyLike
+                        ? 'def|class|if|elif|else|for|while|return|import|from|as|try|except|finally|raise|with|yield|lambda|pass|break|continue|and|or|not|in|is|True|False|None|self|async|await'
+                        : 'fn|let|mut|const|if|else|for|while|loop|match|return|struct|enum|impl|trait|use|mod|pub|self|Self|true|false|async|await|type|func|go|defer|chan|select|range|package|import|var';
+                highlighted = highlighted.replace(
+                    new RegExp(`\\b(${keywords})\\b`, 'g'),
+                    '<span style="color:#c084fc">$1</span>'
+                );
+
+                // Numbers
+                highlighted = highlighted.replace(/\b(\d+(?:\.\d+)?(?:e[+-]?\d+)?)\b/gi, '<span style="color:#fbbf24">$1</span>');
+
+                // Types (capitalized words)
+                highlighted = highlighted.replace(/\b([A-Z][a-zA-Z0-9_]*)\b/g, '<span style="color:#7dd3fc">$1</span>');
+            } else if (isHTMLLike) {
+                highlighted = highlighted
+                    .replace(/(&lt;\/?[\w-]+)/g, '<span style="color:#c084fc">$1</span>')
+                    .replace(/([\w-]+)(=)/g, '<span style="color:#7dd3fc">$1</span>$2')
+                    .replace(/(&quot;[^&]*?&quot;)/g, '<span style="color:#86efac">$1</span>');
+            }
+
+            return `<span class="diff-line">${lineNum}${highlighted}</span>`;
+        }).join('\n');
+    }
+
+    function isInsideString(line, idx) {
+        let inSingle = false, inDouble = false;
+        for (let i = 0; i < idx; i++) {
+            if (line[i] === "'" && !inDouble) inSingle = !inSingle;
+            if (line[i] === '"' && !inSingle) inDouble = !inDouble;
+        }
+        return inSingle || inDouble;
     }
 
     // ─── Create all-file card (working tree) ─────────────────
@@ -1687,7 +2005,7 @@ export default function mount(): () => void {
             const code = lines.map((line, i) =>
                 `<span class="diff-line diff-ctx" data-line="${i + 1}"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`
             ).join('\n');
-            const truncNote = file.lines > 500 ? `<span class="more-lines">... ${file.lines - 500} more lines</span>` : '';
+            const truncNote = file.lines > 10000 ? `<span class="more-lines">File too large (${file.lines.toLocaleString()} lines) — showing first 10,000</span>` : '';
             contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
         } else {
             contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Could not read file</span></code></pre></div>`;
@@ -1707,6 +2025,11 @@ export default function mount(): () => void {
                     <circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10" stroke-dasharray="3,2"/>
                 </svg>
             </button>
+            <button class="connect-btn expand-btn" title="Expand file (selectable text)" data-path="${escapeHtml(file.path)}">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                </svg>
+            </button>
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(dir)}</div>
@@ -1717,6 +2040,15 @@ export default function mount(): () => void {
         // Setup connection drag from button
         setupConnectionDrag(card, file.path);
         setupCardInteraction(card, 'allfiles');
+
+        // Expand button → open modal with full file content
+        const expandBtn = card.querySelector('.expand-btn');
+        if (expandBtn) {
+            expandBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openFileModal(file);
+            });
+        }
 
         // Track scroll position & update connections
         const body = card.querySelector('.file-card-body');
@@ -2429,28 +2761,11 @@ export default function mount(): () => void {
     // ─── Preview file ────────────────────────────────────────
     async function previewFile(filePath) {
         return measure('file:preview', async () => {
-            try {
-                const ctx = snap().context;
-                const response = await fetch('/api/repo/file-content', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        path: ctx.repoPath,
-                        commit: ctx.currentCommitHash,
-                        filePath
-                    })
-                });
-
-                if (!response.ok) throw new Error(await response.text());
-
-                const data = await response.json();
-                document.getElementById('previewFilePath').textContent = filePath;
-                document.getElementById('previewContent').textContent = data.content;
-                document.getElementById('filePreviewModal').classList.add('active');
-            } catch (err) {
-                measure('file:previewError', () => err);
-                showToast(`Failed: ${err.message}`, 'error');
-            }
+            // Find the file in current commit's files or create a minimal file object
+            const ctx = snap().context;
+            const commitFile = ctx.files?.find(f => f.path === filePath);
+            const name = filePath.split('/').pop() || filePath;
+            openFileModal(commitFile || { path: filePath, name });
         });
     }
     window.previewFile = previewFile;

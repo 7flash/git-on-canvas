@@ -70,8 +70,8 @@ export async function POST(req) {
                         const allLines = raw.split('\n');
                         lines = allLines.length;
                         // Send full content for small/medium files, truncate very large ones
-                        if (allLines.length > 500) {
-                            content = allLines.slice(0, 500).join('\n');
+                        if (allLines.length > 10000) {
+                            content = allLines.slice(0, 10000).join('\n');
                         } else {
                             content = raw;
                         }
