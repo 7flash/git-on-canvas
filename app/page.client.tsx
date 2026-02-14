@@ -22,14 +22,18 @@ export default function mount(): () => void {
     // ─── Init ────────────────────────────────────────────
     async function init() {
         return measure('app:init', async () => {
-            ctx.canvas = document.getElementById('canvas') || document.getElementById('canvasContent');
+            ctx.canvas = document.getElementById('canvasContent');
             ctx.canvasViewport = document.getElementById('canvasViewport');
 
-            // Create SVG overlay for connections
-            ctx.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
-            ctx.svgOverlay.id = 'connectionOverlay';
-            ctx.svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:visible;';
-            ctx.canvas.appendChild(ctx.svgOverlay);
+            // Reuse existing SVG overlay from server-rendered DOM
+            ctx.svgOverlay = document.getElementById('connectionsOverlay') as unknown as SVGSVGElement;
+            if (!ctx.svgOverlay) {
+                // Fallback: create overlay if not present
+                ctx.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
+                ctx.svgOverlay.id = 'connectionsOverlay';
+                ctx.svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:visible;';
+                ctx.canvas.appendChild(ctx.svgOverlay);
+            }
 
             actor.start();
             setupCanvasInteraction(ctx);
