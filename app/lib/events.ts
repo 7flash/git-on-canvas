@@ -30,6 +30,8 @@ import { loadRepository, switchView, rerenderCurrentView } from './repo';
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
     measure('canvas:setupInteraction', () => {
+        let rafPendingPan = false;
+        let rafPendingSelect = false;
         // ── Wheel behavior ──
         ctx.canvasViewport.addEventListener('wheel', (e) => {
             const state = ctx.snap().context;
@@ -112,11 +114,13 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
 
             // Space held, middle-click or Alt+click = pan
             if (e.button === 1 || e.altKey || ctx.spaceHeld) {
+                // Prevent middle-click from also being caught by card mousedown
                 ctx.isDragging = true;
                 ctx.dragStartX = e.clientX - state.offsetX;
                 ctx.dragStartY = e.clientY - state.offsetY;
                 ctx.canvasViewport.style.cursor = 'grabbing';
                 e.preventDefault();
+                e.stopPropagation();
                 return;
             }
 
@@ -152,7 +156,14 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                 const newX = e.clientX - ctx.dragStartX;
                 const newY = e.clientY - ctx.dragStartY;
                 ctx.actor.send({ type: 'SET_OFFSET', x: newX, y: newY });
-                updateCanvasTransform(ctx);
+                // Throttle transform + minimap to one frame
+                if (!rafPendingPan) {
+                    rafPendingPan = true;
+                    requestAnimationFrame(() => {
+                        rafPendingPan = false;
+                        updateCanvasTransform(ctx);
+                    });
+                }
                 return;
             }
 
@@ -172,16 +183,21 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                 selectionRect.style.width = `${rw}px`;
                 selectionRect.style.height = `${rh}px`;
 
-                // Live-highlight cards inside the rectangle
-                ctx.fileCards.forEach((card, path) => {
-                    const cx = parseFloat(card.style.left) || 0;
-                    const cy = parseFloat(card.style.top) || 0;
-                    const cw = card.offsetWidth || 580;
-                    const ch = card.offsetHeight || 200;
-
-                    const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
-                    card.classList.toggle('selected', overlaps);
-                });
+                // Throttle live-highlight to one per frame
+                if (!rafPendingSelect) {
+                    rafPendingSelect = true;
+                    requestAnimationFrame(() => {
+                        rafPendingSelect = false;
+                        ctx.fileCards.forEach((card, path) => {
+                            const cx = parseFloat(card.style.left) || 0;
+                            const cy = parseFloat(card.style.top) || 0;
+                            const cw = card.offsetWidth || 580;
+                            const ch = card.offsetHeight || 200;
+                            const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
+                            card.classList.toggle('selected', overlaps);
+                        });
+                    });
+                }
             }
         });
 

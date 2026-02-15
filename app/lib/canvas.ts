@@ -5,132 +5,178 @@
 import { measure } from './measure.js';
 import type { CanvasContext } from './context';
 
+// ─── Minimap cached state (avoids full rebuild on every pan/zoom) ──
+let _mmCache: {
+    minX: number; minY: number; maxX: number; maxY: number;
+    scale: number; mmW: number; mmH: number;
+    dotEls: Map<string, { dot: HTMLElement; label: HTMLElement }>;
+} | null = null;
+let _mmRebuildTimer: any = null;
+
 // ─── Update canvas CSS transform from state ─────────────
 export function updateCanvasTransform(ctx: CanvasContext) {
-    measure('canvas:updateTransform', () => {
-        const state = ctx.snap().context;
-        ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
-        updateMinimap(ctx);
-    });
+    const state = ctx.snap().context;
+    ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
+    // Cheap: only move the viewport rect using cached bounds
+    updateMinimapViewport(ctx);
 }
 
 // ─── Update zoom slider UI ──────────────────────────────
 export function updateZoomUI(ctx: CanvasContext) {
-    measure('zoom:updateUI', () => {
-        const state = ctx.snap().context;
-        const slider = document.getElementById('zoomSlider') as HTMLInputElement;
-        const value = document.getElementById('zoomValue');
-        if (slider) slider.value = state.zoom;
-        if (value) value.textContent = `${Math.round(state.zoom * 100)}%`;
-    });
+    const state = ctx.snap().context;
+    const slider = document.getElementById('zoomSlider') as HTMLInputElement;
+    const value = document.getElementById('zoomValue');
+    if (slider) slider.value = state.zoom;
+    if (value) value.textContent = `${Math.round(state.zoom * 100)}%`;
 }
 
-// ─── Update minimap ─────────────────────────────────────
+// ─── Cheap viewport-only minimap update ─────────────────
+function updateMinimapViewport(ctx: CanvasContext) {
+    const viewport = document.getElementById('minimapViewport');
+    if (!viewport || !_mmCache) return;
+
+    const state = ctx.snap().context;
+    const canvasRect = ctx.canvasViewport.getBoundingClientRect();
+    const { scale, minX, minY } = _mmCache;
+
+    const vpWorldW = canvasRect.width / state.zoom;
+    const vpWorldH = canvasRect.height / state.zoom;
+    const vpWorldX = -state.offsetX / state.zoom;
+    const vpWorldY = -state.offsetY / state.zoom;
+
+    viewport.style.width = `${vpWorldW * scale}px`;
+    viewport.style.height = `${vpWorldH * scale}px`;
+    viewport.style.left = `${(vpWorldX - minX) * scale}px`;
+    viewport.style.top = `${(vpWorldY - minY) * scale}px`;
+}
+
+// ─── Full minimap rebuild (debounced, expensive) ────────
 export function updateMinimap(ctx: CanvasContext) {
-    measure('minimap:update', () => {
-        const minimap = document.getElementById('minimap');
-        const viewport = document.getElementById('minimapViewport');
-        const state = ctx.snap().context;
+    // Debounce full rebuilds to max once per 120ms
+    if (_mmRebuildTimer) clearTimeout(_mmRebuildTimer);
+    _mmRebuildTimer = setTimeout(() => {
+        _mmRebuildTimer = null;
+        _rebuildMinimap(ctx);
+    }, 120);
+    // Always do cheap viewport update immediately
+    updateMinimapViewport(ctx);
+}
 
-        if (!minimap || !viewport) return;
+/** Force an immediate full minimap rebuild (skip debounce). */
+export function forceMinimapRebuild(ctx: CanvasContext) {
+    if (_mmRebuildTimer) { clearTimeout(_mmRebuildTimer); _mmRebuildTimer = null; }
+    _rebuildMinimap(ctx);
+}
 
-        // Remove old labels/dots
-        minimap.querySelectorAll('.minimap-dot, .minimap-label').forEach(el => el.remove());
+function _rebuildMinimap(ctx: CanvasContext) {
+    const minimap = document.getElementById('minimap');
+    const viewport = document.getElementById('minimapViewport');
+    const state = ctx.snap().context;
 
-        // Calculate actual bounding box from all file cards
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string }[] = [];
+    if (!minimap || !viewport) return;
 
-        ctx.fileCards.forEach((card, path) => {
-            const x = parseFloat(card.style.left) || 0;
-            const y = parseFloat(card.style.top) || 0;
-            const w = card.offsetWidth || 580;
-            const h = card.offsetHeight || 200;
-            const name = path.split('/').pop() || path;
-            const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
+    // Remove old labels/dots
+    if (_mmCache) {
+        _mmCache.dotEls.forEach(({ dot, label }) => { dot.remove(); label.remove(); });
+    }
 
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x + w);
-            maxY = Math.max(maxY, y + h);
+    // Calculate actual bounding box from all file cards
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string; path: string }[] = [];
 
-            cardInfos.push({ x, y, w, h, name, status });
-        });
+    ctx.fileCards.forEach((card, path) => {
+        const x = parseFloat(card.style.left) || 0;
+        const y = parseFloat(card.style.top) || 0;
+        const w = card.offsetWidth || 580;
+        const h = card.offsetHeight || 200;
+        const name = path.split('/').pop() || path;
+        const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
 
-        // If no cards, just hide viewport
-        if (cardInfos.length === 0) {
-            viewport.style.display = 'none';
-            return;
-        }
-        viewport.style.display = '';
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + w);
+        maxY = Math.max(maxY, y + h);
 
-        // Add padding around content
-        const pad = 200;
-        minX -= pad; minY -= pad;
-        maxX += pad; maxY += pad;
-
-        const contentW = maxX - minX;
-        const contentH = maxY - minY;
-        const mmW = minimap.offsetWidth;
-        const mmH = minimap.offsetHeight;
-
-        // Scale to fit content in minimap
-        const scale = Math.min(mmW / contentW, mmH / contentH);
-
-        // Render file dots and labels
-        cardInfos.forEach(info => {
-            const dotX = (info.x - minX) * scale;
-            const dotY = (info.y - minY) * scale;
-            const dotW = Math.max(2, info.w * scale);
-            const dotH = Math.max(1, info.h * scale);
-
-            // Colored dot for file
-            const dot = document.createElement('div');
-            const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
-            dot.className = `minimap-dot minimap-dot--${statusClass}`;
-            dot.dataset.path = info.name;
-            dot.title = info.name;
-            dot.style.left = `${dotX}px`;
-            dot.style.top = `${dotY}px`;
-            dot.style.width = `${dotW}px`;
-            dot.style.height = `${dotH}px`;
-            minimap.appendChild(dot);
-
-            // File name label
-            const label = document.createElement('div');
-            label.className = 'minimap-label';
-            label.textContent = info.name;
-            label.style.left = `${dotX}px`;
-            label.style.top = `${dotY}px`;
-            label.style.width = `${dotW}px`;
-            label.style.height = `${dotH}px`;
-
-            if (dotH > dotW * 1.5) {
-                const fontSize = Math.max(3, Math.min(dotW * 0.7, 7));
-                label.style.fontSize = `${fontSize}px`;
-                label.style.writingMode = 'vertical-rl';
-                label.style.textOrientation = 'mixed';
-                label.style.whiteSpace = 'nowrap';
-            } else {
-                const fontSize = Math.max(3, Math.min(dotH * 0.6, dotW * 0.15, 7));
-                label.style.fontSize = `${fontSize}px`;
-                label.style.whiteSpace = 'nowrap';
-            }
-            minimap.appendChild(label);
-        });
-
-        // Viewport rectangle
-        const canvasRect = ctx.canvasViewport.getBoundingClientRect();
-        const vpWorldW = canvasRect.width / state.zoom;
-        const vpWorldH = canvasRect.height / state.zoom;
-        const vpWorldX = -state.offsetX / state.zoom;
-        const vpWorldY = -state.offsetY / state.zoom;
-
-        viewport.style.width = `${vpWorldW * scale}px`;
-        viewport.style.height = `${vpWorldH * scale}px`;
-        viewport.style.left = `${(vpWorldX - minX) * scale}px`;
-        viewport.style.top = `${(vpWorldY - minY) * scale}px`;
+        cardInfos.push({ x, y, w, h, name, status, path });
     });
+
+    // If no cards, just hide viewport
+    if (cardInfos.length === 0) {
+        viewport.style.display = 'none';
+        _mmCache = null;
+        return;
+    }
+    viewport.style.display = '';
+
+    // Add padding around content
+    const pad = 200;
+    minX -= pad; minY -= pad;
+    maxX += pad; maxY += pad;
+
+    const contentW = maxX - minX;
+    const contentH = maxY - minY;
+    const mmW = minimap.offsetWidth;
+    const mmH = minimap.offsetHeight;
+
+    // Scale to fit content in minimap
+    const scale = Math.min(mmW / contentW, mmH / contentH);
+
+    // Build DOM in a fragment for one reflow
+    const frag = document.createDocumentFragment();
+    const dotEls = new Map<string, { dot: HTMLElement; label: HTMLElement }>();
+
+    cardInfos.forEach(info => {
+        const dotX = (info.x - minX) * scale;
+        const dotY = (info.y - minY) * scale;
+        const dotW = Math.max(2, info.w * scale);
+        const dotH = Math.max(1, info.h * scale);
+
+        // Colored dot for file
+        const dot = document.createElement('div');
+        const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
+        dot.className = `minimap-dot minimap-dot--${statusClass}`;
+        dot.dataset.path = info.name;
+        dot.title = info.name;
+        dot.style.cssText = `left:${dotX}px;top:${dotY}px;width:${dotW}px;height:${dotH}px`;
+        frag.appendChild(dot);
+
+        // File name label
+        const label = document.createElement('div');
+        label.className = 'minimap-label';
+        label.textContent = info.name;
+        label.style.cssText = `left:${dotX}px;top:${dotY}px;width:${dotW}px;height:${dotH}px`;
+
+        if (dotH > dotW * 1.5) {
+            const fontSize = Math.max(3, Math.min(dotW * 0.7, 7));
+            label.style.fontSize = `${fontSize}px`;
+            label.style.writingMode = 'vertical-rl';
+            label.style.textOrientation = 'mixed';
+            label.style.whiteSpace = 'nowrap';
+        } else {
+            const fontSize = Math.max(3, Math.min(dotH * 0.6, dotW * 0.15, 7));
+            label.style.fontSize = `${fontSize}px`;
+            label.style.whiteSpace = 'nowrap';
+        }
+        frag.appendChild(label);
+        dotEls.set(info.path, { dot, label });
+    });
+
+    minimap.appendChild(frag);
+
+    // Cache bounds + scale + elements for cheap viewport-only updates
+    _mmCache = { minX, minY, maxX, maxY, scale, mmW, mmH, dotEls };
+
+    // Viewport rectangle (immediate)
+    const canvasRect = ctx.canvasViewport.getBoundingClientRect();
+    const vpWorldW = canvasRect.width / state.zoom;
+    const vpWorldH = canvasRect.height / state.zoom;
+    const vpWorldX = -state.offsetX / state.zoom;
+    const vpWorldY = -state.offsetY / state.zoom;
+
+    viewport.style.width = `${vpWorldW * scale}px`;
+    viewport.style.height = `${vpWorldH * scale}px`;
+    viewport.style.left = `${(vpWorldX - minX) * scale}px`;
+    viewport.style.top = `${(vpWorldY - minY) * scale}px`;
 }
 
 // ─── Jump to a specific file on the canvas ──────────────
@@ -202,11 +248,34 @@ export function fitAllFiles(ctx: CanvasContext) {
     });
 }
 
-// ─── Setup minimap click handler ────────────────────────
+// ─── Setup minimap click + scroll handler ───────────────
 export function setupMinimapClick(ctx: CanvasContext) {
     measure('minimap:setupClick', () => {
         const minimap = document.getElementById('minimap');
         if (!minimap) return;
+
+        // Scroll over minimap → pan camera (same as Space+scroll on canvas)
+        minimap.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const state = ctx.snap().context;
+            const panSpeed = 1.5;
+
+            if (e.shiftKey) {
+                // Shift+scroll = horizontal pan
+                const dx = e.deltaY * panSpeed;
+                ctx.actor.send({ type: 'SET_OFFSET', x: state.offsetX - dx, y: state.offsetY });
+            } else {
+                // Vertical scroll = vertical pan, deltaX for horizontal
+                const dy = e.deltaY * panSpeed;
+                const dx = e.deltaX * panSpeed;
+                ctx.actor.send({ type: 'SET_OFFSET', x: state.offsetX - dx, y: state.offsetY - dy });
+            }
+
+            updateCanvasTransform(ctx);
+            updateMinimap(ctx);
+        }, { passive: false });
 
         minimap.addEventListener('click', (e) => {
             const target = e.target as HTMLElement;

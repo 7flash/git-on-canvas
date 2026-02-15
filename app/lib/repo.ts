@@ -5,7 +5,7 @@
 import { measure } from './measure.js';
 import type { CanvasContext } from './context';
 import { escapeHtml, formatDate, showToast } from './utils';
-import { clearCanvas, getAutoColumnCount, updateCanvasTransform, updateZoomUI, updateMinimap } from './canvas';
+import { clearCanvas, getAutoColumnCount, updateCanvasTransform, updateZoomUI, updateMinimap, forceMinimapRebuild } from './canvas';
 import { getPositionKey } from './positions';
 import { updateHiddenUI } from './hidden-files';
 import { showLoadingProgress, updateLoadingProgress, hideLoadingProgress } from './loading';
@@ -221,7 +221,7 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
         });
 
         renderConnections(ctx);
-        updateMinimap(ctx);
+        forceMinimapRebuild(ctx);
     });
 }
 
@@ -276,7 +276,7 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         });
 
         renderConnections(ctx);
-        updateMinimap(ctx);
+        forceMinimapRebuild(ctx);
     });
 }
 

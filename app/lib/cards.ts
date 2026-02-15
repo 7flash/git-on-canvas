@@ -37,13 +37,14 @@ export function updateArrangeToolbar(ctx: CanvasContext) {
 }
 
 // ─── Corner detection for resize ────────────────────────
-function isNearCorner(e: MouseEvent, card: HTMLElement, cornerSize: number): string | null {
+function isNearCorner(e: MouseEvent, card: HTMLElement, cornerSize: number, zoom: number): string | null {
     const rect = card.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     const w = rect.width;
     const h = rect.height;
-    const c = cornerSize;
+    // Scale corner hit-area by zoom so it stays consistent at any zoom level
+    const c = cornerSize * zoom;
 
     if (x > w - c && y > h - c) return 'br';
     if (x < c && y > h - c) return 'bl';
@@ -59,13 +60,15 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     let resizeStartW: number, resizeStartH: number, resizeStartLeft: number, resizeStartTop: number;
     let resizeCorner: string | null = null;
     let moveStartPositions: any[] = [];
+    let rafPending = false;
     const DRAG_THRESHOLD = 3;
 
     card.addEventListener('mousemove', (e) => {
         if (action) return;
-        const selected = ctx.snap().context.selectedCards;
+        const state = ctx.snap().context;
+        const selected = state.selectedCards;
         const isMulti = selected.length > 1;
-        const corner = isNearCorner(e, card, ctx.CORNER_SIZE);
+        const corner = isNearCorner(e, card, ctx.CORNER_SIZE, state.zoom);
 
         if (corner && !isMulti) {
             card.style.cursor = CORNER_CURSORS[corner];
@@ -79,6 +82,8 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     });
 
     function onMouseDown(e) {
+        // Only respond to left-click (button 0). Middle-click/right-click should not start card interaction.
+        if (e.button !== 0) return;
         if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
         const bodyEl = e.target.closest('.file-card-body');
         if (bodyEl && (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight)) return;
@@ -87,9 +92,10 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
         startX = e.clientX;
         startY = e.clientY;
 
-        const selected = ctx.snap().context.selectedCards;
+        const state = ctx.snap().context;
+        const selected = state.selectedCards;
         const isMulti = selected.length > 1;
-        resizeCorner = isNearCorner(e, card, ctx.CORNER_SIZE);
+        resizeCorner = isNearCorner(e, card, ctx.CORNER_SIZE, state.zoom);
 
         if (resizeCorner && !isMulti) {
             action = 'resize';
@@ -152,8 +158,15 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
                 info.card.style.left = `${info.startLeft + dx}px`;
                 info.card.style.top = `${info.startTop + dy}px`;
             });
-            renderConnections(ctx);
-            updateMinimap(ctx);
+            // Throttle expensive DOM updates to once per frame
+            if (!rafPending) {
+                rafPending = true;
+                requestAnimationFrame(() => {
+                    rafPending = false;
+                    renderConnections(ctx);
+                    updateMinimap(ctx);
+                });
+            }
             return;
         }
 
