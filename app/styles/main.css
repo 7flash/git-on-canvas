@@ -630,6 +630,7 @@ body {
     transform-origin: 0 0;
     min-width: 5000px;
     min-height: 5000px;
+    will-change: transform;
 }
 
 .canvas-grid {
@@ -651,11 +652,12 @@ body {
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     overflow: hidden;
-    transition: box-shadow var(--transition-fast), transform var(--transition-fast), border-color var(--transition-fast);
+    transition: box-shadow var(--transition-fast), border-color var(--transition-fast);
     user-select: none;
     backdrop-filter: blur(10px);
     display: flex;
     flex-direction: column;
+    contain: layout style;
 }
 
 .file-card:hover {
