@@ -2,7 +2,7 @@
 /**
  * Canvas transform, zoom, minimap, fit-all.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 
 // ─── Minimap cached state (avoids full rebuild on every pan/zoom) ──

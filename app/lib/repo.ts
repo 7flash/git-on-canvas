@@ -2,7 +2,7 @@
 /**
  * Repository management — load, commit timeline, select commit, all-files.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 import { escapeHtml, formatDate, showToast } from './utils';
 import { clearCanvas, getAutoColumnCount, updateCanvasTransform, updateZoomUI, updateMinimap, forceMinimapRebuild } from './canvas';

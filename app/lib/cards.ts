@@ -3,7 +3,7 @@
  * File cards — creation (diff + all-files), interaction (click/drag/resize),
  * selection, arrangement, and the file modal.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
 import { savePosition, getPositionKey } from './positions';

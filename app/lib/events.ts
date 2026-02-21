@@ -19,7 +19,7 @@
  *   Escape → deselect + close modals
  *   Delete/Backspace → hide selected
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 import { showToast } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';

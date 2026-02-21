@@ -5,7 +5,7 @@
  * Creates the XState actor, initialises all sub-modules, and returns a
  * cleanup function.  All heavy logic lives in `./lib/*`.
  */
-import { measure } from './lib/measure.js';
+import { measure } from 'measure-fn';
 import { createActor } from 'xstate';
 import { canvasMachine } from './state/machine.js';
 import { createCanvasContext } from './lib/context';

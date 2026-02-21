@@ -2,7 +2,7 @@
 /**
  * Connections — drag-to-connect, render SVG lines, dialog, navigate.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 import { escapeHtml, showToast } from './utils';
 import { updateCanvasTransform, updateZoomUI } from './canvas';
