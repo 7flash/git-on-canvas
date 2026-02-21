@@ -1,11 +1,11 @@
-import { measure } from '../../../lib/measure.js';
+import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
 
 const BINARY_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'svg', 'webp', 'mp3', 'mp4', 'wav', 'ogg', 'avi', 'mov', 'zip', 'tar', 'gz', 'rar', '7z', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'exe', 'dll', 'so', 'dylib', 'woff', 'woff2', 'ttf', 'eot', 'otf', 'lock']);
 
-export async function POST(req) {
+export async function POST(req: Request) {
     return measure('api:repo:tree', async () => {
         try {
             const { path: repoPath } = await req.json();
@@ -21,7 +21,7 @@ export async function POST(req) {
             const ignoreDirs = ['node_modules', '.git', 'dist', 'build', '.next', '.cache', 'coverage', '.turbo', '__pycache__', '.tsbuildinfo'];
 
             // Also parse .gitignore for extra patterns
-            const gitignorePatterns = [];
+            const gitignorePatterns: string[] = [];
             const gitignorePath = path.join(repoPath, '.gitignore');
             if (existsSync(gitignorePath)) {
                 try {
@@ -57,7 +57,7 @@ export async function POST(req) {
             const files = filePaths.map(filePath => {
                 const parts = filePath.split('/');
                 const name = parts[parts.length - 1];
-                const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+                const ext = name.includes('.') ? name.split('.').pop()!.toLowerCase() : '';
 
                 let content = null;
                 let lines = 0;
@@ -92,8 +92,8 @@ export async function POST(req) {
             });
 
             return Response.json({ files, total: files.length });
-        } catch (error) {
-            measure('api:repo:tree:error', () => error);
+        } catch (error: any) {
+            console.error('api:repo:tree:error', error);
             return new Response(`Error: ${error.message}`, { status: 500 });
         }
     });

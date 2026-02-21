@@ -1,7 +1,7 @@
-import { measure } from '../../../lib/measure.js';
+import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
 
-export async function POST(req) {
+export async function POST(req: Request) {
     return measure('api:repo:files', async () => {
         try {
             const { path: repoPath, commit } = await req.json();
@@ -37,21 +37,21 @@ export async function POST(req) {
                 const fileStatus = status === 'A' ? 'added' : status === 'D' ? 'deleted' : status === 'M' ? 'modified' : status;
 
                 let content = null;
-                let hunks = [];
+                let hunks: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; context: string; lines: Array<{ type: string; content: string }> }> = [];
                 let error = null;
 
                 if (fileStatus === 'added') {
                     // New file - get full content
-                    try { content = await git.show([`${commit}:${filePath}`]); } catch (e) { error = e.message; }
+                    try { content = await git.show([`${commit}:${filePath}`]); } catch (e: any) { error = e.message; }
                 } else if (fileStatus === 'deleted') {
                     // Deleted file - get previous content 
-                    try { content = await git.show([`${commit}~1:${filePath}`]); } catch (e) { error = e.message; }
+                    try { content = await git.show([`${commit}~1:${filePath}`]); } catch (e: any) { error = e.message; }
                 } else if (fileStatus === 'modified') {
                     // Modified - parse unified diff into hunks
                     try {
                         const rawDiff = await git.raw(['diff', '-U3', `${commit}~1`, commit, '--', filePath]);
                         hunks = parseHunks(rawDiff);
-                    } catch (e) { error = e.message; }
+                    } catch (e: any) { error = e.message; }
                 }
 
                 changedFiles.push({
@@ -67,18 +67,21 @@ export async function POST(req) {
             }
 
             return Response.json({ files: changedFiles, totalChanged: changedFiles.length });
-        } catch (error) {
-            measure('api:repo:files:error', () => error);
+        } catch (error: any) {
+            console.error('api:repo:files:error', error);
             return new Response(`Error: ${error.message}`, { status: 500 });
         }
     });
 }
 
 // Parse unified diff into structured hunks
-function parseHunks(rawDiff) {
+interface DiffLine { type: string; content: string }
+interface DiffHunk { oldStart: number; oldCount: number; newStart: number; newCount: number; context: string; lines: DiffLine[] }
+
+function parseHunks(rawDiff: string): DiffHunk[] {
     const allLines = rawDiff.split('\n');
-    const hunks = [];
-    let currentHunk = null;
+    const hunks: DiffHunk[] = [];
+    let currentHunk: DiffHunk | null = null;
 
     for (const line of allLines) {
         // Parse hunk header: @@ -old,count +new,count @@ optional context

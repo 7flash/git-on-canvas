@@ -1,7 +1,7 @@
-import { measure } from '../../../lib/measure.js';
+import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
 
-export async function POST(req) {
+export async function POST(req: Request) {
     return measure('api:repo:file-content', async () => {
         try {
             const { path: repoPath, commit, filePath } = await req.json();
@@ -16,8 +16,8 @@ export async function POST(req) {
             const content = await git.show([`${commit}:${filePath}`]);
 
             return Response.json({ content });
-        } catch (error) {
-            measure('api:repo:file-content:error', () => error);
+        } catch (error: any) {
+            console.error('api:repo:file-content:error', error);
             return new Response(`Error: ${error.message}`, { status: 500 });
         }
     });

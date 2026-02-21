@@ -1,7 +1,7 @@
-import { measure } from '../../../lib/measure.js';
+import { measure } from 'measure-fn';
 import { execSync } from 'child_process';
 
-export async function POST(req) {
+export async function POST(req: Request) {
     return measure('api:repo:browse', async () => {
         try {
             // Use PowerShell with -EncodedCommand to avoid quoting issues
@@ -31,8 +31,8 @@ if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
             }
 
             return Response.json({ cancelled: false, path: selected });
-        } catch (error) {
-            measure('api:repo:browse:error', () => error);
+        } catch (error: any) {
+            console.error('api:repo:browse:error', error);
             return new Response(`Error: ${error.message}`, { status: 500 });
         }
     });

@@ -2,7 +2,7 @@
 /**
  * Positions — load/save card positions from server.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 
 // ─── Load all saved positions from server ────────────────

@@ -2,7 +2,7 @@
 /**
  * General-purpose utilities — escaping, formatting, icons, toast.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 
 // ─── HTML escaping ───────────────────────────────────────
 export function escapeHtml(text: string): string {

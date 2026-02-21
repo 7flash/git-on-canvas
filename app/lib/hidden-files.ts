@@ -2,7 +2,7 @@
 /**
  * Hidden files management — hide/restore/modal.
  */
-import { measure } from './measure.js';
+import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 import { showToast } from './utils';
 

@@ -1,69 +1,55 @@
-import { measure } from '../../lib/measure.js';
-import { Database } from 'bun:sqlite';
+import { measure, measureSync } from 'measure-fn';
+import { Database, z } from 'sqlite-zod-orm';
 import path from 'path';
 
-let db = null;
+const dbPath = path.join(process.cwd(), 'db', 'positions_v3.sqlite');
 
-function getDb() {
-    if (!db) {
-        // User rule: new database file when changing schema
-        const dbPath = path.join(process.cwd(), 'db', 'positions_v2.sqlite');
-        db = new Database(dbPath, { create: true });
+const db = new Database(dbPath, {
+    positions: z.object({
+        commit_hash: z.string(),
+        file_path: z.string(),
+        x: z.number(),
+        y: z.number(),
+        width: z.number().optional(),
+        height: z.number().optional(),
+    }),
+}, {
+    indexes: { positions: ['commit_hash'] },
+    reactive: false,
+});
 
-        // Initialize schema with width/height
-        db.run(`
-            CREATE TABLE IF NOT EXISTS positions (
-                id TEXT PRIMARY KEY,
-                commit_hash TEXT NOT NULL,
-                file_path TEXT NOT NULL,
-                x REAL NOT NULL,
-                y REAL NOT NULL,
-                width REAL,
-                height REAL,
-                created_at INTEGER DEFAULT (strftime('%s', 'now')),
-                updated_at INTEGER DEFAULT (strftime('%s', 'now')),
-                UNIQUE(commit_hash, file_path)
-            )
-        `);
-
-        db.run(`CREATE INDEX IF NOT EXISTS idx_positions_commit ON positions(commit_hash)`);
-    }
-    return db;
-}
-
-export async function GET(req) {
+export async function GET(req: Request) {
     return measure('api:positions:get', async () => {
         try {
             const url = new URL(req.url);
             const commitHash = url.searchParams.get('commit');
 
-            const database = getDb();
             const query = commitHash
-                ? 'SELECT * FROM positions WHERE commit_hash = ?'
-                : 'SELECT * FROM positions';
+                ? db.positions.select().where({ commit_hash: commitHash })
+                : db.positions.select();
 
-            const positions = database.query(query).all(commitHash ? [commitHash] : []);
+            const positions = query.all();
 
             // Convert to map format
-            const positionMap = {};
+            const positionMap: Record<string, { x: number; y: number; width?: number; height?: number }> = {};
             for (const pos of positions) {
                 positionMap[`${pos.commit_hash}:${pos.file_path}`] = {
                     x: pos.x,
                     y: pos.y,
-                    width: pos.width,
-                    height: pos.height
+                    width: pos.width ?? undefined,
+                    height: pos.height ?? undefined,
                 };
             }
 
             return Response.json(positionMap);
-        } catch (error) {
-            measure('api:positions:get:error', () => error);
+        } catch (error: any) {
+            console.error('api:positions:get:error', error);
             return new Response(`Error: ${error.message}`, { status: 500 });
         }
     });
 }
 
-export async function POST(req) {
+export async function POST(req: Request) {
     return measure('api:positions:save', async () => {
         try {
             const body = await req.json();
@@ -73,31 +59,21 @@ export async function POST(req) {
                 return new Response('commitHash, filePath, x, and y are required', { status: 400 });
             }
 
-            const database = getDb();
-            const id = `${commitHash}:${filePath}`;
-
-            database.run(`
-                INSERT INTO positions (id, commit_hash, file_path, x, y, width, height, updated_at)
-                VALUES ($id, $commitHash, $filePath, $x, $y, $width, $height, strftime('%s', 'now'))
-                ON CONFLICT(id) DO UPDATE SET
-                    x = excluded.x,
-                    y = excluded.y,
-                    width = COALESCE(excluded.width, positions.width),
-                    height = COALESCE(excluded.height, positions.height),
-                    updated_at = excluded.updated_at
-            `, {
-                $id: id,
-                $commitHash: commitHash,
-                $filePath: filePath,
-                $x: x,
-                $y: y,
-                $width: width || null,
-                $height: height || null
-            });
+            db.positions.upsert(
+                { commit_hash: commitHash, file_path: filePath },
+                {
+                    commit_hash: commitHash,
+                    file_path: filePath,
+                    x,
+                    y,
+                    width: width || undefined,
+                    height: height || undefined,
+                },
+            );
 
             return Response.json({ success: true });
-        } catch (error) {
-            measure('api:positions:save:error', () => error);
+        } catch (error: any) {
+            console.error('api:positions:save:error', error);
             return new Response(`Error: ${error.message}`, { status: 500 });
         }
     });
