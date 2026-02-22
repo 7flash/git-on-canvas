@@ -1,4 +1,10 @@
-db/positions.sqlite
-node_modules
+node_modules/
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
 *.txt
+*.log
+bun.lock
+__pycache__/
+_old_*
+.bgr-*
