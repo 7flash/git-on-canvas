@@ -41,6 +41,11 @@ export interface CanvasContext {
 
     // ─── Loading overlay ref ──────────────────
     loadingOverlay: HTMLElement | null;
+
+    // ─── All-files mode state ─────────────────
+    allFilesActive: boolean;
+    changedFilePaths: Set<string>;
+    allFilesData: any[] | null;
 }
 
 /** Creates a fresh context (call once per mount). */
@@ -67,5 +72,9 @@ export function createCanvasContext(actor: any): CanvasContext {
         scrollTimers: {},
         connectionDragState: null,
         loadingOverlay: null,
+
+        allFilesActive: false,
+        changedFilePaths: new Set(),
+        allFilesData: null,
     };
 }

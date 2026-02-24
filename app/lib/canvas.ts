@@ -82,7 +82,7 @@ function _rebuildMinimap(ctx: CanvasContext) {
 
     // Calculate actual bounding box from all file cards
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string; path: string }[] = [];
+    const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string; path: string; changed: boolean }[] = [];
 
     ctx.fileCards.forEach((card, path) => {
         const x = parseFloat(card.style.left) || 0;
@@ -91,13 +91,14 @@ function _rebuildMinimap(ctx: CanvasContext) {
         const h = card.offsetHeight || 200;
         const name = path.split('/').pop() || path;
         const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
+        const changed = card.dataset.changed === 'true';
 
         minX = Math.min(minX, x);
         minY = Math.min(minY, y);
         maxX = Math.max(maxX, x + w);
         maxY = Math.max(maxY, y + h);
 
-        cardInfos.push({ x, y, w, h, name, status, path });
+        cardInfos.push({ x, y, w, h, name, status, path, changed });
     });
 
     // If no cards, just hide viewport
@@ -135,6 +136,10 @@ function _rebuildMinimap(ctx: CanvasContext) {
         const dot = document.createElement('div');
         const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
         dot.className = `minimap-dot minimap-dot--${statusClass}`;
+        // In all-files mode, highlight changed files
+        if (info.changed) {
+            dot.classList.add('minimap-dot--changed');
+        }
         dot.dataset.path = info.name;
         dot.title = info.name;
         dot.style.cssText = `left:${dotX}px;top:${dotY}px;width:${dotW}px;height:${dotH}px`;

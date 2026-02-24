@@ -77,6 +77,7 @@ export async function loadAllFiles(ctx: CanvasContext) {
 
             const data = await response.json();
             ctx.actor.send({ type: 'ALL_FILES_LOADED', files: data.files });
+            ctx.allFilesData = data.files;
             renderAllFilesOnCanvas(ctx, data.files);
             const fileCountEl = document.getElementById('fileCount');
             if (fileCountEl) fileCountEl.textContent = data.total;
@@ -142,10 +143,6 @@ export function renderCommitTimeline(ctx: CanvasContext) {
 export async function selectCommit(ctx: CanvasContext, hash: string) {
     return measure('commit:select', async () => {
         ctx.actor.send({ type: 'SELECT_COMMIT', hash });
-        ctx.actor.send({ type: 'SWITCH_TO_COMMITS' });
-
-        document.getElementById('modeCommits')?.classList.add('active');
-        document.getElementById('modeAllFiles')?.classList.remove('active');
 
         document.querySelectorAll('.commit-item').forEach(el => {
             el.classList.toggle('active', el.dataset.hash === hash);
@@ -153,13 +150,6 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
 
         const state = ctx.snap().context;
         const commit = state.commits.find(c => c.hash === hash);
-        const commitInfo = document.getElementById('currentCommitInfo');
-        if (commitInfo) {
-            commitInfo.innerHTML = `
-                <span class="commit-hash">${hash.substring(0, 7)}</span>
-                <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
-            `;
-        }
 
         try {
             showLoadingProgress(ctx, 'Loading commit files...');
@@ -173,13 +163,49 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
 
             if (!response.ok) throw new Error(await response.text());
 
-            updateLoadingProgress(ctx, 'Rendering files on canvas...');
             const data = await response.json();
             ctx.actor.send({ type: 'COMMIT_FILES_LOADED', files: data.files });
-            renderFilesOnCanvas(ctx, data.files, hash);
-            const fileCountEl = document.getElementById('fileCount');
-            if (fileCountEl) fileCountEl.textContent = data.files.length;
-            hideLoadingProgress(ctx);
+
+            // If all-files mode is active, just highlight changed files instead of switching view
+            if (ctx.allFilesActive) {
+                ctx.changedFilePaths = new Set(data.files.map(f => f.path));
+                highlightChangedFiles(ctx);
+
+                const commitInfo = document.getElementById('currentCommitInfo');
+                if (commitInfo) {
+                    commitInfo.innerHTML = `
+                        <span style="color: var(--accent-tertiary)">All Files</span>
+                        <span class="commit-hash">${hash.substring(0, 7)}</span>
+                        <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
+                        <span style="color: var(--text-muted); font-size: 0.7rem">• ${data.files.length} changed</span>
+                    `;
+                }
+
+                const fileCountEl = document.getElementById('fileCount');
+                if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
+                hideLoadingProgress(ctx);
+            } else {
+                // Normal commits mode: render only changed files
+                ctx.actor.send({ type: 'SWITCH_TO_COMMITS' });
+                document.getElementById('modeCommits')?.classList.add('active');
+                const chk = document.getElementById('allFilesCheckbox') as HTMLInputElement;
+                if (chk) chk.checked = false;
+
+                updateLoadingProgress(ctx, 'Rendering files on canvas...');
+                renderFilesOnCanvas(ctx, data.files, hash);
+
+                const commitInfo = document.getElementById('currentCommitInfo');
+                if (commitInfo) {
+                    commitInfo.innerHTML = `
+                        <span class="commit-hash">${hash.substring(0, 7)}</span>
+                        <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
+                    `;
+                }
+
+                const fileCountEl = document.getElementById('fileCount');
+                if (fileCountEl) fileCountEl.textContent = data.files.length;
+                hideLoadingProgress(ctx);
+            }
         } catch (err) {
             hideLoadingProgress(ctx);
             measure('commit:selectError', () => err);
@@ -233,10 +259,12 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
         updateHiddenUI(ctx);
 
-        const cols = Math.min(visibleFiles.length, getAutoColumnCount(ctx));
-        const cardWidth = 580;
-        const cardHeight = 700;
-        const gap = 40;
+        // Square-ish grid: use ceil(sqrt(n)) columns for a dense rectangle
+        const count = visibleFiles.length;
+        const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+        const cardWidth = 280;
+        const cardHeight = 180;
+        const gap = 20;
 
         visibleFiles.forEach((file, index) => {
             const posKey = `allfiles:${file.path}`;
@@ -260,7 +288,23 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
                 if (pos.width) size = { width: pos.width, height: pos.height };
             }
 
+            // Override default card size for compact grid (unless manually resized)
+            if (!size) {
+                size = { width: cardWidth, height: cardHeight };
+            }
+
             const card = createAllFileCard(ctx, file, x, y, size);
+
+            // Mark whether this file is changed in the current commit (only when we have a commit selected)
+            if (ctx.changedFilePaths.size > 0) {
+                if (ctx.changedFilePaths.has(file.path)) {
+                    card.classList.add('file-card--changed');
+                    card.dataset.changed = 'true';
+                } else {
+                    card.classList.add('file-card--unchanged');
+                }
+            }
+
             ctx.canvas.appendChild(card);
             ctx.fileCards.set(file.path, card);
 
@@ -280,27 +324,72 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
     });
 }
 
+// ─── Highlight changed files without re-rendering ────────
+export function highlightChangedFiles(ctx: CanvasContext) {
+    measure('allfiles:highlight', () => {
+        const hasChanges = ctx.changedFilePaths.size > 0;
+        ctx.fileCards.forEach((card, path) => {
+            const isChanged = hasChanges && ctx.changedFilePaths.has(path);
+            card.classList.toggle('file-card--changed', isChanged);
+            card.classList.toggle('file-card--unchanged', hasChanges && !isChanged);
+            card.dataset.changed = isChanged ? 'true' : '';
+        });
+
+        // Rebuild minimap to reflect new highlighting
+        forceMinimapRebuild(ctx);
+    });
+}
+
 // ─── Switch view mode ────────────────────────────────────
 export function switchView(ctx: CanvasContext, mode: string) {
     if (mode === 'allfiles') {
         ctx.actor.send({ type: 'SWITCH_TO_ALLFILES' });
+        ctx.allFilesActive = true;
     } else {
         ctx.actor.send({ type: 'SWITCH_TO_COMMITS' });
+        ctx.allFilesActive = false;
+        ctx.changedFilePaths.clear();
     }
 
     document.getElementById('modeCommits')?.classList.toggle('active', mode === 'commits');
     document.getElementById('modeAllFiles')?.classList.toggle('active', mode === 'allfiles');
 
     if (mode === 'allfiles') {
-        const commitInfo = document.getElementById('currentCommitInfo');
-        if (commitInfo) {
-            commitInfo.innerHTML = `
-                <span style="color: var(--accent-tertiary)">All Files</span>
-                <span style="color: var(--text-muted)">Working tree</span>
-            `;
-        }
         const state = ctx.snap().context;
-        if (state.repoPath) loadAllFiles(ctx);
+        const commitInfo = document.getElementById('currentCommitInfo');
+
+        if (state.currentCommitHash) {
+            const commit = state.commits.find(c => c.hash === state.currentCommitHash);
+            if (commitInfo) {
+                commitInfo.innerHTML = `
+                    <span style="color: var(--accent-tertiary)">All Files</span>
+                    <span class="commit-hash">${state.currentCommitHash.substring(0, 7)}</span>
+                    <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
+                `;
+            }
+        } else {
+            if (commitInfo) {
+                commitInfo.innerHTML = `
+                    <span style="color: var(--accent-tertiary)">All Files</span>
+                    <span style="color: var(--text-muted)">Working tree</span>
+                `;
+            }
+        }
+
+        if (state.repoPath) {
+            // If we already have all-files data cached, reuse it
+            if (ctx.allFilesData && ctx.allFilesData.length > 0) {
+                // Set changed files from current commit
+                if (state.commitFiles.length > 0) {
+                    ctx.changedFilePaths = new Set(state.commitFiles.map(f => f.path));
+                }
+                renderAllFilesOnCanvas(ctx, ctx.allFilesData);
+                const fileCountEl = document.getElementById('fileCount');
+                if (fileCountEl) fileCountEl.textContent = ctx.allFilesData.length;
+            } else {
+                loadAllFiles(ctx);
+            }
+        }
     } else {
         const state = ctx.snap().context;
         if (state.currentCommitHash && state.commitFiles.length > 0) {
@@ -323,9 +412,9 @@ export function switchView(ctx: CanvasContext, mode: string) {
 export function rerenderCurrentView(ctx: CanvasContext) {
     const viewState = ctx.snap().value?.view;
     if (viewState === 'allfiles') {
-        const state = ctx.snap().context;
-        if (state.allFiles.length > 0) {
-            renderAllFilesOnCanvas(ctx, state.allFiles);
+        const data = ctx.allFilesData || ctx.snap().context.allFiles;
+        if (data && data.length > 0) {
+            renderAllFilesOnCanvas(ctx, data);
         }
     } else {
         const state = ctx.snap().context;
