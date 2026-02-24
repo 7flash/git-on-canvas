@@ -1324,6 +1324,54 @@ body {
     justify-content: center;
 }
 
+/* Changed files highlighting in minimap */
+.minimap-dot--changed {
+    background: rgba(56, 189, 248, 0.9) !important;
+    box-shadow: 0 0 4px rgba(56, 189, 248, 0.6);
+    animation: minimap-pulse 2s ease-in-out infinite;
+}
+
+@keyframes minimap-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* All-files mode: changed file card highlight */
+.file-card--changed {
+    border-color: rgba(56, 189, 248, 0.5) !important;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.15), var(--shadow-sm);
+    z-index: 5;
+}
+
+.file-card--changed:hover {
+    border-color: rgba(56, 189, 248, 0.8) !important;
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.25), var(--shadow-md);
+}
+
+.file-card--changed .file-card-header {
+    background: rgba(56, 189, 248, 0.12);
+}
+
+/* All-files mode: unchanged file cards are dimmed */
+.file-card--unchanged {
+    opacity: 0.35;
+    border-color: var(--border-subtle) !important;
+    transition: opacity 0.3s ease, border-color 0.3s ease;
+}
+
+.file-card--unchanged:hover {
+    opacity: 0.75;
+    border-color: var(--border-default) !important;
+}
+
+
 /* File Preview Modal */
 .file-preview-modal {
     position: fixed;
