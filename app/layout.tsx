@@ -131,6 +131,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>G</kbd> <span>Arrange grid</span></div>
                                 <div className="hotkey-row"><kbd>F</kbd> <span>Fit content</span></div>
                                 <div className="hotkey-row"><kbd>W</kbd> <span>Fit screen</span></div>
+                                <div className="hotkey-row"><kbd>I</kbd> <span>AI Chat</span></div>
                                 <div className="hotkey-row"><kbd>⌃A</kbd> <span>Select all</span></div>
                                 <div className="hotkey-row"><kbd>Esc</kbd> <span>Deselect</span></div>
                             </div>
@@ -184,6 +185,12 @@ export default function RootLayout({ children }: { children: any }) {
                                         <line x1="1" y1="1" x2="23" y2="23" />
                                     </svg>
                                     <span id="hiddenCount">0</span>
+                                </button>
+                                <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat (I)">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                                    </svg>
+                                    AI
                                 </button>
                             </div>
                         </div>
@@ -247,11 +254,18 @@ export default function RootLayout({ children }: { children: any }) {
                                         </svg>
                                         Diff
                                     </button>
+                                    <button className="modal-tab" data-view="chat">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                                        </svg>
+                                        AI Chat
+                                    </button>
                                 </div>
                                 <button className="modal-close" id="closePreview">&times;</button>
                             </div>
                         </div>
-                        <pre className="modal-body"><code id="previewContent"></code></pre>
+                        <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
+                        <div className="modal-chat-container" id="modalChatContainer" style={{ display: 'none' }}></div>
                     </div>
                 </div>
             </body>
