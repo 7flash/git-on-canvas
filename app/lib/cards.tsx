@@ -4,6 +4,7 @@
  * selection, arrangement, and the file modal.
  */
 import { measure } from 'measure-fn';
+import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
 import { savePosition, getPositionKey } from './positions';
@@ -296,9 +297,20 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     });
 }
 
-// ─── Card context menu ──────────────────────────────────
+// ─── Card context menu (JSX) ────────────────────────
+function ContextMenu({ onAction }: { onAction: (action: string) => void }) {
+    return (
+        <>
+            <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
+            <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
+            <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
+            <div className="ctx-divider"></div>
+            <button className="ctx-item" onClick={() => onAction('history')}>🕰️ File history</button>
+        </>
+    );
+}
+
 function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y: number) {
-    // Remove any existing context menu
     document.querySelector('.card-context-menu')?.remove();
 
     const filePath = card.dataset.path;
@@ -307,60 +319,15 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
 
-    menu.innerHTML = `
-        <button class="ctx-item" data-action="expand">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-            </svg>
-            Expand
-        </button>
-        <button class="ctx-item" data-action="fit-content">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
-            </svg>
-            Fit content
-        </button>
-        <button class="ctx-item" data-action="fit-screen">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
-            </svg>
-            Fit screen
-        </button>
-        <div class="ctx-divider"></div>
-        <button class="ctx-item" data-action="history">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-            </svg>
-            File history
-        </button>
-    `;
-
-    document.body.appendChild(menu);
-
-    // Position: keep within viewport
-    requestAnimationFrame(() => {
-        const r = menu.getBoundingClientRect();
-        if (r.right > window.innerWidth) menu.style.left = `${window.innerWidth - r.width - 8}px`;
-        if (r.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - r.height - 8}px`;
-    });
-
-    // Action handlers
-    menu.addEventListener('click', async (e) => {
-        const btn = (e.target as HTMLElement).closest('[data-action]') as HTMLElement;
-        if (!btn) return;
-
-        const action = btn.dataset.action;
+    function handleAction(action: string) {
         menu.remove();
-
         if (action === 'expand') {
-            // Find the file data from ctx
             const state = ctx.snap().context;
             const file = state.commitFiles?.find(f => f.path === filePath) ||
                 ctx.allFilesData?.find(f => f.path === filePath) ||
                 { path: filePath, name: filePath.split('/').pop(), lines: 0 };
             openFileModal(ctx, file);
         } else if (action === 'fit-content') {
-            // Select this card then fit
             ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
             updateSelectionHighlights(ctx);
             fitContentSize(ctx);
@@ -371,9 +338,17 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
         } else if (action === 'history') {
             showFileHistory(ctx, filePath);
         }
+    }
+
+    render(<ContextMenu onAction={handleAction} />, menu);
+    document.body.appendChild(menu);
+
+    requestAnimationFrame(() => {
+        const r = menu.getBoundingClientRect();
+        if (r.right > window.innerWidth) menu.style.left = `${window.innerWidth - r.width - 8}px`;
+        if (r.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - r.height - 8}px`;
     });
 
-    // Close on click outside
     const closeMenu = (e: MouseEvent) => {
         if (!menu.contains(e.target as Node)) {
             menu.remove();
@@ -383,7 +358,38 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
     setTimeout(() => document.addEventListener('mousedown', closeMenu), 0);
 }
 
-// ─── File history panel ─────────────────────────────────
+// ─── File history panel (JSX) ───────────────────────
+function FileHistoryContent({ fileName, commits, error, loading, onClose, onSelect }: {
+    fileName: string; commits: any[]; error?: string; loading: boolean;
+    onClose: () => void; onSelect: (hash: string) => void;
+}) {
+    return (
+        <>
+            <div className="panel-header">
+                <span className="panel-title">History: {fileName}</span>
+                <button className="btn-ghost btn-xs" onClick={onClose}>✕</button>
+            </div>
+            <div className="file-history-list">
+                {loading ? (
+                    <div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">Loading...</div>
+                ) : error ? (
+                    <div style="padding: 16px; color: var(--error); font-size: 0.75rem;">Error: {error}</div>
+                ) : commits.length === 0 ? (
+                    <div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">No commits found for this file</div>
+                ) : (
+                    commits.map(c => (
+                        <div key={c.hash} className="file-history-item" onClick={() => onSelect(c.hash)}>
+                            <span className="file-history-hash">{c.shortHash}</span>
+                            <span className="file-history-msg">{c.message}</span>
+                            <span className="file-history-date">{new Date(c.date).toLocaleDateString()}</span>
+                        </div>
+                    ))
+                )}
+            </div>
+        </>
+    );
+}
+
 async function showFileHistory(ctx: CanvasContext, filePath: string) {
     const state = ctx.snap().context;
     if (!state.repoPath) {
@@ -391,24 +397,23 @@ async function showFileHistory(ctx: CanvasContext, filePath: string) {
         return;
     }
 
-    // Remove existing panel
     document.querySelector('.file-history-panel')?.remove();
 
     const panel = document.createElement('div');
     panel.className = 'file-history-panel';
-    panel.innerHTML = `
-        <div class="panel-header">
-            <span class="panel-title">History: ${escapeHtml(filePath.split('/').pop())}</span>
-            <button class="btn-ghost btn-xs" id="closeFileHistory">✕</button>
-        </div>
-        <div class="file-history-list">
-            <div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">Loading...</div>
-        </div>
-    `;
+    const fileName = filePath.split('/').pop() || filePath;
 
+    function closePanel() { panel.remove(); }
+    function selectCommitHash(hash: string) {
+        import('./repo').then(({ selectCommit }) => {
+            selectCommit(ctx, hash);
+            panel.remove();
+        });
+    }
+
+    // Initial loading state
+    render(<FileHistoryContent fileName={fileName} commits={[]} loading={true} onClose={closePanel} onSelect={selectCommitHash} />, panel);
     document.querySelector('.canvas-area')?.appendChild(panel);
-
-    panel.querySelector('#closeFileHistory')?.addEventListener('click', () => panel.remove());
 
     try {
         const response = await fetch('/api/repo/file-history', {
@@ -420,36 +425,9 @@ async function showFileHistory(ctx: CanvasContext, filePath: string) {
         if (!response.ok) throw new Error('Failed to fetch history');
         const data = await response.json();
 
-        const listEl = panel.querySelector('.file-history-list');
-        if (!listEl) return;
-
-        if (data.commits.length === 0) {
-            listEl.innerHTML = '<div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">No commits found for this file</div>';
-            return;
-        }
-
-        listEl.innerHTML = data.commits.map(c => `
-            <div class="file-history-item" data-hash="${c.hash}">
-                <span class="file-history-hash">${c.shortHash}</span>
-                <span class="file-history-msg">${escapeHtml(c.message)}</span>
-                <span class="file-history-date">${new Date(c.date).toLocaleDateString()}</span>
-            </div>
-        `).join('');
-
-        // Click a commit to select it
-        listEl.addEventListener('click', (e) => {
-            const item = (e.target as HTMLElement).closest('.file-history-item') as HTMLElement;
-            if (!item) return;
-            const hash = item.dataset.hash;
-            // Import selectCommit dynamically to avoid circular imports
-            import('./repo').then(({ selectCommit }) => {
-                selectCommit(ctx, hash);
-                panel.remove();
-            });
-        });
+        render(<FileHistoryContent fileName={fileName} commits={data.commits} loading={false} onClose={closePanel} onSelect={selectCommitHash} />, panel);
     } catch (err) {
-        const listEl = panel.querySelector('.file-history-list');
-        if (listEl) listEl.innerHTML = `<div style="padding: 16px; color: var(--error); font-size: 0.75rem;">Error: ${err.message}</div>`;
+        render(<FileHistoryContent fileName={fileName} commits={[]} error={err.message} loading={false} onClose={closePanel} onSelect={selectCommitHash} />, panel);
     }
 }
 

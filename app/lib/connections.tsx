@@ -3,6 +3,7 @@
  * Connections — drag-to-connect, render SVG lines, dialog, navigate.
  */
 import { measure } from 'measure-fn';
+import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, showToast } from './utils';
 import { updateCanvasTransform, updateZoomUI } from './canvas';
@@ -99,81 +100,102 @@ function onConnDragUp(ctx: CanvasContext, e: MouseEvent) {
     showConnectionDialog(ctx, sourceFile, targetPath);
 }
 
-// ─── Connection dialog modal ────────────────────────────
+// ─── Connection dialog (JSX) ────────────────────────────
+function ConnectionDialog({
+    sourceFile, targetFile, sourceLineCount, targetLineCount, onCancel, onCreate
+}: {
+    sourceFile: string; targetFile: string;
+    sourceLineCount: number; targetLineCount: number;
+    onCancel: () => void;
+    onCreate: (srcStart: number, srcEnd: number, tgtStart: number, tgtEnd: number, comment: string) => void;
+}) {
+    const handleCreate = () => {
+        const srcStart = parseInt((document.getElementById('connSourceStart') as HTMLInputElement)?.value) || 1;
+        const srcEnd = parseInt((document.getElementById('connSourceEnd') as HTMLInputElement)?.value) || srcStart;
+        const tgtStart = parseInt((document.getElementById('connTargetStart') as HTMLInputElement)?.value) || 1;
+        const tgtEnd = parseInt((document.getElementById('connTargetEnd') as HTMLInputElement)?.value) || tgtStart;
+        const comment = (document.getElementById('connComment') as HTMLInputElement)?.value || '';
+        onCreate(srcStart, srcEnd, tgtStart, tgtEnd, comment);
+    };
+
+    const handleKeydown = (e: KeyboardEvent) => {
+        if (e.key === 'Enter') handleCreate();
+        if (e.key === 'Escape') onCancel();
+    };
+
+    return (
+        <div className="connection-dialog" onKeydown={handleKeydown}>
+            <h3>Create Connection</h3>
+            <div className="conn-dialog-row">
+                <div className="conn-dialog-file">
+                    <label>Source</label>
+                    <span className="conn-file-name">{sourceFile}</span>
+                    <div className="conn-line-range">
+                        <label>Lines</label>
+                        <input type="number" id="connSourceStart" value={1} min={1} max={sourceLineCount} />
+                        <span>–</span>
+                        <input type="number" id="connSourceEnd" value={Math.min(10, sourceLineCount)} min={1} max={sourceLineCount} />
+                    </div>
+                </div>
+                <div className="conn-dialog-arrow">→</div>
+                <div className="conn-dialog-file">
+                    <label>Target</label>
+                    <span className="conn-file-name">{targetFile}</span>
+                    <div className="conn-line-range">
+                        <label>Lines</label>
+                        <input type="number" id="connTargetStart" value={1} min={1} max={targetLineCount} />
+                        <span>–</span>
+                        <input type="number" id="connTargetEnd" value={Math.min(10, targetLineCount)} min={1} max={targetLineCount} />
+                    </div>
+                </div>
+            </div>
+            <div className="conn-dialog-comment">
+                <label>Comment</label>
+                <input type="text" id="connComment" placeholder="Describe this connection..." />
+            </div>
+            <div className="conn-dialog-actions">
+                <button className="btn-secondary" onClick={onCancel}>Cancel</button>
+                <button className="btn-primary" onClick={handleCreate}>Create Connection</button>
+            </div>
+        </div>
+    );
+}
+
 function showConnectionDialog(ctx: CanvasContext, sourceFile: string, targetFile: string) {
     const overlay = document.createElement('div');
     overlay.className = 'connection-dialog-overlay';
+    document.body.appendChild(overlay);
 
     const sourceLineCount = getFileLineCount(ctx, sourceFile);
     const targetLineCount = getFileLineCount(ctx, targetFile);
 
-    overlay.innerHTML = `
-        <div class="connection-dialog">
-            <h3>Create Connection</h3>
-            <div class="conn-dialog-row">
-                <div class="conn-dialog-file">
-                    <label>Source</label>
-                    <span class="conn-file-name">${escapeHtml(sourceFile)}</span>
-                    <div class="conn-line-range">
-                        <label>Lines</label>
-                        <input type="number" id="connSourceStart" value="1" min="1" max="${sourceLineCount}" />
-                        <span>–</span>
-                        <input type="number" id="connSourceEnd" value="${Math.min(10, sourceLineCount)}" min="1" max="${sourceLineCount}" />
-                    </div>
-                </div>
-                <div class="conn-dialog-arrow">
-                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M5 12h14M13 6l6 6-6 6"/>
-                    </svg>
-                </div>
-                <div class="conn-dialog-file">
-                    <label>Target</label>
-                    <span class="conn-file-name">${escapeHtml(targetFile)}</span>
-                    <div class="conn-line-range">
-                        <label>Lines</label>
-                        <input type="number" id="connTargetStart" value="1" min="1" max="${targetLineCount}" />
-                        <span>–</span>
-                        <input type="number" id="connTargetEnd" value="${Math.min(10, targetLineCount)}" min="1" max="${targetLineCount}" />
-                    </div>
-                </div>
-            </div>
-            <div class="conn-dialog-comment">
-                <label>Comment</label>
-                <input type="text" id="connComment" placeholder="Describe this connection..." />
-            </div>
-            <div class="conn-dialog-actions">
-                <button class="btn-secondary" id="connCancel">Cancel</button>
-                <button class="btn-primary" id="connCreate">Create Connection</button>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(overlay);
-
-    setTimeout(() => overlay.querySelector('#connComment')?.focus(), 100);
-
-    overlay.querySelector('#connCancel').addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
-
-    overlay.querySelector('#connCreate').addEventListener('click', () => {
-        const srcStart = parseInt(overlay.querySelector('#connSourceStart').value) || 1;
-        const srcEnd = parseInt(overlay.querySelector('#connSourceEnd').value) || srcStart;
-        const tgtStart = parseInt(overlay.querySelector('#connTargetStart').value) || 1;
-        const tgtEnd = parseInt(overlay.querySelector('#connTargetEnd').value) || tgtStart;
-        const comment = overlay.querySelector('#connComment').value || '';
-
-        ctx.actor.send({ type: 'START_CONNECTION', sourceFile, lineStart: srcStart, lineEnd: srcEnd });
-        ctx.actor.send({ type: 'COMPLETE_CONNECTION', targetFile, lineStart: tgtStart, lineEnd: tgtEnd, comment });
-        renderConnections(ctx);
-        saveConnections(ctx);
-        showToast('Connection created!', 'success');
+    const close = () => {
+        render(null, overlay);
         overlay.remove();
-    });
+    };
 
-    overlay.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') overlay.querySelector('#connCreate')?.click();
-        if (e.key === 'Escape') overlay.remove();
-    });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+    render(
+        <ConnectionDialog
+            sourceFile={sourceFile}
+            targetFile={targetFile}
+            sourceLineCount={sourceLineCount}
+            targetLineCount={targetLineCount}
+            onCancel={close}
+            onCreate={(srcStart, srcEnd, tgtStart, tgtEnd, comment) => {
+                ctx.actor.send({ type: 'START_CONNECTION', sourceFile, lineStart: srcStart, lineEnd: srcEnd });
+                ctx.actor.send({ type: 'COMPLETE_CONNECTION', targetFile, lineStart: tgtStart, lineEnd: tgtEnd, comment });
+                renderConnections(ctx);
+                saveConnections(ctx);
+                showToast('Connection created!', 'success');
+                close();
+            }}
+        />,
+        overlay
+    );
+
+    setTimeout(() => document.getElementById('connComment')?.focus(), 100);
 }
 
 function getFileLineCount(ctx: CanvasContext, filePath: string): number {

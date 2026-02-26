@@ -3,6 +3,7 @@
  * Repository management — load, commit timeline, select commit, all-files.
  */
 import { measure } from 'measure-fn';
+import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, formatDate, showToast } from './utils';
 import { clearCanvas, getAutoColumnCount, updateCanvasTransform, updateZoomUI, updateMinimap, forceMinimapRebuild } from './canvas';
@@ -88,6 +89,47 @@ export async function loadAllFiles(ctx: CanvasContext) {
     });
 }
 
+// ─── JSX Components for commit sidebar ──────────────────
+function CommitItem({ commit, onClick }: { commit: any; onClick: () => void }) {
+    return (
+        <div className="commit-item" data-hash={commit.hash} onClick={onClick}>
+            <div className="commit-hash">{commit.hash.substring(0, 7)}</div>
+            <div className="commit-message">{commit.message}</div>
+            <div className="commit-meta">
+                <span className="commit-author">👤 {commit.author}</span>
+                <span>{formatDate(commit.date)}</span>
+            </div>
+        </div>
+    );
+}
+
+function CommitInfo({ hash, message, allFiles, changedCount }: {
+    hash?: string; message?: string; allFiles?: boolean; changedCount?: number;
+}) {
+    return (
+        <>
+            {allFiles && <span style="color: var(--accent-tertiary)">All Files</span>}
+            {hash ? (
+                <span className="commit-hash">{hash.substring(0, 7)}</span>
+            ) : null}
+            {message ? (
+                <span style="color: var(--text-secondary)">{message}</span>
+            ) : null}
+            {!hash && allFiles ? (
+                <span style="color: var(--text-muted)">Working tree</span>
+            ) : null}
+            {changedCount !== undefined ? (
+                <span style="color: var(--text-muted); font-size: 0.7rem">• {changedCount} changed</span>
+            ) : null}
+        </>
+    );
+}
+
+function updateCommitInfo(hash?: string, message?: string, allFiles?: boolean, changedCount?: number) {
+    const el = document.getElementById('currentCommitInfo');
+    if (el) render(<CommitInfo hash={hash} message={message} allFiles={allFiles} changedCount={changedCount} />, el);
+}
+
 // ─── Commit timeline render ──────────────────────────────
 export function renderCommitTimeline(ctx: CanvasContext) {
     measure('timeline:render', () => {
@@ -101,41 +143,28 @@ export function renderCommitTimeline(ctx: CanvasContext) {
         if (!container) return;
 
         if (commitsList.length === 0) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.4">
-                        <circle cx="12" cy="12" r="10"/>
-                        <path d="M12 6v6l4 2"/>
-                    </svg>
+            render(
+                <div className="empty-state">
+                    <span style="opacity:0.4;font-size:32px">🕐</span>
                     <p>No commits found</p>
-                </div>
-            `;
+                </div>,
+                container
+            );
             return;
         }
 
-        container.innerHTML = commitsList.map(commit => `
-            <div class="commit-item" data-hash="${commit.hash}">
-                <div class="commit-hash">${commit.hash.substring(0, 7)}</div>
-                <div class="commit-message">${escapeHtml(commit.message)}</div>
-                <div class="commit-meta">
-                    <span class="commit-author">
-                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="7" r="4"/>
-                            <path d="M5.5 21a7.5 7.5 0 0 1 13 0"/>
-                        </svg>
-                        ${escapeHtml(commit.author)}
-                    </span>
-                    <span>${formatDate(commit.date)}</span>
-                </div>
-            </div>
-        `).join('');
-
-        // Event delegation for commit clicks
-        container.querySelectorAll('.commit-item').forEach(el => {
-            el.addEventListener('click', () => {
-                selectCommit(ctx, el.dataset.hash);
-            });
-        });
+        render(
+            <>
+                {commitsList.map(commit => (
+                    <CommitItem
+                        key={commit.hash}
+                        commit={commit}
+                        onClick={() => selectCommit(ctx, commit.hash)}
+                    />
+                ))}
+            </>,
+            container
+        );
     });
 }
 
@@ -175,15 +204,7 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
                     renderAllFilesOnCanvas(ctx, ctx.allFilesData);
                 }
 
-                const commitInfo = document.getElementById('currentCommitInfo');
-                if (commitInfo) {
-                    commitInfo.innerHTML = `
-                        <span style="color: var(--accent-tertiary)">All Files</span>
-                        <span class="commit-hash">${hash.substring(0, 7)}</span>
-                        <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
-                        <span style="color: var(--text-muted); font-size: 0.7rem">• ${data.files.length} changed</span>
-                    `;
-                }
+                updateCommitInfo(hash, commit?.message || '', true, data.files.length);
 
                 const fileCountEl = document.getElementById('fileCount');
                 if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
@@ -201,13 +222,7 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
                 updateLoadingProgress(ctx, 'Rendering files on canvas...');
                 renderFilesOnCanvas(ctx, data.files, hash);
 
-                const commitInfo = document.getElementById('currentCommitInfo');
-                if (commitInfo) {
-                    commitInfo.innerHTML = `
-                        <span class="commit-hash">${hash.substring(0, 7)}</span>
-                        <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
-                    `;
-                }
+                updateCommitInfo(hash, commit?.message || '');
 
                 const fileCountEl = document.getElementById('fileCount');
                 if (fileCountEl) fileCountEl.textContent = data.files.length;
@@ -381,18 +396,11 @@ export function switchView(ctx: CanvasContext, mode: string) {
         if (state.currentCommitHash) {
             const commit = state.commits.find(c => c.hash === state.currentCommitHash);
             if (commitInfo) {
-                commitInfo.innerHTML = `
-                    <span style="color: var(--accent-tertiary)">All Files</span>
-                    <span class="commit-hash">${state.currentCommitHash.substring(0, 7)}</span>
-                    <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
-                `;
+                updateCommitInfo(state.currentCommitHash, commit?.message || '', true);
             }
         } else {
             if (commitInfo) {
-                commitInfo.innerHTML = `
-                    <span style="color: var(--accent-tertiary)">All Files</span>
-                    <span style="color: var(--text-muted)">Working tree</span>
-                `;
+                updateCommitInfo(undefined, undefined, true);
             }
         }
 
@@ -440,10 +448,7 @@ export function switchView(ctx: CanvasContext, mode: string) {
             const commit = state.commits.find(c => c.hash === state.currentCommitHash);
             const commitInfo = document.getElementById('currentCommitInfo');
             if (commitInfo) {
-                commitInfo.innerHTML = `
-                    <span class="commit-hash">${state.currentCommitHash.substring(0, 7)}</span>
-                    <span style="color: var(--text-secondary)">${escapeHtml(commit?.message || '')}</span>
-                `;
+                updateCommitInfo(state.currentCommitHash, commit?.message || '');
             }
             const fileCountEl = document.getElementById('fileCount');
             if (fileCountEl) fileCountEl.textContent = state.commitFiles.length;
@@ -467,7 +472,53 @@ export function rerenderCurrentView(ctx: CanvasContext) {
     }
 }
 
-// ─── Changed files panel with diff stats ────────────────
+// ─── Changed files panel (JSX) ──────────────────────────
+function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
+    fileStats: any[]; totalAdd: number; totalDel: number; count: number;
+}) {
+    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa' };
+    const statusIcons = { added: '+', modified: '~', deleted: '−', renamed: '→' };
+
+    return (
+        <>
+            <div className="changed-files-summary">
+                <span className="stat-add">+{totalAdd}</span>
+                <span className="stat-del">−{totalDel}</span>
+                <span className="stat-files">{count} file{count > 1 ? 's' : ''}</span>
+            </div>
+            {fileStats.map(f => {
+                const color = statusColors[f.status] || '#a855f7';
+                const icon = statusIcons[f.status] || '~';
+                const name = f.path.split('/').pop();
+                const dir = f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '';
+                return (
+                    <div
+                        key={f.path}
+                        className="changed-file-item"
+                        title={f.path}
+                        onClick={() => {
+                            const card = document.querySelector(`.file-card[data-path="${f.path}"]`) as HTMLElement;
+                            if (card) {
+                                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                card.classList.add('card-flash');
+                                setTimeout(() => card.classList.remove('card-flash'), 1500);
+                            }
+                        }}
+                    >
+                        <span className="changed-file-status" style={`color: ${color}`}>{icon}</span>
+                        <span className="changed-file-name">{name}</span>
+                        {dir ? <span className="changed-file-dir">{dir}</span> : null}
+                        <span className="changed-file-stats">
+                            {f.additions > 0 ? <span className="stat-add">+{f.additions}</span> : null}
+                            {f.deletions > 0 ? <span className="stat-del">−{f.deletions}</span> : null}
+                        </span>
+                    </div>
+                );
+            })}
+        </>
+    );
+}
+
 function populateChangedFilesPanel(files: any[]) {
     const panel = document.getElementById('changedFilesPanel');
     const listEl = document.getElementById('changedFilesList');
@@ -478,7 +529,6 @@ function populateChangedFilesPanel(files: any[]) {
         return;
     }
 
-    // Calculate stats
     let totalAdd = 0, totalDel = 0;
     const fileStats = files.map(f => {
         let additions = 0, deletions = 0;
@@ -499,46 +549,10 @@ function populateChangedFilesPanel(files: any[]) {
         return { ...f, additions, deletions };
     });
 
-    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa' };
-    const statusIcons = { added: '+', modified: '~', deleted: '−', renamed: '→' };
-
-    listEl.innerHTML = `
-        <div class="changed-files-summary">
-            <span class="stat-add">+${totalAdd}</span>
-            <span class="stat-del">−${totalDel}</span>
-            <span class="stat-files">${files.length} file${files.length > 1 ? 's' : ''}</span>
-        </div>
-        ${fileStats.map(f => {
-        const color = statusColors[f.status] || '#a855f7';
-        const icon = statusIcons[f.status] || '~';
-        const name = f.path.split('/').pop();
-        const dir = f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '';
-        return `
-                <div class="changed-file-item" data-path="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
-                    <span class="changed-file-status" style="color: ${color}">${icon}</span>
-                    <span class="changed-file-name">${escapeHtml(name)}</span>
-                    ${dir ? `<span class="changed-file-dir">${escapeHtml(dir)}</span>` : ''}
-                    <span class="changed-file-stats">
-                        ${f.additions > 0 ? `<span class="stat-add">+${f.additions}</span>` : ''}
-                        ${f.deletions > 0 ? `<span class="stat-del">−${f.deletions}</span>` : ''}
-                    </span>
-                </div>
-            `;
-    }).join('')}
-    `;
+    render(
+        <ChangedFilesList fileStats={fileStats} totalAdd={totalAdd} totalDel={totalDel} count={files.length} />,
+        listEl
+    );
 
     panel.style.display = 'flex';
-
-    // Click to navigate to file card on canvas
-    listEl.querySelectorAll('.changed-file-item').forEach(item => {
-        item.addEventListener('click', () => {
-            const path = (item as HTMLElement).dataset.path;
-            const card = document.querySelector(`.file-card[data-path="${path}"]`) as HTMLElement;
-            if (card) {
-                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                card.classList.add('card-flash');
-                setTimeout(() => card.classList.remove('card-flash'), 1500);
-            }
-        });
-    });
 }

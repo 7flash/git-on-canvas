@@ -20,6 +20,7 @@
  *   Delete/Backspace → hide selected
  */
 import { measure } from 'measure-fn';
+import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
@@ -522,146 +523,141 @@ function openFileSearch(ctx: CanvasContext) {
     const overlay = document.createElement('div');
     overlay.id = 'fileSearchOverlay';
     overlay.className = 'file-search-overlay';
-
-    const container = document.createElement('div');
-    container.className = 'file-search-container';
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'file-search-input';
-    input.placeholder = 'Search files on canvas...';
-    input.autocomplete = 'off';
-
-    const results = document.createElement('div');
-    results.className = 'file-search-results';
-
-    container.appendChild(input);
-    container.appendChild(results);
-    overlay.appendChild(container);
     document.body.appendChild(overlay);
 
-    // Get all file paths from canvas — use Map or fall back to DOM query
+    // Get all file paths from canvas
     function getAllPaths(): string[] {
-        if (ctx.fileCards.size > 0) {
-            return Array.from(ctx.fileCards.keys());
-        }
-        // Fallback: read data-path from file cards in DOM
+        if (ctx.fileCards.size > 0) return Array.from(ctx.fileCards.keys());
         const cards = document.querySelectorAll('.file-card[data-path]');
         return Array.from(cards).map(c => (c as HTMLElement).dataset.path || '').filter(Boolean);
     }
+
     let selectedIdx = 0;
-
-    function renderResults(query: string) {
-        const allPaths = getAllPaths();
-        const q = query.toLowerCase().trim();
-        const matches = q
-            ? allPaths.filter(p => p.toLowerCase().includes(q)).slice(0, 15)
-            : allPaths.slice(0, 15);
-
-        selectedIdx = 0;
-
-        results.innerHTML = matches.map((path, i) => {
-            const name = path.split('/').pop() || path;
-            const dir = path.substring(0, path.length - name.length);
-            // Highlight matching part
-            let displayName = escapeHtml(name);
-            let displayDir = escapeHtml(dir);
-            if (q) {
-                const lp = path.toLowerCase();
-                const qIdx = lp.indexOf(q);
-                if (qIdx >= 0) {
-                    const before = escapeHtml(path.substring(0, qIdx));
-                    const match = escapeHtml(path.substring(qIdx, qIdx + q.length));
-                    const after = escapeHtml(path.substring(qIdx + q.length));
-                    displayDir = '';
-                    displayName = `${before}<mark>${match}</mark>${after}`;
-                }
-            }
-            return `<div class="file-search-item ${i === 0 ? 'selected' : ''}" data-path="${escapeHtml(path)}">
-                <span class="search-file-name">${displayDir ? `<span class="search-file-dir">${displayDir}</span>` : ''}${displayName}</span>
-            </div>`;
-        }).join('');
-
-        if (matches.length === 0 && q) {
-            results.innerHTML = `<div class="file-search-empty">No files matching "${escapeHtml(q)}"</div>`;
-        }
-    }
+    let currentQuery = '';
 
     function navigateToFile(path: string) {
         const card = ctx.fileCards.get(path);
         if (!card) return;
-
-        // Close search
         close();
 
-        // Pan to the card
-        const rect = card.getBoundingClientRect();
         const vpRect = ctx.canvasViewport.getBoundingClientRect();
         const state = ctx.snap().context;
-
         const cardX = parseFloat(card.style.left) || 0;
         const cardY = parseFloat(card.style.top) || 0;
-        const cardW = card.offsetWidth;
-        const cardH = card.offsetHeight;
-
-        const newOffsetX = -(cardX + cardW / 2) * state.zoom + vpRect.width / 2;
-        const newOffsetY = -(cardY + cardH / 2) * state.zoom + vpRect.height / 2;
+        const newOffsetX = -(cardX + card.offsetWidth / 2) * state.zoom + vpRect.width / 2;
+        const newOffsetY = -(cardY + card.offsetHeight / 2) * state.zoom + vpRect.height / 2;
 
         ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
         updateCanvasTransform(ctx);
 
-        // Flash the card
         card.classList.add('card-flash');
         setTimeout(() => card.classList.remove('card-flash'), 1500);
-
-        // Select it
         ctx.actor.send({ type: 'SELECT_CARD', path, shift: false });
         updateSelectionHighlights(ctx);
         updateArrangeToolbar(ctx);
     }
 
     function close() {
+        render(null, overlay);
         overlay.remove();
     }
 
-    input.addEventListener('input', () => renderResults(input.value));
+    function highlightMatch(path: string, q: string): string {
+        if (!q) return escapeHtml(path);
+        const lp = path.toLowerCase();
+        const idx = lp.indexOf(q);
+        if (idx < 0) return escapeHtml(path);
+        return escapeHtml(path.substring(0, idx)) +
+            '<mark>' + escapeHtml(path.substring(idx, idx + q.length)) + '</mark>' +
+            escapeHtml(path.substring(idx + q.length));
+    }
 
-    input.addEventListener('keydown', (e) => {
-        const items = results.querySelectorAll('.file-search-item');
+    function getMatches() {
+        const allPaths = getAllPaths();
+        const q = currentQuery.toLowerCase().trim();
+        return q ? allPaths.filter(p => p.toLowerCase().includes(q)).slice(0, 15) : allPaths.slice(0, 15);
+    }
 
+    function handleInput(e: Event) {
+        currentQuery = (e.target as HTMLInputElement).value;
+        selectedIdx = 0;
+        rerender();
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+        const matches = getMatches();
         if (e.key === 'ArrowDown') {
             e.preventDefault();
-            selectedIdx = Math.min(selectedIdx + 1, items.length - 1);
-            items.forEach((el, i) => el.classList.toggle('selected', i === selectedIdx));
-            items[selectedIdx]?.scrollIntoView({ block: 'nearest' });
+            selectedIdx = Math.min(selectedIdx + 1, matches.length - 1);
+            rerender();
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             selectedIdx = Math.max(selectedIdx - 1, 0);
-            items.forEach((el, i) => el.classList.toggle('selected', i === selectedIdx));
-            items[selectedIdx]?.scrollIntoView({ block: 'nearest' });
+            rerender();
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            const selected = items[selectedIdx] as HTMLElement;
-            if (selected?.dataset.path) {
-                navigateToFile(selected.dataset.path);
-            }
+            if (matches[selectedIdx]) navigateToFile(matches[selectedIdx]);
         } else if (e.key === 'Escape') {
             e.preventDefault();
             close();
         }
-    });
+    }
 
-    results.addEventListener('click', (e) => {
-        const item = (e.target as HTMLElement).closest('.file-search-item') as HTMLElement;
-        if (item?.dataset.path) {
-            navigateToFile(item.dataset.path);
+    function handleOverlayClick(e: MouseEvent) {
+        if ((e.target as HTMLElement) === overlay || (e.target as HTMLElement).classList.contains('file-search-overlay')) {
+            close();
         }
-    });
+    }
 
-    overlay.addEventListener('click', (e) => {
-        if (e.target === overlay) close();
-    });
+    function SearchOverlay() {
+        const matches = getMatches();
+        const q = currentQuery.toLowerCase().trim();
 
-    renderResults('');
-    requestAnimationFrame(() => input.focus());
+        return (
+            <div className="file-search-container">
+                <input
+                    type="text"
+                    className="file-search-input"
+                    placeholder="Search files on canvas..."
+                    autocomplete="off"
+                    value={currentQuery}
+                    onInput={handleInput}
+                    onKeydown={handleKeydown}
+                />
+                <div className="file-search-results">
+                    {matches.length === 0 && q ? (
+                        <div className="file-search-empty">No files matching "{q}"</div>
+                    ) : (
+                        matches.map((path, i) => (
+                            <div
+                                key={path}
+                                className={`file-search-item ${i === selectedIdx ? 'selected' : ''}`}
+                                onClick={() => navigateToFile(path)}
+                            >
+                                <span className="search-file-name" dangerouslySetInnerHTML={{ __html: highlightMatch(path, q) }} />
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    function rerender() {
+        render(<SearchOverlay />, overlay);
+        // Re-focus input after re-render
+        const input = overlay.querySelector('.file-search-input') as HTMLInputElement;
+        if (input && document.activeElement !== input) {
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
+    }
+
+    overlay.addEventListener('click', handleOverlayClick);
+    rerender();
+    requestAnimationFrame(() => {
+        const input = overlay.querySelector('.file-search-input') as HTMLInputElement;
+        if (input) input.focus();
+    });
 }
+
