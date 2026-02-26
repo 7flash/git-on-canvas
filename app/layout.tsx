@@ -70,7 +70,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 </svg>
                                 Commits
                             </button>
-                            <label className="view-toggle" id="allFilesToggle" title="Show all repository files alongside diffs">
+                            <label className="view-toggle" id="allFilesToggle" title="Show all repository files — changed files display their diffs">
                                 <input type="checkbox" id="allFilesCheckbox" />
                                 <span className="toggle-track">
                                     <span className="toggle-thumb"></span>

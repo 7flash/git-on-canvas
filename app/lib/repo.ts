@@ -165,11 +165,15 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
 
             const data = await response.json();
             ctx.actor.send({ type: 'COMMIT_FILES_LOADED', files: data.files });
+            ctx.commitFilesData = data.files;
 
-            // If all-files mode is active, just highlight changed files instead of switching view
+            // If all-files mode is active, re-render with diff cards for changed files
             if (ctx.allFilesActive) {
                 ctx.changedFilePaths = new Set(data.files.map(f => f.path));
-                highlightChangedFiles(ctx);
+                // Re-render all files so changed ones get diff cards
+                if (ctx.allFilesData && ctx.allFilesData.length > 0) {
+                    renderAllFilesOnCanvas(ctx, ctx.allFilesData);
+                }
 
                 const commitInfo = document.getElementById('currentCommitInfo');
                 if (commitInfo) {
@@ -259,14 +263,23 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
         updateHiddenUI(ctx);
 
+        // Build a map of changed file data (commit diff info)
+        const changedFileDataMap = new Map<string, any>();
+        if (ctx.commitFilesData) {
+            ctx.commitFilesData.forEach(f => changedFileDataMap.set(f.path, f));
+        }
+
         // Square-ish grid: use ceil(sqrt(n)) columns for a dense rectangle
         const count = visibleFiles.length;
         const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
         const cardWidth = 280;
         const cardHeight = 180;
+        const changedCardWidth = 580;
+        const changedCardHeight = 700;
         const gap = 20;
 
         visibleFiles.forEach((file, index) => {
+            const isChanged = ctx.changedFilePaths.has(file.path);
             const posKey = `allfiles:${file.path}`;
             let x: number, y: number;
 
@@ -280,29 +293,29 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
                 y = 50 + row * (cardHeight + gap);
             }
 
-            const state = ctx.snap().context;
-            let size = state.cardSizes?.[file.path];
+            let card: HTMLElement;
 
-            if (!size && ctx.positions.has(posKey)) {
-                const pos = ctx.positions.get(posKey);
-                if (pos.width) size = { width: pos.width, height: pos.height };
-            }
+            if (isChanged && changedFileDataMap.has(file.path)) {
+                // Render as diff card with actual diff content
+                const diffData = changedFileDataMap.get(file.path);
+                card = createFileCard(ctx, diffData, x, y, 'allfiles');
+                card.classList.add('file-card--changed');
+                card.dataset.changed = 'true';
+            } else {
+                const state = ctx.snap().context;
+                let size = state.cardSizes?.[file.path];
 
-            // Override default card size for compact grid (unless manually resized)
-            if (!size) {
-                size = { width: cardWidth, height: cardHeight };
-            }
-
-            const card = createAllFileCard(ctx, file, x, y, size);
-
-            // Mark whether this file is changed in the current commit (only when we have a commit selected)
-            if (ctx.changedFilePaths.size > 0) {
-                if (ctx.changedFilePaths.has(file.path)) {
-                    card.classList.add('file-card--changed');
-                    card.dataset.changed = 'true';
-                } else {
-                    card.classList.add('file-card--unchanged');
+                if (!size && ctx.positions.has(posKey)) {
+                    const pos = ctx.positions.get(posKey);
+                    if (pos.width) size = { width: pos.width, height: pos.height };
                 }
+
+                // Override default card size for compact grid (unless manually resized)
+                if (!size) {
+                    size = { width: cardWidth, height: cardHeight };
+                }
+
+                card = createAllFileCard(ctx, file, x, y, size);
             }
 
             ctx.canvas.appendChild(card);
@@ -349,6 +362,7 @@ export function switchView(ctx: CanvasContext, mode: string) {
         ctx.actor.send({ type: 'SWITCH_TO_COMMITS' });
         ctx.allFilesActive = false;
         ctx.changedFilePaths.clear();
+        ctx.commitFilesData = null;
     }
 
     document.getElementById('modeCommits')?.classList.toggle('active', mode === 'commits');
@@ -377,18 +391,41 @@ export function switchView(ctx: CanvasContext, mode: string) {
         }
 
         if (state.repoPath) {
-            // If we already have all-files data cached, reuse it
-            if (ctx.allFilesData && ctx.allFilesData.length > 0) {
-                // Set changed files from current commit
-                if (state.commitFiles.length > 0) {
+            // If we have a selected commit, fetch its changed files first
+            // so we can properly highlight/render them as diff cards
+            const doRender = async () => {
+                // Fetch commit files if we have a commit but don't have diff data yet
+                if (state.currentCommitHash && (!ctx.commitFilesData || ctx.commitFilesData.length === 0)) {
+                    try {
+                        const response = await fetch('/api/repo/files', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ path: state.repoPath, commit: state.currentCommitHash })
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            ctx.commitFilesData = data.files;
+                            ctx.changedFilePaths = new Set(data.files.map(f => f.path));
+                            ctx.actor.send({ type: 'COMMIT_FILES_LOADED', files: data.files });
+                        }
+                    } catch (err) {
+                        // Continue without diff data
+                    }
+                } else if (state.commitFiles.length > 0) {
+                    ctx.commitFilesData = state.commitFiles;
                     ctx.changedFilePaths = new Set(state.commitFiles.map(f => f.path));
                 }
-                renderAllFilesOnCanvas(ctx, ctx.allFilesData);
-                const fileCountEl = document.getElementById('fileCount');
-                if (fileCountEl) fileCountEl.textContent = ctx.allFilesData.length;
-            } else {
-                loadAllFiles(ctx);
-            }
+
+                // Now load and render all files
+                if (ctx.allFilesData && ctx.allFilesData.length > 0) {
+                    renderAllFilesOnCanvas(ctx, ctx.allFilesData);
+                    const fileCountEl = document.getElementById('fileCount');
+                    if (fileCountEl) fileCountEl.textContent = ctx.allFilesData.length;
+                } else {
+                    await loadAllFiles(ctx);
+                }
+            };
+            doRender();
         }
     } else {
         const state = ctx.snap().context;

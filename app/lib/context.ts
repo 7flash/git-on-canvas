@@ -46,6 +46,7 @@ export interface CanvasContext {
     allFilesActive: boolean;
     changedFilePaths: Set<string>;
     allFilesData: any[] | null;
+    commitFilesData: any[] | null;
 }
 
 /** Creates a fresh context (call once per mount). */
@@ -76,5 +77,6 @@ export function createCanvasContext(actor: any): CanvasContext {
         allFilesActive: false,
         changedFilePaths: new Set(),
         allFilesData: null,
+        commitFilesData: null,
     };
 }
