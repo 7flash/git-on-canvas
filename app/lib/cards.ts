@@ -43,8 +43,10 @@ function isNearCorner(e: MouseEvent, card: HTMLElement, cornerSize: number, zoom
     const y = e.clientY - rect.top;
     const w = rect.width;
     const h = rect.height;
-    // Scale corner hit-area by zoom so it stays consistent at any zoom level
-    const c = cornerSize * zoom;
+    // Scale corner hit-area: base size + proportion of card size, capped at 80px
+    // This makes large cards much easier to grab at corners
+    const dynamicCorner = Math.min(80, Math.max(cornerSize, Math.min(w, h) * 0.12));
+    const c = dynamicCorner * zoom;
 
     if (x > w - c && y > h - c) return 'br';
     if (x < c && y > h - c) return 'bl';
@@ -284,6 +286,170 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     }
 
     card.addEventListener('mousedown', onMouseDown);
+
+    // ── Right-click context menu ──
+    card.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showCardContextMenu(ctx, card, e.clientX, e.clientY);
+    });
+}
+
+// ─── Card context menu ──────────────────────────────────
+function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y: number) {
+    // Remove any existing context menu
+    document.querySelector('.card-context-menu')?.remove();
+
+    const filePath = card.dataset.path;
+    const menu = document.createElement('div');
+    menu.className = 'card-context-menu';
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+
+    menu.innerHTML = `
+        <button class="ctx-item" data-action="expand">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+            </svg>
+            Expand
+        </button>
+        <button class="ctx-item" data-action="fit-content">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
+            </svg>
+            Fit content
+        </button>
+        <button class="ctx-item" data-action="fit-screen">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+            Fit screen
+        </button>
+        <div class="ctx-divider"></div>
+        <button class="ctx-item" data-action="history">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            File history
+        </button>
+    `;
+
+    document.body.appendChild(menu);
+
+    // Position: keep within viewport
+    requestAnimationFrame(() => {
+        const r = menu.getBoundingClientRect();
+        if (r.right > window.innerWidth) menu.style.left = `${window.innerWidth - r.width - 8}px`;
+        if (r.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - r.height - 8}px`;
+    });
+
+    // Action handlers
+    menu.addEventListener('click', async (e) => {
+        const btn = (e.target as HTMLElement).closest('[data-action]') as HTMLElement;
+        if (!btn) return;
+
+        const action = btn.dataset.action;
+        menu.remove();
+
+        if (action === 'expand') {
+            // Find the file data from ctx
+            const state = ctx.snap().context;
+            const file = state.commitFiles?.find(f => f.path === filePath) ||
+                ctx.allFilesData?.find(f => f.path === filePath) ||
+                { path: filePath, name: filePath.split('/').pop(), lines: 0 };
+            openFileModal(ctx, file);
+        } else if (action === 'fit-content') {
+            // Select this card then fit
+            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+            updateSelectionHighlights(ctx);
+            fitContentSize(ctx);
+        } else if (action === 'fit-screen') {
+            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+            updateSelectionHighlights(ctx);
+            fitScreenSize(ctx);
+        } else if (action === 'history') {
+            showFileHistory(ctx, filePath);
+        }
+    });
+
+    // Close on click outside
+    const closeMenu = (e: MouseEvent) => {
+        if (!menu.contains(e.target as Node)) {
+            menu.remove();
+            document.removeEventListener('mousedown', closeMenu);
+        }
+    };
+    setTimeout(() => document.addEventListener('mousedown', closeMenu), 0);
+}
+
+// ─── File history panel ─────────────────────────────────
+async function showFileHistory(ctx: CanvasContext, filePath: string) {
+    const state = ctx.snap().context;
+    if (!state.repoPath) {
+        showToast('No repository loaded', 'error');
+        return;
+    }
+
+    // Remove existing panel
+    document.querySelector('.file-history-panel')?.remove();
+
+    const panel = document.createElement('div');
+    panel.className = 'file-history-panel';
+    panel.innerHTML = `
+        <div class="panel-header">
+            <span class="panel-title">History: ${escapeHtml(filePath.split('/').pop())}</span>
+            <button class="btn-ghost btn-xs" id="closeFileHistory">✕</button>
+        </div>
+        <div class="file-history-list">
+            <div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">Loading...</div>
+        </div>
+    `;
+
+    document.querySelector('.canvas-area')?.appendChild(panel);
+
+    panel.querySelector('#closeFileHistory')?.addEventListener('click', () => panel.remove());
+
+    try {
+        const response = await fetch('/api/repo/file-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: state.repoPath, filePath, limit: 30 })
+        });
+
+        if (!response.ok) throw new Error('Failed to fetch history');
+        const data = await response.json();
+
+        const listEl = panel.querySelector('.file-history-list');
+        if (!listEl) return;
+
+        if (data.commits.length === 0) {
+            listEl.innerHTML = '<div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">No commits found for this file</div>';
+            return;
+        }
+
+        listEl.innerHTML = data.commits.map(c => `
+            <div class="file-history-item" data-hash="${c.hash}">
+                <span class="file-history-hash">${c.shortHash}</span>
+                <span class="file-history-msg">${escapeHtml(c.message)}</span>
+                <span class="file-history-date">${new Date(c.date).toLocaleDateString()}</span>
+            </div>
+        `).join('');
+
+        // Click a commit to select it
+        listEl.addEventListener('click', (e) => {
+            const item = (e.target as HTMLElement).closest('.file-history-item') as HTMLElement;
+            if (!item) return;
+            const hash = item.dataset.hash;
+            // Import selectCommit dynamically to avoid circular imports
+            import('./repo').then(({ selectCommit }) => {
+                selectCommit(ctx, hash);
+                panel.remove();
+            });
+        });
+    } catch (err) {
+        const listEl = panel.querySelector('.file-history-list');
+        if (listEl) listEl.innerHTML = `<div style="padding: 16px; color: var(--error); font-size: 0.75rem;">Error: ${err.message}</div>`;
+    }
 }
 
 // ─── Arrangement functions ──────────────────────────────
@@ -527,8 +693,12 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
     if (body) {
         body.addEventListener('scroll', () => {
             renderConnections(ctx);
+            _updateHiddenLinesIndicator(card, file.lines || 0);
         });
     }
+
+    // Hidden lines indicator (after render)
+    requestAnimationFrame(() => _updateHiddenLinesIndicator(card, file.lines || 0));
 
     return card;
 }
@@ -753,5 +923,121 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${escapeHtml(err.message)}</span>`;
             }
         }
+    });
+}
+
+// ─── Hidden lines indicator ─────────────────────────────
+function _updateHiddenLinesIndicator(card: HTMLElement, totalLines: number) {
+    const body = card.querySelector('.file-card-body');
+    if (!body) return;
+
+    // Find or create the indicator
+    let indicator = card.querySelector('.hidden-lines-indicator') as HTMLElement;
+
+    const scrollable = body.querySelector('pre') || body.querySelector('.diff-hunk-body') || body;
+    const el = scrollable as HTMLElement;
+
+    // Calculate how many lines are hidden below
+    const scrollRemaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+
+    if (scrollRemaining > 20) {
+        // Estimate remaining lines (using ~15px per line as rough average)
+        const lineHeight = 15;
+        const hiddenLines = Math.round(scrollRemaining / lineHeight);
+
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'hidden-lines-indicator';
+            card.appendChild(indicator);
+        }
+        indicator.textContent = `↓ ${hiddenLines} more lines`;
+        indicator.style.display = '';
+    } else if (indicator) {
+        indicator.style.display = 'none';
+    }
+}
+
+// ─── Fit selected cards to content ──────────────────────
+export function fitContentSize(ctx: CanvasContext) {
+    measure('cards:fitContent', () => {
+        const selected = ctx.snap().context.selectedCards;
+        const targets = selected.length > 0 ? selected : Array.from(ctx.fileCards.keys());
+
+        targets.forEach(path => {
+            const card = ctx.fileCards.get(path);
+            if (!card) return;
+
+            const body = card.querySelector('.file-card-body') as HTMLElement;
+            if (!body) return;
+
+            // Temporarily remove height constraints to measure natural height
+            const oldH = card.style.height;
+            const oldMax = card.style.maxHeight;
+            card.style.height = 'auto';
+            card.style.maxHeight = 'none';
+
+            // Measure full content height
+            const fullHeight = card.scrollHeight;
+
+            // Cap at a reasonable max (3000px)
+            const newHeight = Math.min(3000, Math.max(120, fullHeight));
+
+            card.style.height = `${newHeight}px`;
+            card.style.maxHeight = 'none';
+
+            const state = ctx.snap().context;
+            const commitHash = state.currentCommitHash || 'allfiles';
+            ctx.actor.send({ type: 'RESIZE_CARD', path, width: card.offsetWidth, height: newHeight });
+            savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, card.offsetWidth, newHeight);
+
+            // Update hidden lines indicator
+            requestAnimationFrame(() => _updateHiddenLinesIndicator(card, 0));
+        });
+
+        updateMinimap(ctx);
+        renderConnections(ctx);
+        showToast(`Fit ${targets.length} card${targets.length > 1 ? 's' : ''} to content`, 'info');
+    });
+}
+
+// ─── Fit selected cards to screen viewport ──────────────
+export function fitScreenSize(ctx: CanvasContext) {
+    measure('cards:fitScreen', () => {
+        const selected = ctx.snap().context.selectedCards;
+        if (selected.length === 0) {
+            showToast('Select cards to fit to screen', 'info');
+            return;
+        }
+
+        const viewport = ctx.canvasViewport;
+        if (!viewport) return;
+
+        const state = ctx.snap().context;
+        const vw = viewport.clientWidth / state.zoom;
+        const vh = viewport.clientHeight / state.zoom;
+
+        // Fit each selected card to viewport minus some padding
+        const padding = 40;
+        const fitW = Math.max(240, vw - padding * 2);
+        const fitH = Math.max(120, vh - padding * 2);
+
+        selected.forEach(path => {
+            const card = ctx.fileCards.get(path);
+            if (!card) return;
+
+            card.style.width = `${fitW}px`;
+            card.style.height = `${fitH}px`;
+            card.style.maxHeight = 'none';
+
+            const commitHash = state.currentCommitHash || 'allfiles';
+            ctx.actor.send({ type: 'RESIZE_CARD', path, width: fitW, height: fitH });
+            savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, fitW, fitH);
+
+            requestAnimationFrame(() => _updateHiddenLinesIndicator(card, 0));
+        });
+
+        updateMinimap(ctx);
+        renderConnections(ctx);
+        showToast(`Fit ${selected.length} card${selected.length > 1 ? 's' : ''} to screen`, 'info');
     });
 }
