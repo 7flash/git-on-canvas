@@ -8,3 +8,4 @@ bun.lock
 __pycache__/
 _old_*
 .bgr-*
+.artifacts

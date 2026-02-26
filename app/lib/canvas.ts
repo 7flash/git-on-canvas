@@ -164,6 +164,21 @@ function _rebuildMinimap(ctx: CanvasContext) {
         }
         frag.appendChild(label);
         dotEls.set(info.path, { dot, label });
+
+        // Hover tooltip: show enlarged file name
+        dot.addEventListener('mouseenter', () => {
+            // Remove any existing tooltip
+            minimap.querySelector('.minimap-tooltip')?.remove();
+            const tooltip = document.createElement('div');
+            tooltip.className = 'minimap-tooltip';
+            tooltip.textContent = info.name;
+            tooltip.style.left = `${dotX + dotW / 2}px`;
+            tooltip.style.top = `${dotY}px`;
+            minimap.appendChild(tooltip);
+        });
+        dot.addEventListener('mouseleave', () => {
+            minimap.querySelector('.minimap-tooltip')?.remove();
+        });
     });
 
     minimap.appendChild(frag);
@@ -253,11 +268,59 @@ export function fitAllFiles(ctx: CanvasContext) {
     });
 }
 
-// ─── Setup minimap click + scroll handler ───────────────
+// ─── Setup minimap click + scroll + resize handler ──────
 export function setupMinimapClick(ctx: CanvasContext) {
     measure('minimap:setupClick', () => {
         const minimap = document.getElementById('minimap');
         if (!minimap) return;
+
+        // ── Resize handle ──
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'minimap-resize-handle';
+        resizeHandle.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`;
+        minimap.parentElement?.insertBefore(resizeHandle, minimap);
+        // position handle at top-left of minimap
+        resizeHandle.style.position = 'absolute';
+        resizeHandle.style.bottom = `${minimap.offsetHeight - 2}px`;
+        resizeHandle.style.right = `${minimap.offsetWidth - 2}px`;
+
+        let isResizing = false;
+        let resizeStartX = 0, resizeStartY = 0;
+        let startW = 0, startH = 0;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            isResizing = true;
+            resizeStartX = e.clientX;
+            resizeStartY = e.clientY;
+            startW = minimap.offsetWidth;
+            startH = minimap.offsetHeight;
+            document.body.style.cursor = 'nwse-resize';
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            // Dragging top-left: moving left increases width, moving up increases height
+            const dx = resizeStartX - e.clientX;
+            const dy = resizeStartY - e.clientY;
+            const newW = Math.max(100, Math.min(600, startW + dx));
+            const newH = Math.max(70, Math.min(400, startH + dy));
+            minimap.style.width = `${newW}px`;
+            minimap.style.height = `${newH}px`;
+            // Reposition handle
+            resizeHandle.style.bottom = `${newH - 2}px`;
+            resizeHandle.style.right = `${newW - 2}px`;
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = '';
+                // Rebuild minimap to fit new size
+                _rebuildMinimap(ctx);
+            }
+        });
 
         // Scroll over minimap → pan camera (same as Space+scroll on canvas)
         minimap.addEventListener('wheel', (e) => {

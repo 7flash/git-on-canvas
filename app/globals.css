@@ -771,6 +771,21 @@ body {
     opacity: 1;
 }
 
+/* Minimap resize handle — invisible, just changes cursor */
+.minimap-resize-handle {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 18px;
+    height: 18px;
+    cursor: nwse-resize;
+    z-index: 20;
+}
+
+.minimap-resize-handle svg {
+    display: none;
+}
+
 /* Canvas Viewport */
 .canvas-viewport {
     flex: 1;
@@ -1261,12 +1276,15 @@ body {
     position: relative;
     width: 180px;
     height: 120px;
+    min-width: 100px;
+    min-height: 70px;
     background: var(--bg-secondary);
     border: 1px solid var(--border-default);
     border-radius: var(--radius-md);
     overflow: hidden;
     box-shadow: var(--shadow-md);
     cursor: pointer;
+    transition: width 0.05s, height 0.05s;
 }
 
 .minimap-viewport {
@@ -1290,6 +1308,12 @@ body {
 .minimap-dot:hover {
     transform: scale(2);
     z-index: 10;
+}
+
+.minimap-dot:hover+.minimap-label,
+.minimap-dot:hover~.minimap-label[data-for-hovered] {
+    font-size: 11px !important;
+    z-index: 100;
 }
 
 .minimap-dot--added {
@@ -1322,6 +1346,37 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* Minimap hover tooltip for file names */
+.minimap-tooltip {
+    position: absolute;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-primary);
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-sm);
+    padding: 3px 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 200;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-100%) translateX(-50%);
+    margin-top: -4px;
+    animation: tooltipIn 0.12s ease-out;
+}
+
+@keyframes tooltipIn {
+    from {
+        opacity: 0;
+        transform: translateY(-80%) translateX(-50%);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(-100%) translateX(-50%);
+    }
 }
 
 /* Changed files highlighting in minimap */
@@ -1359,18 +1414,8 @@ body {
     background: rgba(56, 189, 248, 0.12);
 }
 
-/* All-files mode: unchanged file cards are dimmed */
-.file-card--unchanged {
-    opacity: 0.35;
-    border-color: var(--border-subtle) !important;
-    transition: opacity 0.3s ease, border-color 0.3s ease;
-}
-
-.file-card--unchanged:hover {
-    opacity: 0.75;
-    border-color: var(--border-default) !important;
-}
-
+/* All-files mode: unchanged file cards stay fully visible —
+   changed files are differentiated by diff content + minimap highlight */
 
 /* File Preview Modal */
 .file-preview-modal {

@@ -60,6 +60,7 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     let resizeStartW: number, resizeStartH: number, resizeStartLeft: number, resizeStartTop: number;
     let resizeCorner: string | null = null;
     let moveStartPositions: any[] = [];
+    let resizeTargets: { card: HTMLElement; path: string; startW: number; startH: number; startLeft: number; startTop: number }[] = [];
     let rafPending = false;
     const DRAG_THRESHOLD = 3;
 
@@ -94,10 +95,9 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 
         const state = ctx.snap().context;
         const selected = state.selectedCards;
-        const isMulti = selected.length > 1;
         resizeCorner = isNearCorner(e, card, ctx.CORNER_SIZE, state.zoom);
 
-        if (resizeCorner && !isMulti) {
+        if (resizeCorner) {
             action = 'resize';
             resizeStartW = card.offsetWidth;
             resizeStartH = card.offsetHeight;
@@ -105,6 +105,35 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
             resizeStartTop = parseInt(card.style.top) || 0;
             card.classList.add('resizing');
             document.body.style.cursor = CORNER_CURSORS[resizeCorner];
+
+            // Collect all selected cards for multi-resize
+            resizeTargets = [];
+            const cardPath = card.dataset.path;
+            if (selected.includes(cardPath) && selected.length > 1) {
+                selected.forEach(path => {
+                    const c = ctx.fileCards.get(path);
+                    if (c) {
+                        resizeTargets.push({
+                            card: c,
+                            path,
+                            startW: c.offsetWidth,
+                            startH: c.offsetHeight,
+                            startLeft: parseInt(c.style.left) || 0,
+                            startTop: parseInt(c.style.top) || 0,
+                        });
+                        c.classList.add('resizing');
+                    }
+                });
+            } else {
+                resizeTargets.push({
+                    card,
+                    path: cardPath,
+                    startW: resizeStartW,
+                    startH: resizeStartH,
+                    startLeft: resizeStartLeft,
+                    startTop: resizeStartTop,
+                });
+            }
         } else {
             action = 'pending';
         }
@@ -173,32 +202,43 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
         if (action === 'resize') {
             const minH = 120;
             const minW = 240;
-            let newW, newH, newLeft, newTop;
 
+            // Calculate new dimensions based on the primary card
+            let newW, newH;
             if (resizeCorner === 'br') {
                 newW = Math.max(minW, resizeStartW + dx);
                 newH = Math.max(minH, resizeStartH + dy);
-                newLeft = resizeStartLeft; newTop = resizeStartTop;
             } else if (resizeCorner === 'bl') {
                 newW = Math.max(minW, resizeStartW - dx);
                 newH = Math.max(minH, resizeStartH + dy);
-                newLeft = resizeStartLeft + (resizeStartW - newW); newTop = resizeStartTop;
             } else if (resizeCorner === 'tr') {
                 newW = Math.max(minW, resizeStartW + dx);
                 newH = Math.max(minH, resizeStartH - dy);
-                newLeft = resizeStartLeft; newTop = resizeStartTop + (resizeStartH - newH);
             } else if (resizeCorner === 'tl') {
                 newW = Math.max(minW, resizeStartW - dx);
                 newH = Math.max(minH, resizeStartH - dy);
+            }
+
+            // Apply to all resize targets
+            resizeTargets.forEach(info => {
+                info.card.style.width = `${newW}px`;
+                info.card.style.height = `${newH}px`;
+                info.card.style.maxHeight = 'none';
+            });
+
+            // Position adjustment only for the primary card (anchor)
+            let newLeft = resizeStartLeft, newTop = resizeStartTop;
+            if (resizeCorner === 'bl') {
+                newLeft = resizeStartLeft + (resizeStartW - newW);
+            } else if (resizeCorner === 'tr') {
+                newTop = resizeStartTop + (resizeStartH - newH);
+            } else if (resizeCorner === 'tl') {
                 newLeft = resizeStartLeft + (resizeStartW - newW);
                 newTop = resizeStartTop + (resizeStartH - newH);
             }
-
-            card.style.width = `${newW}px`;
-            card.style.height = `${newH}px`;
-            card.style.maxHeight = 'none';
             card.style.left = `${newLeft}px`;
             card.style.top = `${newTop}px`;
+
             renderConnections(ctx);
         }
     }
@@ -228,12 +268,15 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
             });
             moveStartPositions = [];
         } else if (action === 'resize') {
-            card.classList.remove('resizing');
+            resizeTargets.forEach(info => {
+                info.card.classList.remove('resizing');
+                const x = parseInt(info.card.style.left) || 0;
+                const y = parseInt(info.card.style.top) || 0;
+                ctx.actor.send({ type: 'RESIZE_CARD', path: info.path, width: info.card.offsetWidth, height: info.card.offsetHeight });
+                savePosition(ctx, commitHash, info.path, x, y, info.card.offsetWidth, info.card.offsetHeight);
+            });
             document.body.style.cursor = '';
-            const x = parseInt(card.style.left) || 0;
-            const y = parseInt(card.style.top) || 0;
-            ctx.actor.send({ type: 'RESIZE_CARD', path: card.dataset.path, width: card.offsetWidth, height: card.offsetHeight });
-            savePosition(ctx, commitHash, card.dataset.path, x, y, card.offsetWidth, card.offsetHeight);
+            resizeTargets = [];
         }
 
         action = null;
@@ -602,7 +645,8 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
     const hasDiff = !!(file.status && (file.hunks?.length > 0 || file.content));
     const rendered = { full: '', diff: '' };
-    let currentView = 'full';
+    // Default to diff view for changed files, full view for unchanged
+    let currentView = hasDiff ? 'diff' : 'full';
 
     function closeModal() {
         modal.classList.remove('active');
@@ -628,7 +672,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
             if (tab.dataset.view === 'diff') {
                 tab.style.display = hasDiff ? '' : 'none';
             }
-            tab.classList.toggle('active', tab.dataset.view === 'full');
+            tab.classList.toggle('active', tab.dataset.view === currentView);
         });
 
         tabs.forEach(tab => {
@@ -649,6 +693,10 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
     if (hasDiff) {
         rendered.diff = buildModalDiffHTML(file);
+        // If defaulting to diff view, show it immediately
+        if (currentView === 'diff') {
+            contentEl.innerHTML = rendered.diff;
+        }
     }
 
     measure('modal:fetchContent', async () => {
