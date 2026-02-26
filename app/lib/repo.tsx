@@ -35,7 +35,10 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             const data = await response.json();
             ctx.actor.send({ type: 'REPO_LOADED', commits: data.commits });
 
-            window.location.hash = encodeURIComponent(repoPath);
+            // Use replaceState instead of location.hash to avoid triggering
+            // Melina's navigation interceptor (popstate) which would replace
+            // the entire DOM and invalidate ctx.canvas references.
+            history.replaceState(null, '', '#' + encodeURIComponent(repoPath));
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
 
             updateLoadingProgress(ctx, `Found ${data.commits.length} commits, rendering timeline...`);
@@ -270,7 +273,6 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
             ctx.canvas.appendChild(card);
             ctx.fileCards.set(file.path, card);
         });
-
         renderConnections(ctx);
         forceMinimapRebuild(ctx);
     });
@@ -443,15 +445,32 @@ export function switchView(ctx: CanvasContext, mode: string) {
         }
     } else {
         const state = ctx.snap().context;
-        if (state.currentCommitHash && state.commitFiles.length > 0) {
-            renderFilesOnCanvas(ctx, state.commitFiles, state.currentCommitHash);
+
+        // Always re-render the commit timeline sidebar
+        renderCommitTimeline(ctx);
+
+        if (state.currentCommitHash) {
             const commit = state.commits.find(c => c.hash === state.currentCommitHash);
-            const commitInfo = document.getElementById('currentCommitInfo');
-            if (commitInfo) {
-                updateCommitInfo(state.currentCommitHash, commit?.message || '');
+            updateCommitInfo(state.currentCommitHash, commit?.message || '');
+
+            if (state.commitFiles.length > 0) {
+                // We have commit files in state — render them
+                ctx.commitFilesData = state.commitFiles;
+                renderFilesOnCanvas(ctx, state.commitFiles, state.currentCommitHash);
+                populateChangedFilesPanel(state.commitFiles);
+                const fileCountEl = document.getElementById('fileCount');
+                if (fileCountEl) fileCountEl.textContent = state.commitFiles.length;
+            } else {
+                // Re-fetch commit files since we cleared commitFilesData
+                selectCommit(ctx, state.currentCommitHash);
             }
-            const fileCountEl = document.getElementById('fileCount');
-            if (fileCountEl) fileCountEl.textContent = state.commitFiles.length;
+
+            // Re-highlight active commit in sidebar
+            requestAnimationFrame(() => {
+                document.querySelectorAll('.commit-item').forEach(el => {
+                    (el as HTMLElement).classList.toggle('active', (el as HTMLElement).dataset.hash === state.currentCommitHash);
+                });
+            });
         }
     }
 }
@@ -476,8 +495,8 @@ export function rerenderCurrentView(ctx: CanvasContext) {
 function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
     fileStats: any[]; totalAdd: number; totalDel: number; count: number;
 }) {
-    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa' };
-    const statusIcons = { added: '+', modified: '~', deleted: '−', renamed: '→' };
+    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa', copied: '#60a5fa' };
+    const statusIcons = { added: '+', modified: '~', deleted: '−', renamed: '→', copied: '⊕' };
 
     return (
         <>

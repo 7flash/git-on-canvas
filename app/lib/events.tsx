@@ -25,7 +25,7 @@ import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
-import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize } from './cards';
+import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize, resizeCardsHeight } from './cards';
 import { loadRepository, switchView, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
 
@@ -60,7 +60,7 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
 
             // Check if hovering over a scrollable pane
             const target = e.target as HTMLElement;
-            const hunkPane = target.closest('.hunk-current-pane, .hunk-removed-pane') as HTMLElement | null;
+            const hunkPane = target.closest('.hunk-pane, .diff-hunk-body') as HTMLElement | null;
             const previewPre = target.closest('.file-content-preview pre') as HTMLElement | null;
             const scrollContainer = hunkPane || previewPre;
 
@@ -452,6 +452,16 @@ export function setupEventListeners(ctx: CanvasContext) {
                     e.preventDefault();
                     fitScreenSize(ctx);
                 }
+            }
+
+            // Ctrl + / Ctrl - = increase/decrease card height
+            if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+                e.preventDefault();
+                resizeCardsHeight(ctx, 100);
+            }
+            if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
+                e.preventDefault();
+                resizeCardsHeight(ctx, -100);
             }
 
             // I = Toggle AI chat sidebar

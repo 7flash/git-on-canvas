@@ -539,6 +539,118 @@ export function debounceSaveScroll(ctx: CanvasContext, filePath: string, scrollT
     }, 300);
 }
 
+// ─── JSX sub-components for file card content ───────────
+
+function DiffLine({ type, lineNum, content }: { type: string; lineNum: number; content: string }) {
+    return (
+        <span className={`diff-line diff-${type}`} data-line={lineNum}>
+            <span className="line-num">{String(lineNum).padStart(4, ' ')}</span>
+            {content}
+        </span>
+    );
+}
+
+function DiffHunk({ hunk, hunkIdx }: { hunk: any; hunkIdx: number }) {
+    const header = `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@${hunk.context ? ' ' + hunk.context : ''}`;
+    let oldLine = hunk.oldStart;
+    let newLine = hunk.newStart;
+
+    const currentItems: { type: string; ln: number; content: string }[] = [];
+    const previousItems: { type: string; ln: number; content: string }[] = [];
+
+    hunk.lines.forEach((l: any) => {
+        if (l.type === 'add') {
+            currentItems.push({ type: 'add', ln: newLine++, content: l.content });
+        } else if (l.type === 'del') {
+            previousItems.push({ type: 'del', ln: oldLine++, content: l.content });
+        } else {
+            const curLn = newLine++;
+            const prevLn = oldLine++;
+            currentItems.push({ type: 'ctx', ln: curLn, content: l.content });
+            previousItems.push({ type: 'ctx', ln: prevLn, content: l.content });
+        }
+    });
+
+    const hasDeletions = previousItems.some(l => l.type === 'del');
+
+    function toggle(e: Event, view: string) {
+        e.stopPropagation();
+        const hunkEl = (e.target as HTMLElement).closest('.diff-hunk');
+        if (!hunkEl) return;
+        hunkEl.querySelectorAll('.hunk-toggle-btn').forEach(b => b.classList.remove('active'));
+        (e.target as HTMLElement).classList.add('active');
+        const cur = hunkEl.querySelector('.hunk-pane--current') as HTMLElement;
+        const prev = hunkEl.querySelector('.hunk-pane--previous') as HTMLElement;
+        if (cur) cur.style.display = view === 'current' ? '' : 'none';
+        if (prev) prev.style.display = view === 'previous' ? '' : 'none';
+    }
+
+    return (
+        <div className="diff-hunk">
+            <div className="diff-hunk-header">
+                <span className="hunk-range">{header}</span>
+                {hasDeletions ? (
+                    <span className="hunk-view-toggle" data-hunk={hunkIdx}>
+                        <button className="hunk-toggle-btn active" data-view="current" onclick={(e) => toggle(e, 'current')}>Current</button>
+                        <button className="hunk-toggle-btn" data-view="previous" onclick={(e) => toggle(e, 'previous')}>Previous</button>
+                    </span>
+                ) : null}
+            </div>
+            <div className="diff-hunk-body">
+                <div className="hunk-pane hunk-pane--current">
+                    <pre><code>{currentItems.map(l => <DiffLine type={l.type} lineNum={l.ln} content={l.content} />)}</code></pre>
+                </div>
+                <div className="hunk-pane hunk-pane--previous" style="display:none">
+                    <pre><code>{previousItems.map(l => <DiffLine type={l.type} lineNum={l.ln} content={l.content} />)}</code></pre>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function FileCardContent({ file }: { file: any }) {
+    if (file.status === 'added' && file.content) {
+        const lines = file.content.split('\n');
+        return (
+            <div className="file-content-preview">
+                <pre><code>{lines.map((line, i) => <DiffLine type="add" lineNum={i + 1} content={line} />)}</code></pre>
+            </div>
+        );
+    }
+    if (file.status === 'deleted' && file.content) {
+        const lines = file.content.split('\n');
+        return (
+            <div className="file-content-preview">
+                <pre><code>{lines.map((line, i) => <DiffLine type="del" lineNum={i + 1} content={line} />)}</code></pre>
+            </div>
+        );
+    }
+    if ((file.status === 'modified' || file.status === 'renamed' || file.status === 'copied') && file.hunks?.length > 0) {
+        return (
+            <div className="file-content-preview">
+                {file.hunks.map((hunk, idx) => <DiffHunk hunk={hunk} hunkIdx={idx} />)}
+            </div>
+        );
+    }
+    if ((file.status === 'renamed' || file.status === 'copied') && (!file.hunks || file.hunks.length === 0)) {
+        const simText = file.similarity ? ` (${file.similarity}% similar)` : '';
+        return (
+            <div className="file-content-preview">
+                <pre><code><span className="rename-notice">{'File ' + file.status + simText + '\nNo content changes'}</span></code></pre>
+            </div>
+        );
+    }
+    const msg = file.contentError || 'No changes to display';
+    return (
+        <div className="file-content-preview">
+            <pre><code><span className="error-notice">{msg}</span></code></pre>
+        </div>
+    );
+}
+
+const STATUS_COLORS: Record<string, string> = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa', copied: '#60a5fa' };
+const STATUS_LABELS: Record<string, string> = { added: '+ ADDED', modified: '~ MODIFIED', deleted: '- DELETED', renamed: '→ RENAMED', copied: '⊕ COPIED' };
+
 // ─── Create file card (commit diff) ─────────────────────
 export function createFileCard(ctx: CanvasContext, file: any, x: number, y: number, commitHash: string): HTMLElement {
     const card = document.createElement('div');
@@ -560,100 +672,48 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
 
     const ext = file.name.split('.').pop().toLowerCase();
     const iconClass = getFileIconClass(ext);
-
-    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
-    const statusLabels = { added: '+ ADDED', modified: '~ MODIFIED', deleted: '- DELETED' };
-    const statusColor = statusColors[file.status] || '#a855f7';
-    const statusLabel = statusLabels[file.status] || file.status?.toUpperCase() || 'CHANGED';
-
-    let contentHTML = '';
-
-    if (file.status === 'added' && file.content) {
-        const lines = file.content.split('\n');
-        const code = lines.map((line, i) =>
-            `<span class="diff-line diff-add" data-line="${i + 1}"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`
-        ).join('\n');
-        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
-
-    } else if (file.status === 'deleted' && file.content) {
-        const lines = file.content.split('\n');
-        const code = lines.map((line, i) =>
-            `<span class="diff-line diff-del" data-line="${i + 1}"><span class="line-num">${String(i + 1).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`
-        ).join('\n');
-        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre></div>`;
-
-    } else if (file.status === 'modified' && file.hunks && file.hunks.length > 0) {
-        const hunksHTML = file.hunks.map(hunk => {
-            const header = `@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@${hunk.context ? ' ' + escapeHtml(hunk.context) : ''}`;
-            let oldLine = hunk.oldStart;
-            let newLine = hunk.newStart;
-
-            const currentLines = [];
-            const removedLines = [];
-
-            hunk.lines.forEach(l => {
-                if (l.type === 'add') {
-                    const ln = newLine++;
-                    currentLines.push(`<span class="diff-line diff-add" data-line="${ln}"><span class="line-num">${String(ln).padStart(4, ' ')}</span>${escapeHtml(l.content)}</span>`);
-                } else if (l.type === 'del') {
-                    const ln = oldLine++;
-                    removedLines.push(`<span class="diff-line diff-del" data-line="${ln}"><span class="line-num">${String(ln).padStart(4, ' ')}</span>${escapeHtml(l.content)}</span>`);
-                } else {
-                    oldLine++; newLine++;
-                    const ln = newLine - 1;
-                    currentLines.push(`<span class="diff-line diff-ctx" data-line="${ln}"><span class="line-num">${String(ln).padStart(4, ' ')}</span>${escapeHtml(l.content)}</span>`);
-                }
-            });
-
-            const removedPane = removedLines.length > 0
-                ? `<div class="hunk-removed-pane"><pre><code>${removedLines.join('\n')}</code></pre></div>`
-                : '';
-
-            return `<div class="diff-hunk">
-                <div class="diff-hunk-header">${header}</div>
-                <div class="diff-hunk-body">
-                    <div class="hunk-current-pane"><pre><code>${currentLines.join('\n')}</code></pre></div>
-                    ${removedPane}
-                </div>
-            </div>`;
-        }).join('');
-        contentHTML = `<div class="file-content-preview">${hunksHTML}</div>`;
-
-    } else if (file.contentError) {
-        contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">${escapeHtml(file.contentError)}</span></code></pre></div>`;
-    } else {
-        contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">No changes to display</span></code></pre></div>`;
-    }
-
+    const statusColor = STATUS_COLORS[file.status] || '#a855f7';
+    const statusLabel = STATUS_LABELS[file.status] || file.status?.toUpperCase() || 'CHANGED';
     const hunkCount = file.hunks?.length || 0;
-    const metaInfo = file.status === 'modified' && hunkCount > 0
+    const metaInfo = hunkCount > 0
         ? `${hunkCount} hunk${hunkCount > 1 ? 's' : ''}`
         : `${file.lines || 0} lines`;
 
-    card.innerHTML = `
-        <div class="file-card-header" style="border-left: 4px solid ${statusColor}">
-            <div class="file-icon ${iconClass}">
-                ${getFileIcon(file.type, ext)}
+    const iconSvg = getFileIcon(file.type, ext);
+
+    // Render JSX into card
+    render(
+        <>
+            <div className="file-card-header" style={`border-left: 4px solid ${statusColor}`}>
+                <div className={`file-icon ${iconClass}`} dangerouslySetInnerHTML={{ __html: iconSvg }} />
+                <span className="file-name">{file.name}</span>
+                <span className="file-status" style={`background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;`}>{statusLabel}</span>
+                <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">{metaInfo}</span>
+                <button className="connect-btn" title="Drag to connect to another file" data-path={file.path}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="5" cy="12" r="2" /><circle cx="19" cy="12" r="2" /><path d="M7 12h10" stroke-dasharray="3,2" />
+                    </svg>
+                </button>
+                <button className="connect-btn expand-btn" title="Expand file (selectable text)" data-path={file.path}>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                    </svg>
+                </button>
             </div>
-            <span class="file-name">${escapeHtml(file.name)}</span>
-            <span class="file-status" style="background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;">${statusLabel}</span>
-            <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">${metaInfo}</span>
-            <button class="connect-btn" title="Drag to connect to another file" data-path="${escapeHtml(file.path)}">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10" stroke-dasharray="3,2"/>
-                </svg>
-            </button>
-            <button class="connect-btn expand-btn" title="Expand file (selectable text)" data-path="${escapeHtml(file.path)}">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-                </svg>
-            </button>
-        </div>
-        <div class="file-card-body">
-            <div class="file-path">${escapeHtml(file.path)}</div>
-            ${contentHTML}
-        </div>
-    `;
+            <div className="file-card-body">
+                {file.oldPath ? (
+                    <div className="file-rename-path">
+                        {file.oldPath} → {file.path}
+                        {file.similarity ? <span className="rename-similarity">{file.similarity}%</span> : null}
+                    </div>
+                ) : (
+                    <div className="file-path">{file.path}</div>
+                )}
+                <FileCardContent file={file} />
+            </div>
+        </>,
+        card
+    );
 
     setupCardInteraction(ctx, card, commitHash);
     setupConnectionDrag(ctx, card, file.path);
@@ -679,8 +739,19 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
     // Hidden lines indicator (after render)
     requestAnimationFrame(() => _updateHiddenLinesIndicator(card, file.lines || 0));
 
+    // Listen for resize from indicator drag
+    card.addEventListener('card-resized', ((e: CustomEvent) => {
+        const { path: p, width: w, height: h } = e.detail;
+        const state = ctx.snap().context;
+        const ch = state.currentCommitHash || 'allfiles';
+        ctx.actor.send({ type: 'RESIZE_CARD', path: p, width: w, height: h });
+        savePosition(ctx, ch, p, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, w, h);
+        renderConnections(ctx);
+    }) as EventListener);
+
     return card;
 }
+
 
 // ─── Create all-file card (working tree) ────────────────
 export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: number, savedSize: any): HTMLElement {
@@ -930,20 +1001,15 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
 // ─── Hidden lines indicator ─────────────────────────────
 function _updateHiddenLinesIndicator(card: HTMLElement, totalLines: number) {
-    const body = card.querySelector('.file-card-body');
+    const body = card.querySelector('.file-card-body') as HTMLElement;
     if (!body) return;
 
-    // Find or create the indicator
     let indicator = card.querySelector('.hidden-lines-indicator') as HTMLElement;
 
-    const scrollable = body.querySelector('pre') || body.querySelector('.diff-hunk-body') || body;
-    const el = scrollable as HTMLElement;
-
-    // Calculate how many lines are hidden below
-    const scrollRemaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+    // Calculate hidden content based on body overflow
+    const scrollRemaining = body.scrollHeight - body.scrollTop - body.clientHeight;
 
     if (scrollRemaining > 20) {
-        // Estimate remaining lines (using ~15px per line as rough average)
         const lineHeight = 15;
         const hiddenLines = Math.round(scrollRemaining / lineHeight);
 
@@ -951,12 +1017,76 @@ function _updateHiddenLinesIndicator(card: HTMLElement, totalLines: number) {
             indicator = document.createElement('div');
             indicator.className = 'hidden-lines-indicator';
             card.appendChild(indicator);
+            _setupIndicatorDrag(card, indicator);
         }
-        indicator.textContent = `↓ ${hiddenLines} more lines`;
+        indicator.textContent = `⋯ ${hiddenLines} more lines — drag to resize`;
         indicator.style.display = '';
     } else if (indicator) {
         indicator.style.display = 'none';
     }
+}
+
+function _setupIndicatorDrag(card: HTMLElement, indicator: HTMLElement) {
+    let startY = 0;
+    let startH = 0;
+    let isDragging = false;
+
+    indicator.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        isDragging = true;
+        startY = e.clientY;
+        startH = card.offsetHeight;
+        document.body.style.cursor = 'ns-resize';
+        card.classList.add('resizing');
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const dy = e.clientY - startY;
+        const newH = Math.max(120, startH + dy);
+        card.style.height = `${newH}px`;
+        card.style.maxHeight = 'none';
+        _updateHiddenLinesIndicator(card, 0);
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (!isDragging) return;
+        isDragging = false;
+        document.body.style.cursor = '';
+        card.classList.remove('resizing');
+        // Save the new size
+        const path = card.dataset.path;
+        if (path) {
+            const event = new CustomEvent('card-resized', {
+                detail: { path, width: card.offsetWidth, height: card.offsetHeight },
+                bubbles: true,
+            });
+            card.dispatchEvent(event);
+        }
+    });
+}
+
+// ─── Resize cards by height delta (Ctrl +/-) ────────────
+export function resizeCardsHeight(ctx: CanvasContext, delta: number) {
+    const selected = ctx.snap().context.selectedCards;
+    const targets = selected.length > 0 ? selected : Array.from(ctx.fileCards.keys());
+    const state = ctx.snap().context;
+    const commitHash = state.currentCommitHash || 'allfiles';
+
+    targets.forEach(path => {
+        const card = ctx.fileCards.get(path);
+        if (!card) return;
+        const currentH = card.offsetHeight;
+        const newH = Math.max(120, currentH + delta);
+        card.style.height = `${newH}px`;
+        card.style.maxHeight = 'none';
+        ctx.actor.send({ type: 'RESIZE_CARD', path, width: card.offsetWidth, height: newH });
+        savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, card.offsetWidth, newH);
+        _updateHiddenLinesIndicator(card, 0);
+    });
+    renderConnections(ctx);
 }
 
 // ─── Fit selected cards to content ──────────────────────

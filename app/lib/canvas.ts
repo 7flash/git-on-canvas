@@ -134,7 +134,7 @@ function _rebuildMinimap(ctx: CanvasContext) {
 
         // Colored dot for file
         const dot = document.createElement('div');
-        const statusClass = ['added', 'modified', 'deleted'].includes(info.status) ? info.status : 'default';
+        const statusClass = ['added', 'modified', 'deleted', 'renamed', 'copied'].includes(info.status) ? info.status : 'default';
         dot.className = `minimap-dot minimap-dot--${statusClass}`;
         // In all-files mode, highlight changed files
         if (info.changed) {
