@@ -2529,3 +2529,142 @@ body {
     font-size: 0.68rem;
     flex-shrink: 0;
 }
+
+/* Panel header utility */
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.panel-title {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Changed files panel */
+.changed-files-panel {
+    position: absolute;
+    top: 44px;
+    left: 8px;
+    width: 280px;
+    max-height: calc(100% - 56px - 140px);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    flex-direction: column;
+    animation: fadeIn 150ms ease;
+    overflow: hidden;
+}
+
+.changed-files-list {
+    overflow-y: auto;
+    max-height: 400px;
+}
+
+.changed-files-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+}
+
+.stat-add {
+    color: #22c55e;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.stat-del {
+    color: #ef4444;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.stat-files {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    margin-left: auto;
+}
+
+.changed-file-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: background var(--transition-fast);
+    font-size: 0.73rem;
+}
+
+.changed-file-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.changed-file-status {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 0.8rem;
+    width: 14px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.changed-file-name {
+    color: var(--text-primary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.changed-file-dir {
+    color: var(--text-muted);
+    font-size: 0.65rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+}
+
+.changed-file-stats {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.68rem;
+}
+
+/* Card flash animation for navigating */
+@keyframes cardFlash {
+    0% {
+        box-shadow: 0 0 0 0 rgba(168, 85, 247, 0.6);
+    }
+
+    50% {
+        box-shadow: 0 0 20px 4px rgba(168, 85, 247, 0.4);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(168, 85, 247, 0);
+    }
+}
+
+.file-card.card-flash {
+    animation: cardFlash 1.5s ease-out;
+}

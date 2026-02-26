@@ -188,6 +188,9 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
                 const fileCountEl = document.getElementById('fileCount');
                 if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
                 hideLoadingProgress(ctx);
+
+                // Populate changed files panel with diff stats
+                populateChangedFilesPanel(data.files);
             } else {
                 // Normal commits mode: render only changed files
                 ctx.actor.send({ type: 'SWITCH_TO_COMMITS' });
@@ -209,6 +212,9 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
                 const fileCountEl = document.getElementById('fileCount');
                 if (fileCountEl) fileCountEl.textContent = data.files.length;
                 hideLoadingProgress(ctx);
+
+                // Populate changed files panel with diff stats
+                populateChangedFilesPanel(data.files);
             }
         } catch (err) {
             hideLoadingProgress(ctx);
@@ -459,4 +465,80 @@ export function rerenderCurrentView(ctx: CanvasContext) {
             renderFilesOnCanvas(ctx, state.commitFiles, state.currentCommitHash);
         }
     }
+}
+
+// ─── Changed files panel with diff stats ────────────────
+function populateChangedFilesPanel(files: any[]) {
+    const panel = document.getElementById('changedFilesPanel');
+    const listEl = document.getElementById('changedFilesList');
+    if (!panel || !listEl) return;
+
+    if (files.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    // Calculate stats
+    let totalAdd = 0, totalDel = 0;
+    const fileStats = files.map(f => {
+        let additions = 0, deletions = 0;
+        if (f.hunks) {
+            f.hunks.forEach(h => {
+                h.lines.forEach(l => {
+                    if (l.type === 'add') additions++;
+                    else if (l.type === 'del') deletions++;
+                });
+            });
+        } else if (f.status === 'added' && f.content) {
+            additions = f.content.split('\n').length;
+        } else if (f.status === 'deleted' && f.content) {
+            deletions = f.content.split('\n').length;
+        }
+        totalAdd += additions;
+        totalDel += deletions;
+        return { ...f, additions, deletions };
+    });
+
+    const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa' };
+    const statusIcons = { added: '+', modified: '~', deleted: '−', renamed: '→' };
+
+    listEl.innerHTML = `
+        <div class="changed-files-summary">
+            <span class="stat-add">+${totalAdd}</span>
+            <span class="stat-del">−${totalDel}</span>
+            <span class="stat-files">${files.length} file${files.length > 1 ? 's' : ''}</span>
+        </div>
+        ${fileStats.map(f => {
+        const color = statusColors[f.status] || '#a855f7';
+        const icon = statusIcons[f.status] || '~';
+        const name = f.path.split('/').pop();
+        const dir = f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '';
+        return `
+                <div class="changed-file-item" data-path="${escapeHtml(f.path)}" title="${escapeHtml(f.path)}">
+                    <span class="changed-file-status" style="color: ${color}">${icon}</span>
+                    <span class="changed-file-name">${escapeHtml(name)}</span>
+                    ${dir ? `<span class="changed-file-dir">${escapeHtml(dir)}</span>` : ''}
+                    <span class="changed-file-stats">
+                        ${f.additions > 0 ? `<span class="stat-add">+${f.additions}</span>` : ''}
+                        ${f.deletions > 0 ? `<span class="stat-del">−${f.deletions}</span>` : ''}
+                    </span>
+                </div>
+            `;
+    }).join('')}
+    `;
+
+    panel.style.display = 'flex';
+
+    // Click to navigate to file card on canvas
+    listEl.querySelectorAll('.changed-file-item').forEach(item => {
+        item.addEventListener('click', () => {
+            const path = (item as HTMLElement).dataset.path;
+            const card = document.querySelector(`.file-card[data-path="${path}"]`) as HTMLElement;
+            if (card) {
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                card.classList.add('card-flash');
+                setTimeout(() => card.classList.remove('card-flash'), 1500);
+            }
+        });
+    });
 }
