@@ -1037,31 +1037,30 @@ export function fitScreenSize(ctx: CanvasContext) {
         if (!viewport) return;
 
         const state = ctx.snap().context;
-        const vw = viewport.clientWidth / state.zoom;
         const vh = viewport.clientHeight / state.zoom;
 
-        // Fit each selected card to viewport minus some padding
+        // Fit height only — keep existing width
         const padding = 40;
-        const fitW = Math.max(240, vw - padding * 2);
         const fitH = Math.max(120, vh - padding * 2);
 
         selected.forEach(path => {
             const card = ctx.fileCards.get(path);
             if (!card) return;
 
-            card.style.width = `${fitW}px`;
+            const currentW = card.offsetWidth;
+
             card.style.height = `${fitH}px`;
             card.style.maxHeight = 'none';
 
             const commitHash = state.currentCommitHash || 'allfiles';
-            ctx.actor.send({ type: 'RESIZE_CARD', path, width: fitW, height: fitH });
-            savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, fitW, fitH);
+            ctx.actor.send({ type: 'RESIZE_CARD', path, width: currentW, height: fitH });
+            savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, currentW, fitH);
 
             requestAnimationFrame(() => _updateHiddenLinesIndicator(card, 0));
         });
 
         updateMinimap(ctx);
         renderConnections(ctx);
-        showToast(`Fit ${selected.length} card${selected.length > 1 ? 's' : ''} to screen`, 'info');
+        showToast(`Fit ${selected.length} card${selected.length > 1 ? 's' : ''} to screen height`, 'info');
     });
 }

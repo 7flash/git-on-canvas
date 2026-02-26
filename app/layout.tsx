@@ -134,6 +134,8 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>I</kbd> <span>AI Chat</span></div>
                                 <div className="hotkey-row"><kbd>⌃A</kbd> <span>Select all</span></div>
                                 <div className="hotkey-row"><kbd>Esc</kbd> <span>Deselect</span></div>
+                                <div className="hotkey-row"><kbd>←→</kbd> <span>Prev/next commit</span></div>
+                                <div className="hotkey-row"><kbd>/</kbd> <span>Search files</span></div>
                             </div>
                         </div>
                     </nav>

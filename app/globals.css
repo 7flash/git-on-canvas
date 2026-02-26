@@ -3149,3 +3149,95 @@ body {
     max-height: none;
     min-height: 400px;
 }
+
+/* ─── File Search Overlay ─────────────────────────────── */
+.file-search-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    display: flex;
+    justify-content: center;
+    padding-top: 15vh;
+    animation: fadeIn 0.1s ease;
+}
+
+.file-search-container {
+    width: 520px;
+    max-width: 90vw;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), 0 0 60px rgba(124, 58, 237, 0.1);
+    overflow: hidden;
+    max-height: 60vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.file-search-input {
+    width: 100%;
+    padding: 14px 18px;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-family: var(--font-mono);
+    outline: none;
+}
+
+.file-search-input::placeholder {
+    color: var(--text-muted);
+}
+
+.file-search-results {
+    overflow-y: auto;
+    max-height: 50vh;
+}
+
+.file-search-item {
+    padding: 10px 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background var(--transition-fast);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.file-search-item:hover,
+.file-search-item.selected {
+    background: rgba(124, 58, 237, 0.1);
+}
+
+.file-search-item.selected {
+    border-left: 3px solid var(--accent-primary);
+}
+
+.search-file-name {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    word-break: break-all;
+}
+
+.search-file-dir {
+    color: var(--text-muted);
+}
+
+.file-search-item mark {
+    background: rgba(124, 58, 237, 0.3);
+    color: var(--accent-primary);
+    border-radius: 2px;
+    padding: 0 1px;
+}
+
+.file-search-empty {
+    padding: 20px 18px;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    text-align: center;
+    font-style: italic;
+}
