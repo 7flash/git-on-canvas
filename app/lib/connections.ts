@@ -319,18 +319,68 @@ export function navigateToConnection(ctx: CanvasContext, conn: any) {
 export async function saveConnections(ctx: CanvasContext) {
     const state = ctx.snap().context;
     try {
-        await fetch('/api/positions', {
+        await fetch('/api/connections', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                commitHash: 'connections',
-                filePath: 'all',
-                x: 0,
-                y: 0,
-                connections: state.connections,
-            })
+            body: JSON.stringify({ connections: state.connections })
         });
     } catch (e) {
         measure('connections:saveError', () => e);
     }
+}
+
+// ─── Load connections from server ───────────────────────
+export async function loadConnections(ctx: CanvasContext) {
+    return measure('connections:load', async () => {
+        try {
+            const response = await fetch('/api/connections');
+            if (!response.ok) return;
+            const data = await response.json();
+
+            if (data.connections && data.connections.length > 0) {
+                // Map DB format back to app format
+                const conns = data.connections.map(c => ({
+                    id: c.conn_id,
+                    sourceFile: c.source_file,
+                    sourceLineStart: c.source_line_start,
+                    sourceLineEnd: c.source_line_end,
+                    targetFile: c.target_file,
+                    targetLineStart: c.target_line_start,
+                    targetLineEnd: c.target_line_end,
+                    comment: c.comment || '',
+                }));
+
+                // Load them into state
+                conns.forEach(conn => {
+                    ctx.actor.send({
+                        type: 'START_CONNECTION',
+                        sourceFile: conn.sourceFile,
+                        lineStart: conn.sourceLineStart,
+                        lineEnd: conn.sourceLineEnd,
+                    });
+                    ctx.actor.send({
+                        type: 'COMPLETE_CONNECTION',
+                        targetFile: conn.targetFile,
+                        lineStart: conn.targetLineStart,
+                        lineEnd: conn.targetLineEnd,
+                        comment: conn.comment,
+                    });
+                });
+
+                // Render after loading
+                renderConnections(ctx);
+                showToast(`Loaded ${conns.length} connection${conns.length > 1 ? 's' : ''}`, 'info');
+            }
+        } catch (e) {
+            measure('connections:loadError', () => e);
+        }
+    });
+}
+
+// ─── Delete a connection ────────────────────────────────
+export function deleteConnection(ctx: CanvasContext, connId: string) {
+    ctx.actor.send({ type: 'DELETE_CONNECTION', id: connId });
+    renderConnections(ctx);
+    saveConnections(ctx);
+    showToast('Connection deleted', 'info');
 }

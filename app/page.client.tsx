@@ -12,6 +12,7 @@ import { createCanvasContext } from './lib/context';
 import { loadSavedPositions } from './lib/positions';
 import { loadHiddenFiles, updateHiddenUI } from './lib/hidden-files';
 import { setupCanvasInteraction, setupEventListeners } from './lib/events';
+import { loadConnections } from './lib/connections';
 import { clearCanvas, updateCanvasTransform, updateZoomUI } from './lib/canvas';
 import { loadRepository } from './lib/repo';
 
@@ -41,6 +42,7 @@ export default function mount(): () => void {
             await loadSavedPositions(ctx);
             loadHiddenFiles(ctx);
             updateHiddenUI(ctx);
+            await loadConnections(ctx);
 
             // Check URL hash for repo path
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));

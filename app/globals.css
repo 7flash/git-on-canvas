@@ -2668,3 +2668,181 @@ body {
 .file-card.card-flash {
     animation: cardFlash 1.5s ease-out;
 }
+
+/* ─── Connection dialog ───────────────────────────────── */
+.connection-dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn 0.15s ease;
+}
+
+.connection-dialog {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    width: 520px;
+    max-width: 90vw;
+    box-shadow: var(--shadow-lg), 0 0 60px rgba(124, 58, 237, 0.15);
+}
+
+.connection-dialog h3 {
+    margin: 0 0 16px;
+    font-size: 1rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.conn-dialog-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+.conn-dialog-file {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.conn-dialog-file label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.conn-file-name {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--accent-tertiary);
+    font-weight: 500;
+    word-break: break-all;
+}
+
+.conn-line-range {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.conn-line-range label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.conn-line-range input {
+    width: 60px;
+    padding: 4px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    text-align: center;
+}
+
+.conn-line-range input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.conn-line-range span {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.conn-dialog-arrow {
+    color: var(--accent-primary);
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.conn-dialog-comment {
+    margin-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.conn-dialog-comment label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.conn-dialog-comment input {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+}
+
+.conn-dialog-comment input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.conn-dialog-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+/* Connecting state on cards */
+.file-card.connecting {
+    box-shadow: 0 0 12px 3px rgba(124, 58, 237, 0.4);
+    border-color: var(--accent-primary) !important;
+}
+
+.file-card.connect-target {
+    box-shadow: 0 0 16px 4px rgba(34, 197, 94, 0.3);
+    border-color: #22c55e !important;
+}
+
+/* Line flash animation for connection navigation */
+@keyframes lineFlash {
+    0% {
+        background-color: rgba(124, 58, 237, 0.4);
+    }
+
+    100% {
+        background-color: transparent;
+    }
+}
+
+.diff-line.line-flash {
+    animation: lineFlash 1.5s ease-out;
+    border-left: 3px solid var(--accent-primary);
+}
+
+/* SVG overlay pointer events for connection paths */
+#connectionsOverlay path,
+#connectionsOverlay circle,
+#connectionsOverlay g {
+    pointer-events: all;
+}
+
+#connectionsOverlay path:hover {
+    stroke-width: 4;
+    opacity: 1 !important;
+    filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.5));
+}
