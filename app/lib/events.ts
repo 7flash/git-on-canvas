@@ -24,7 +24,7 @@ import type { CanvasContext } from './context';
 import { showToast } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
-import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid } from './cards';
+import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize } from './cards';
 import { loadRepository, switchView, rerenderCurrentView } from './repo';
 
 // ─── Canvas interaction (pan/zoom/select) ───────────────
@@ -432,6 +432,21 @@ export function setupEventListeners(ctx: CanvasContext) {
                 });
                 updateSelectionHighlights(ctx);
                 updateArrangeToolbar(ctx);
+            }
+
+            // F = Fit selected cards to content height
+            if (e.key === 'f' || e.key === 'F') {
+                e.preventDefault();
+                fitContentSize(ctx);
+            }
+
+            // W = Fit selected cards to screen/viewport size
+            if (e.key === 'w' || e.key === 'W') {
+                const selected = ctx.snap().context.selectedCards;
+                if (selected.length > 0) {
+                    e.preventDefault();
+                    fitScreenSize(ctx);
+                }
             }
         });
 
