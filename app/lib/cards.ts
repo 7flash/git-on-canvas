@@ -10,6 +10,7 @@ import { savePosition, getPositionKey } from './positions';
 import { updateMinimap } from './canvas';
 import { renderConnections, setupConnectionDrag } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
+import { openFileChatInModal } from './chat';
 
 // ─── Constants ──────────────────────────────────────────
 const CORNER_CURSORS = { tl: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', br: 'nwse-resize' };
@@ -852,10 +853,33 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 currentView = view;
                 tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
 
-                if (view === 'diff' && rendered.diff) {
-                    contentEl.innerHTML = rendered.diff;
-                } else if (view === 'full' && rendered.full) {
-                    contentEl.innerHTML = rendered.full;
+                const modalPre = document.getElementById('modalBodyPre');
+                const chatContainer = document.getElementById('modalChatContainer');
+
+                if (view === 'chat') {
+                    // Show chat, hide code
+                    if (modalPre) modalPre.style.display = 'none';
+                    if (chatContainer) chatContainer.style.display = 'flex';
+                    // Build diff text for context
+                    let diffText = '';
+                    if (file.hunks) {
+                        diffText = file.hunks.map(h => {
+                            return h.lines.map(l => {
+                                const prefix = l.type === 'add' ? '+' : l.type === 'del' ? '-' : ' ';
+                                return prefix + l.content;
+                            }).join('\n');
+                        }).join('\n');
+                    }
+                    openFileChatInModal(file.path, file.content || '', file.status || '', diffText);
+                } else {
+                    // Show code, hide chat
+                    if (modalPre) modalPre.style.display = '';
+                    if (chatContainer) chatContainer.style.display = 'none';
+                    if (view === 'diff' && rendered.diff) {
+                        contentEl.innerHTML = rendered.diff;
+                    } else if (view === 'full' && rendered.full) {
+                        contentEl.innerHTML = rendered.full;
+                    }
                 }
             });
         });

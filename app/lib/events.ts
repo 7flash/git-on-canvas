@@ -26,6 +26,7 @@ import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupM
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize } from './cards';
 import { loadRepository, switchView, rerenderCurrentView } from './repo';
+import { toggleCanvasChat } from './chat';
 
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
@@ -374,6 +375,9 @@ export function setupEventListeners(ctx: CanvasContext) {
         // Changed files panel
         setupChangedFilesPanel();
 
+        // AI chat toggle
+        document.getElementById('toggleCanvasChat')?.addEventListener('click', () => toggleCanvasChat(ctx));
+
         // ── Keyboard shortcuts ──
         window.addEventListener('keydown', (e) => {
             // Space-bar canvas panning
@@ -447,6 +451,12 @@ export function setupEventListeners(ctx: CanvasContext) {
                     e.preventDefault();
                     fitScreenSize(ctx);
                 }
+            }
+
+            // I = Toggle AI chat sidebar
+            if (e.key === 'i' || e.key === 'I') {
+                e.preventDefault();
+                toggleCanvasChat(ctx);
             }
         });
 
