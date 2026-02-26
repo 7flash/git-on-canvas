@@ -1,8 +1,10 @@
 // @ts-nocheck
 /**
  * Hidden files management — hide/restore/modal.
+ * Uses melina/client JSX + render instead of innerHTML.
  */
 import { measure } from 'measure-fn';
+import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { showToast } from './utils';
 
@@ -41,7 +43,6 @@ export function hideSelectedFiles(ctx: CanvasContext, paths: string[]) {
         saveHiddenFiles(ctx);
         ctx.actor.send({ type: 'DESELECT_ALL' });
 
-        // Remove cards from canvas
         paths.forEach(p => {
             const card = ctx.fileCards.get(p);
             if (card) {
@@ -69,6 +70,41 @@ export function restoreAllHidden(ctx: CanvasContext) {
     updateHiddenUI(ctx);
 }
 
+// ─── Hidden files modal (JSX) ───────────────────────────
+function HiddenFilesModalContent({
+    files, onRestore, onRestoreAll, onClose
+}: {
+    files: string[];
+    onRestore: (path: string) => void;
+    onRestoreAll: () => void;
+    onClose: () => void;
+}) {
+    return (
+        <>
+            <div className="hidden-modal-backdrop" onClick={onClose}></div>
+            <div className="hidden-modal-content">
+                <div className="hidden-modal-header">
+                    <h3>Hidden Files ({files.length})</h3>
+                    <div className="hidden-modal-actions">
+                        <button className="btn-secondary btn-sm" onClick={onRestoreAll}>Restore All</button>
+                        <button className="hidden-modal-close" onClick={onClose}>&times;</button>
+                    </div>
+                </div>
+                <div className="hidden-modal-body">
+                    {files.map(f => (
+                        <div key={f} className="hidden-file-row" data-path={f}>
+                            <span className="hidden-file-path">{f}</span>
+                            <button className="btn-restore" title="Restore this file" onClick={() => onRestore(f)}>
+                                👁
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </>
+    );
+}
+
 // ─── Show the hidden files modal ────────────────────────
 export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: () => void) {
     measure('modal:hiddenFiles', () => {
@@ -83,56 +119,39 @@ export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: ()
         modal = document.createElement('div');
         modal.id = 'hiddenFilesModal';
         modal.className = 'hidden-files-modal';
-
-        const list = [...ctx.hiddenFiles].map(f => `
-            <div class="hidden-file-row" data-path="${f}">
-                <span class="hidden-file-path">${f}</span>
-                <button class="btn-restore" data-restore="${f}" title="Restore this file">
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                        <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                </button>
-            </div>
-        `).join('');
-
-        modal.innerHTML = `
-            <div class="hidden-modal-backdrop"></div>
-            <div class="hidden-modal-content">
-                <div class="hidden-modal-header">
-                    <h3>Hidden Files (${ctx.hiddenFiles.size})</h3>
-                    <div class="hidden-modal-actions">
-                        <button class="btn-secondary btn-sm" id="restoreAllHidden">Restore All</button>
-                        <button class="hidden-modal-close">&times;</button>
-                    </div>
-                </div>
-                <div class="hidden-modal-body">${list}</div>
-            </div>
-        `;
-
         document.body.appendChild(modal);
 
-        modal.querySelector('.hidden-modal-backdrop').addEventListener('click', () => modal.remove());
-        modal.querySelector('.hidden-modal-close').addEventListener('click', () => modal.remove());
-        modal.querySelector('#restoreAllHidden').addEventListener('click', () => {
-            restoreAllHidden(ctx);
-            modal.remove();
-            rerenderCurrentView();
-            showToast('All files restored', 'success');
-        });
+        function rerender() {
+            const files = [...ctx.hiddenFiles];
+            if (files.length === 0) {
+                render(null, modal);
+                modal.remove();
+                return;
+            }
+            render(
+                <HiddenFilesModalContent
+                    files={files}
+                    onRestore={(path) => {
+                        restoreFile(ctx, path);
+                        rerenderCurrentView();
+                        rerender();
+                    }}
+                    onRestoreAll={() => {
+                        restoreAllHidden(ctx);
+                        render(null, modal);
+                        modal.remove();
+                        rerenderCurrentView();
+                        showToast('All files restored', 'success');
+                    }}
+                    onClose={() => {
+                        render(null, modal);
+                        modal.remove();
+                    }}
+                />,
+                modal
+            );
+        }
 
-        modal.querySelectorAll('.btn-restore').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const path = btn.dataset.restore;
-                restoreFile(ctx, path);
-                btn.closest('.hidden-file-row').remove();
-                const header = modal.querySelector('h3');
-                header.textContent = `Hidden Files (${ctx.hiddenFiles.size})`;
-                if (ctx.hiddenFiles.size === 0) {
-                    modal.remove();
-                }
-                rerenderCurrentView();
-            });
-        });
+        rerender();
     });
 }
