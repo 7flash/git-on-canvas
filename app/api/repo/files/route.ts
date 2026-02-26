@@ -13,15 +13,16 @@ export async function POST(req: Request) {
             const git = simpleGit(repoPath);
 
             // Get files CHANGED in this specific commit
+            // -M detects renames, -C detects copies
             // Use --root for initial commits that have no parent
             let diffResult = '';
             try {
-                diffResult = await git.raw(['diff-tree', '--no-commit-id', '--name-status', '-r', commit]);
+                diffResult = await git.raw(['diff-tree', '--no-commit-id', '--name-status', '-M30%', '-r', commit]);
             } catch (e) { /* ignore */ }
             // If empty (root commit), try with --root
             if (!diffResult.trim()) {
                 try {
-                    diffResult = await git.raw(['diff-tree', '--root', '--no-commit-id', '--name-status', '-r', commit]);
+                    diffResult = await git.raw(['diff-tree', '--root', '--no-commit-id', '--name-status', '-M30%', '-r', commit]);
                 } catch (e) { /* ignore */ }
             }
 
@@ -29,29 +30,67 @@ export async function POST(req: Request) {
             const lines = diffResult.trim().split('\n').filter(Boolean);
 
             for (const line of lines) {
-                const [status, filePath] = line.split('\t');
-                if (!filePath) continue;
+                const parts = line.split('\t');
+                const statusCode = parts[0];
+                if (!statusCode || parts.length < 2) continue;
 
-                const parts = filePath.split('/');
-                const name = parts[parts.length - 1];
-                const fileStatus = status === 'A' ? 'added' : status === 'D' ? 'deleted' : status === 'M' ? 'modified' : status;
+                // Rename/copy: status is R### or C### (e.g. R100, R087, C100)
+                // Format: R100\toldPath\tnewPath
+                const isRename = statusCode.startsWith('R');
+                const isCopy = statusCode.startsWith('C');
+
+                let filePath: string;
+                let oldPath: string | null = null;
+                let fileStatus: string;
+                let similarity: number | null = null;
+
+                if (isRename || isCopy) {
+                    oldPath = parts[1];
+                    filePath = parts[2];
+                    fileStatus = isRename ? 'renamed' : 'copied';
+                    similarity = parseInt(statusCode.substring(1)) || null;
+                } else {
+                    filePath = parts[1];
+                    fileStatus = statusCode === 'A' ? 'added'
+                        : statusCode === 'D' ? 'deleted'
+                            : statusCode === 'M' ? 'modified'
+                                : statusCode;
+                }
+
+                const name = filePath.split('/').pop()!;
 
                 let content = null;
-                let hunks: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; context: string; lines: Array<{ type: string; content: string }> }> = [];
+                let hunks: DiffHunk[] = [];
                 let error = null;
 
                 if (fileStatus === 'added') {
-                    // New file - get full content
+                    // New file — get full content
                     try { content = await git.show([`${commit}:${filePath}`]); } catch (e: any) { error = e.message; }
+
                 } else if (fileStatus === 'deleted') {
-                    // Deleted file - get previous content 
+                    // Deleted file — get previous content
                     try { content = await git.show([`${commit}~1:${filePath}`]); } catch (e: any) { error = e.message; }
+
                 } else if (fileStatus === 'modified') {
-                    // Modified - parse unified diff into hunks
+                    // Modified — parse unified diff into hunks
                     try {
                         const rawDiff = await git.raw(['diff', '-U3', `${commit}~1`, commit, '--', filePath]);
                         hunks = parseHunks(rawDiff);
                     } catch (e: any) { error = e.message; }
+
+                } else if (fileStatus === 'renamed' || fileStatus === 'copied') {
+                    // Renamed/copied — diff between old path and new path across the commit
+                    try {
+                        const rawDiff = await git.raw([
+                            'diff', '-U3', '-M',
+                            `${commit}~1`, commit,
+                            '--', oldPath!, filePath
+                        ]);
+                        hunks = parseHunks(rawDiff);
+                    } catch (e: any) { error = e.message; }
+
+                    // If 100% rename with no content changes, hunks will be empty
+                    // Still include the file so it shows up as renamed
                 }
 
                 changedFiles.push({
@@ -62,7 +101,10 @@ export async function POST(req: Request) {
                     content,
                     hunks,
                     contentError: error,
-                    lines: content ? content.split('\n').length : 0
+                    lines: content ? content.split('\n').length : 0,
+                    // Rename-specific fields
+                    ...(oldPath ? { oldPath } : {}),
+                    ...(similarity != null ? { similarity } : {}),
                 });
             }
 
@@ -100,7 +142,8 @@ function parseHunks(rawDiff: string): DiffHunk[] {
         }
 
         // Skip diff metadata lines
-        if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')) continue;
+        if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('---') || line.startsWith('+++')
+            || line.startsWith('similarity ') || line.startsWith('rename ') || line.startsWith('copy ')) continue;
 
         if (!currentHunk) continue;
 
@@ -109,7 +152,7 @@ function parseHunks(rawDiff: string): DiffHunk[] {
         } else if (line.startsWith('-')) {
             currentHunk.lines.push({ type: 'del', content: line.substring(1) });
         } else if (line.startsWith('\\')) {
-            // "\ No newline at end of file" - skip
+            // "\ No newline at end of file" — skip
         } else {
             currentHunk.lines.push({ type: 'ctx', content: line.startsWith(' ') ? line.substring(1) : line });
         }

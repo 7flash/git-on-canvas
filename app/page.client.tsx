@@ -4,6 +4,9 @@
  *
  * Creates the XState actor, initialises all sub-modules, and returns a
  * cleanup function.  All heavy logic lives in `./lib/*`.
+ * 
+ * Uses an AbortController to cancel in-flight async work when cleanup runs,
+ * preventing the "stopped actor" race condition.
  */
 import { measure } from 'measure-fn';
 import { createActor } from 'xstate';
@@ -17,8 +20,14 @@ import { clearCanvas, updateCanvasTransform, updateZoomUI } from './lib/canvas';
 import { loadRepository } from './lib/repo';
 
 export default function mount(): () => void {
+    // Stop any previous actor from a prior mount
+    if ((window as any).__gitcanvas_cleanup__) {
+        try { (window as any).__gitcanvas_cleanup__(); } catch (_) { }
+    }
+
     const actor = createActor(canvasMachine);
     const ctx = createCanvasContext(actor);
+    let disposed = false;
 
     // ─── Init ────────────────────────────────────────────
     async function init() {
@@ -40,15 +49,17 @@ export default function mount(): () => void {
             setupCanvasInteraction(ctx);
             setupEventListeners(ctx);
             await loadSavedPositions(ctx);
+            if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);
             updateHiddenUI(ctx);
             await loadConnections(ctx);
+            if (disposed) return; // bail if cleaned up during await
 
             // Check URL hash for repo path
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
             if (hashRepo) {
                 (document.getElementById('repoPath') as HTMLInputElement).value = hashRepo;
-                loadRepository(ctx, hashRepo);
+                if (!disposed) loadRepository(ctx, hashRepo);
             } else {
                 const saved = localStorage.getItem('gitcanvas:lastRepo');
                 if (saved) {
@@ -58,6 +69,7 @@ export default function mount(): () => void {
 
             // Listen for hash changes
             window.addEventListener('hashchange', () => {
+                if (disposed) return;
                 const path = decodeURIComponent(window.location.hash.replace('#', ''));
                 if (path && path !== ctx.snap().context.repoPath) {
                     (document.getElementById('repoPath') as HTMLInputElement).value = path;
@@ -71,8 +83,12 @@ export default function mount(): () => void {
     init();
 
     // ─── Cleanup ─────────────────────────────────────────
-    return () => {
-        actor.stop();
+    const cleanup = () => {
+        disposed = true;
+        (window as any).__gitcanvas_cleanup__ = null;
+        try { actor.stop(); } catch (_) { }
         clearCanvas(ctx);
     };
+    (window as any).__gitcanvas_cleanup__ = cleanup;
+    return cleanup;
 }

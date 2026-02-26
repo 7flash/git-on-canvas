@@ -1015,11 +1015,23 @@ body {
     font-family: var(--font-mono);
     font-size: 0.65rem;
     color: var(--accent-tertiary);
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7) 40%);
-    padding: 16px 8px 5px;
-    pointer-events: none;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8) 40%);
+    padding: 20px 8px 6px;
+    cursor: ns-resize;
     z-index: 3;
     letter-spacing: 0.03em;
+    user-select: none;
+    transition: color 0.15s, background 0.15s;
+}
+
+.hidden-lines-indicator:hover {
+    color: var(--accent-primary);
+    background: linear-gradient(transparent, rgba(124, 58, 237, 0.2) 40%);
+}
+
+.file-card.resizing {
+    transition: none !important;
+    user-select: none;
 }
 
 .file-action {
@@ -1149,6 +1161,55 @@ body {
     box-shadow: var(--shadow-md), 0 0 20px rgba(239, 68, 68, 0.15);
 }
 
+.file-card--renamed {
+    border-color: rgba(167, 139, 250, 0.3);
+}
+
+.file-card--renamed:hover {
+    border-color: rgba(167, 139, 250, 0.6);
+    box-shadow: var(--shadow-md), 0 0 20px rgba(167, 139, 250, 0.15);
+}
+
+.file-card--copied {
+    border-color: rgba(96, 165, 250, 0.3);
+}
+
+.file-card--copied:hover {
+    border-color: rgba(96, 165, 250, 0.6);
+    box-shadow: var(--shadow-md), 0 0 20px rgba(96, 165, 250, 0.15);
+}
+
+.file-rename-path {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: #a78bfa;
+    background: var(--bg-card);
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.rename-similarity {
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    margin-left: 4px;
+    opacity: 0.7;
+}
+
+.rename-notice {
+    color: #a78bfa;
+    font-style: italic;
+    display: block;
+    padding: 20px;
+    text-align: center;
+}
+
 /* Side-by-side modified cards are wider */
 .file-card--sidebyside {
     width: 960px;
@@ -1198,14 +1259,62 @@ body {
     border-left: 2px solid var(--accent-primary);
     line-height: 1.2;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.hunk-range {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.hunk-view-toggle {
+    display: flex;
+    gap: 1px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    padding: 1px;
+    flex-shrink: 0;
+}
+
+.hunk-toggle-btn {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    padding: 1px 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.hunk-toggle-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.hunk-toggle-btn.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.hunk-toggle-btn.active[data-view="previous"] {
+    background: rgba(239, 68, 68, 0.6);
 }
 
 .diff-hunk-body {
-    display: flex;
     max-height: 300px;
     overflow: auto;
     flex: 1;
     min-height: 0;
+    overscroll-behavior: contain;
 }
 
 /* When card is resized (has explicit height), let hunks fill available space */
@@ -1230,48 +1339,23 @@ body {
     flex: 1;
 }
 
-.file-card[style*="height"] .hunk-current-pane,
-.file-card[style*="height"] .hunk-removed-pane {
-    flex: 1;
-    min-height: 0;
-}
-
-.hunk-current-pane {
-    flex: 1;
-    overflow-y: auto;
+.hunk-pane {
     overflow-x: auto;
-    min-width: 0;
+    overflow-y: auto;
     overscroll-behavior: contain;
 }
 
-.hunk-removed-pane {
-    width: 200px;
-    flex-shrink: 0;
-    overflow-y: auto;
-    overflow-x: auto;
-    border-left: 1px solid rgba(239, 68, 68, 0.2);
-    background: rgba(239, 68, 68, 0.03);
-    overscroll-behavior: contain;
-}
-
-.hunk-current-pane::-webkit-scrollbar,
-.hunk-removed-pane::-webkit-scrollbar {
+.hunk-pane::-webkit-scrollbar {
     width: 4px;
     height: 4px;
 }
 
-.hunk-current-pane::-webkit-scrollbar-track,
-.hunk-removed-pane::-webkit-scrollbar-track {
+.hunk-pane::-webkit-scrollbar-track {
     background: transparent;
 }
 
-.hunk-current-pane::-webkit-scrollbar-thumb {
+.hunk-pane::-webkit-scrollbar-thumb {
     background: rgba(124, 58, 237, 0.2);
-    border-radius: 2px;
-}
-
-.hunk-removed-pane::-webkit-scrollbar-thumb {
-    background: rgba(239, 68, 68, 0.2);
     border-radius: 2px;
 }
 
@@ -1343,6 +1427,14 @@ body {
 
 .minimap-dot--deleted {
     background: rgba(239, 68, 68, 0.7);
+}
+
+.minimap-dot--renamed {
+    background: rgba(167, 139, 250, 0.7);
+}
+
+.minimap-dot--copied {
+    background: rgba(96, 165, 250, 0.7);
 }
 
 .minimap-dot--default {
