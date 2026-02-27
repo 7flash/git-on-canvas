@@ -45,11 +45,13 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             renderCommitTimeline(ctx);
 
             const viewState = ctx.snap().value?.view;
-            if (viewState === 'allfiles') {
-                updateLoadingProgress(ctx, 'Loading all files...');
-                await loadAllFiles(ctx);
-            } else if (data.commits.length > 0) {
-                updateLoadingProgress(ctx, 'Loading first commit files...');
+            // Always load all files first
+            updateLoadingProgress(ctx, 'Loading all files...');
+            await loadAllFiles(ctx);
+
+            // Then select the first commit to get diff data
+            if (data.commits.length > 0) {
+                updateLoadingProgress(ctx, 'Loading commit diff...');
                 await selectCommit(ctx, data.commits[0].hash);
             }
 
@@ -199,41 +201,20 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
             ctx.actor.send({ type: 'COMMIT_FILES_LOADED', files: data.files });
             ctx.commitFilesData = data.files;
 
-            // If all-files mode is active, re-render with diff cards for changed files
-            if (ctx.allFilesActive) {
-                ctx.changedFilePaths = new Set(data.files.map(f => f.path));
-                // Re-render all files so changed ones get diff cards
-                if (ctx.allFilesData && ctx.allFilesData.length > 0) {
-                    renderAllFilesOnCanvas(ctx, ctx.allFilesData);
-                }
-
-                updateCommitInfo(hash, commit?.message || '', true, data.files.length);
-
-                const fileCountEl = document.getElementById('fileCount');
-                if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
-                hideLoadingProgress(ctx);
-
-                // Populate changed files panel with diff stats
-                populateChangedFilesPanel(data.files);
-            } else {
-                // Normal commits mode: render only changed files
-                ctx.actor.send({ type: 'SWITCH_TO_COMMITS' });
-                document.getElementById('modeCommits')?.classList.add('active');
-                const chk = document.getElementById('allFilesCheckbox') as HTMLInputElement;
-                if (chk) chk.checked = false;
-
-                updateLoadingProgress(ctx, 'Rendering files on canvas...');
-                renderFilesOnCanvas(ctx, data.files, hash);
-
-                updateCommitInfo(hash, commit?.message || '');
-
-                const fileCountEl = document.getElementById('fileCount');
-                if (fileCountEl) fileCountEl.textContent = data.files.length;
-                hideLoadingProgress(ctx);
-
-                // Populate changed files panel with diff stats
-                populateChangedFilesPanel(data.files);
+            // Always re-render all files with highlighted changes
+            ctx.changedFilePaths = new Set(data.files.map(f => f.path));
+            if (ctx.allFilesData && ctx.allFilesData.length > 0) {
+                renderAllFilesOnCanvas(ctx, ctx.allFilesData);
             }
+
+            updateCommitInfo(hash, commit?.message || '', true, data.files.length);
+
+            const fileCountEl = document.getElementById('fileCount');
+            if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
+            hideLoadingProgress(ctx);
+
+            // Populate changed files panel with diff stats
+            populateChangedFilesPanel(data.files);
         } catch (err) {
             hideLoadingProgress(ctx);
             measure('commit:selectError', () => err);
@@ -300,6 +281,9 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         const changedCardWidth = 580;
         const changedCardHeight = 700;
         const gap = 20;
+        // Grid spacing uses the bigger card size so nothing overlaps
+        const cellW = changedCardWidth + gap;
+        const cellH = changedCardHeight + gap;
 
         visibleFiles.forEach((file, index) => {
             const isChanged = ctx.changedFilePaths.has(file.path);
@@ -312,33 +296,85 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             } else {
                 const col = index % cols;
                 const row = Math.floor(index / cols);
-                x = 50 + col * (cardWidth + gap);
-                y = 50 + row * (cardHeight + gap);
+                x = 50 + col * cellW;
+                y = 50 + row * cellH;
             }
 
-            let card: HTMLElement;
+            const state = ctx.snap().context;
+            let size = state.cardSizes?.[file.path];
+            if (!size && ctx.positions.has(posKey)) {
+                const pos = ctx.positions.get(posKey);
+                if (pos.width) size = { width: pos.width, height: pos.height };
+            }
 
+            // Merge diff data into the file for highlighting
+            let fileWithDiff = { ...file };
             if (isChanged && changedFileDataMap.has(file.path)) {
-                // Render as diff card with actual diff content
                 const diffData = changedFileDataMap.get(file.path);
-                card = createFileCard(ctx, diffData, x, y, 'allfiles');
+
+                // Use full content from diff data if available (has the latest version)
+                if (diffData.content) {
+                    fileWithDiff.content = diffData.content;
+                    fileWithDiff.lines = diffData.content.split('\n').length;
+                }
+                fileWithDiff.status = diffData.status;
+                fileWithDiff.hunks = diffData.hunks;
+
+                // Compute added/deleted line info from hunks
+                if (diffData.hunks?.length > 0) {
+                    const addedLines = new Set<number>();
+                    // Map: newLineNumber → array of deleted line texts to show before that line
+                    const deletedBeforeLine = new Map<number, string[]>();
+                    for (const hunk of diffData.hunks) {
+                        let newLine = hunk.newStart;
+                        let pendingDeleted: string[] = [];
+                        for (const l of hunk.lines) {
+                            if (l.type === 'add') {
+                                addedLines.add(newLine);
+                                // Attach any pending deleted lines before this added line
+                                if (pendingDeleted.length > 0) {
+                                    const existing = deletedBeforeLine.get(newLine) || [];
+                                    deletedBeforeLine.set(newLine, existing.concat(pendingDeleted));
+                                    pendingDeleted = [];
+                                }
+                                newLine++;
+                            } else if (l.type === 'del') {
+                                pendingDeleted.push(l.content);
+                            } else {
+                                // Context line — flush pending deleted before this
+                                if (pendingDeleted.length > 0) {
+                                    const existing = deletedBeforeLine.get(newLine) || [];
+                                    deletedBeforeLine.set(newLine, existing.concat(pendingDeleted));
+                                    pendingDeleted = [];
+                                }
+                                newLine++;
+                            }
+                        }
+                        // Flush remaining deleted lines after the hunk
+                        if (pendingDeleted.length > 0) {
+                            const existing = deletedBeforeLine.get(newLine) || [];
+                            deletedBeforeLine.set(newLine, existing.concat(pendingDeleted));
+                        }
+                    }
+                    fileWithDiff.addedLines = addedLines;
+                    fileWithDiff.deletedBeforeLine = deletedBeforeLine;
+                }
+
+                // Default bigger size for changed files
+                if (!size) {
+                    size = { width: changedCardWidth, height: changedCardHeight };
+                }
+            }
+
+            if (!size) {
+                size = { width: cardWidth, height: cardHeight };
+            }
+
+            const card = createAllFileCard(ctx, fileWithDiff, x, y, size);
+
+            if (isChanged) {
                 card.classList.add('file-card--changed');
                 card.dataset.changed = 'true';
-            } else {
-                const state = ctx.snap().context;
-                let size = state.cardSizes?.[file.path];
-
-                if (!size && ctx.positions.has(posKey)) {
-                    const pos = ctx.positions.get(posKey);
-                    if (pos.width) size = { width: pos.width, height: pos.height };
-                }
-
-                // Override default card size for compact grid (unless manually resized)
-                if (!size) {
-                    size = { width: cardWidth, height: cardHeight };
-                }
-
-                card = createAllFileCard(ctx, file, x, y, size);
             }
 
             ctx.canvas.appendChild(card);
@@ -477,17 +513,9 @@ export function switchView(ctx: CanvasContext, mode: string) {
 
 // ─── Re-render current view ──────────────────────────────
 export function rerenderCurrentView(ctx: CanvasContext) {
-    const viewState = ctx.snap().value?.view;
-    if (viewState === 'allfiles') {
-        const data = ctx.allFilesData || ctx.snap().context.allFiles;
-        if (data && data.length > 0) {
-            renderAllFilesOnCanvas(ctx, data);
-        }
-    } else {
-        const state = ctx.snap().context;
-        if (state.commitFiles.length > 0) {
-            renderFilesOnCanvas(ctx, state.commitFiles, state.currentCommitHash);
-        }
+    const data = ctx.allFilesData || ctx.snap().context.allFiles;
+    if (data && data.length > 0) {
+        renderAllFilesOnCanvas(ctx, data);
     }
 }
 

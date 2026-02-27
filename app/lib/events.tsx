@@ -26,7 +26,7 @@ import { showToast, escapeHtml } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize, resizeCardsHeight } from './cards';
-import { loadRepository, switchView, rerenderCurrentView, selectCommit } from './repo';
+import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
 
 // ─── Canvas interaction (pan/zoom/select) ───────────────
@@ -62,7 +62,8 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
             const target = e.target as HTMLElement;
             const hunkPane = target.closest('.hunk-pane, .diff-hunk-body') as HTMLElement | null;
             const previewPre = target.closest('.file-content-preview pre') as HTMLElement | null;
-            const scrollContainer = hunkPane || previewPre;
+            const cardBody = target.closest('.file-card-body') as HTMLElement | null;
+            const scrollContainer = hunkPane || previewPre || cardBody;
 
             if (scrollContainer) {
                 // Always consume scroll events inside scrollable content
@@ -351,14 +352,7 @@ export function setupEventListeners(ctx: CanvasContext) {
         // Fit All
         document.getElementById('fitAll')?.addEventListener('click', () => fitAllFiles(ctx));
 
-        // View mode toggles
-        document.getElementById('modeCommits')?.addEventListener('click', () => switchView(ctx, 'commits'));
-        document.getElementById('modeAllFiles')?.addEventListener('click', () => switchView(ctx, 'allfiles'));
-
-        // All Files checkbox toggle (older UI variant)
-        document.getElementById('allFilesCheckbox')?.addEventListener('change', (e) => {
-            switchView(ctx, (e.target as HTMLInputElement).checked ? 'allfiles' : 'commits');
-        });
+        // All-files mode is always active — no view switching needed
 
         // Hidden files button
         document.getElementById('showHidden')?.addEventListener('click', () => showHiddenModal(ctx, () => rerenderCurrentView(ctx)));
