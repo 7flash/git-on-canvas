@@ -13,9 +13,14 @@ import { showLoadingProgress, updateLoadingProgress, hideLoadingProgress } from 
 import { createFileCard, createAllFileCard, debounceSaveScroll } from './cards';
 import { renderConnections } from './connections';
 
+// Shared: reference to ctx for changed-files panel navigation
+let _panelCtx: CanvasContext | null = null;
+export function setPanelCtx(ctx: CanvasContext) { _panelCtx = ctx; }
+
 // ─── Load repository ─────────────────────────────────────
 export async function loadRepository(ctx: CanvasContext, repoPath: string) {
     if (!repoPath) return;
+    _panelCtx = ctx;
     ctx.actor.send({ type: 'LOAD_REPO', path: repoPath });
 
     return measure('repo:load', async () => {
@@ -61,7 +66,7 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             hideLoadingProgress(ctx);
             ctx.actor.send({ type: 'REPO_ERROR', error: err.message });
             measure('repo:loadError', () => err);
-            showToast(`Failed: ${err.message}`, 'error');
+            showToast(`Failed: ${err.message} `, 'error');
         }
     });
 }
@@ -89,19 +94,23 @@ export async function loadAllFiles(ctx: CanvasContext) {
             if (fileCountEl) fileCountEl.textContent = data.total;
         } catch (err) {
             measure('allfiles:loadError', () => err);
-            showToast(`Failed to load files: ${err.message}`, 'error');
+            showToast(`Failed to load files: ${err.message} `, 'error');
         }
     });
 }
 
 // ─── JSX Components for commit sidebar ──────────────────
 function CommitItem({ commit, onClick }: { commit: any; onClick: () => void }) {
+    // Derive handle from email (part before @) — more useful than git config name
+    const handle = commit.email
+        ? commit.email.split('@')[0]
+        : commit.author;
     return (
         <div className="commit-item" data-hash={commit.hash} onClick={onClick}>
             <div className="commit-hash">{commit.hash.substring(0, 7)}</div>
             <div className="commit-message">{commit.message}</div>
             <div className="commit-meta">
-                <span className="commit-author">👤 {commit.author}</span>
+                <span className="commit-author">👤 {handle}</span>
                 <span>{formatDate(commit.date)}</span>
             </div>
         </div>
@@ -187,7 +196,7 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
 
         try {
             showLoadingProgress(ctx, 'Loading commit files...');
-            updateLoadingProgress(ctx, `${hash.substring(0, 7)} — ${commit?.message || ''}`);
+            updateLoadingProgress(ctx, `${hash.substring(0, 7)} — ${commit?.message || ''} `);
 
             const response = await fetch('/api/repo/files', {
                 method: 'POST',
@@ -218,7 +227,7 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
         } catch (err) {
             hideLoadingProgress(ctx);
             measure('commit:selectError', () => err);
-            showToast(`Failed: ${err.message}`, 'error');
+            showToast(`Failed: ${err.message} `, 'error');
         }
     });
 }
@@ -287,7 +296,7 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
 
         visibleFiles.forEach((file, index) => {
             const isChanged = ctx.changedFilePaths.has(file.path);
-            const posKey = `allfiles:${file.path}`;
+            const posKey = `allfiles:${file.path} `;
             let x: number, y: number;
 
             if (ctx.positions.has(posKey)) {
@@ -381,7 +390,7 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             ctx.fileCards.set(file.path, card);
 
             // Restore scroll position
-            const scrollKey = `scroll:${file.path}`;
+            const scrollKey = `scroll:${file.path} `;
             if (ctx.positions.has(scrollKey)) {
                 const savedScroll = ctx.positions.get(scrollKey);
                 requestAnimationFrame(() => {
@@ -544,15 +553,24 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
                         className="changed-file-item"
                         title={f.path}
                         onClick={() => {
-                            const card = document.querySelector(`.file-card[data-path="${f.path}"]`) as HTMLElement;
+                            if (!_panelCtx) return;
+                            const card = _panelCtx.fileCards.get(f.path);
                             if (card) {
-                                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                const vpRect = _panelCtx.canvasViewport.getBoundingClientRect();
+                                const state = _panelCtx.snap().context;
+                                const cardX = parseFloat(card.style.left) || 0;
+                                const cardY = parseFloat(card.style.top) || 0;
+                                const newOffsetX = -(cardX + card.offsetWidth / 2) * state.zoom + vpRect.width / 2;
+                                const newOffsetY = -(cardY + card.offsetHeight / 2) * state.zoom + vpRect.height / 2;
+                                _panelCtx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+                                updateCanvasTransform(_panelCtx);
+                                updateMinimap(_panelCtx);
                                 card.classList.add('card-flash');
                                 setTimeout(() => card.classList.remove('card-flash'), 1500);
                             }
                         }}
                     >
-                        <span className="changed-file-status" style={`color: ${color}`}>{icon}</span>
+                        <span className="changed-file-status" style={`color: ${color} `}>{icon}</span>
                         <span className="changed-file-name">{name}</span>
                         {dir ? <span className="changed-file-dir">{dir}</span> : null}
                         <span className="changed-file-stats">
