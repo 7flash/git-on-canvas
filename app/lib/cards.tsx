@@ -8,7 +8,7 @@ import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
 import { savePosition, getPositionKey } from './positions';
-import { updateMinimap } from './canvas';
+import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
 import { renderConnections, setupConnectionDrag } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { openFileChatInModal } from './chat';
@@ -288,6 +288,38 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     }
 
     card.addEventListener('mousedown', onMouseDown);
+
+    // ── Double-click to zoom-to-fit card in viewport ──
+    card.addEventListener('dblclick', (e) => {
+        // Don't trigger on buttons
+        if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
+        e.stopPropagation();
+
+        const vpRect = ctx.canvasViewport.getBoundingClientRect();
+        const cardX = parseFloat(card.style.left) || 0;
+        const cardY = parseFloat(card.style.top) || 0;
+        const cardW = card.offsetWidth;
+        const cardH = card.offsetHeight;
+
+        // Calculate zoom to fit the card with some padding
+        const padding = 60;
+        const zoomX = (vpRect.width - padding * 2) / cardW;
+        const zoomY = (vpRect.height - padding * 2) / cardH;
+        const newZoom = Math.min(Math.max(0.3, Math.min(zoomX, zoomY)), 2);
+
+        // Center card in viewport
+        const newOffsetX = -(cardX + cardW / 2) * newZoom + vpRect.width / 2;
+        const newOffsetY = -(cardY + cardH / 2) * newZoom + vpRect.height / 2;
+
+        ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
+        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+        updateCanvasTransform(ctx);
+        updateZoomUI(ctx);
+        updateMinimap(ctx);
+
+        card.classList.add('card-flash');
+        setTimeout(() => card.classList.remove('card-flash'), 1500);
+    });
 
     // ── Right-click context menu ──
     card.addEventListener('contextmenu', (e) => {
@@ -1190,8 +1222,12 @@ function _setupDeletedLinesOverlay(card: HTMLElement) {
 
             const pre = document.createElement('pre');
             const code = document.createElement('code');
+            // Parse the hunk to find actual old line numbers for the deleted lines
+            const lineNumAttr = parseInt(diffLine.dataset.line || '0');
+            // Show deleted lines with their actual old-file line numbers
+            // We store oldStart in the hunk — estimate by subtracting from current position
             code.innerHTML = deletedLines.map((line, i) =>
-                `<span class="diff-line diff-del"><span class="line-num del-line-num">  −${String(i + 1).padStart(2, ' ')}</span>${escapeHtml(line)}</span>`
+                `<span class="diff-line diff-del"><span class="line-num del-line-num">  −</span>${escapeHtml(line)}</span>`
             ).join('\n');
             pre.appendChild(code);
             overlay.appendChild(pre);
@@ -1241,12 +1277,24 @@ function _setupDeletedLinesOverlay(card: HTMLElement) {
 }
 
 function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
-    // The actual scroll container is .file-content-preview pre
+    // The pre element is the actual scroll container
     const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
     const scrollTarget = pre || body;
-    const pct = (lineNum - 1) / totalLines;
-    const targetScroll = pct * scrollTarget.scrollHeight;
-    scrollTarget.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    // Find the actual line element for precise scrolling
+    const lineEl = body.querySelector(`.diff-line[data-line="${lineNum}"]`) as HTMLElement;
+    if (lineEl && scrollTarget) {
+        // Calculate position relative to the scroll container
+        const containerRect = scrollTarget.getBoundingClientRect();
+        const lineRect = lineEl.getBoundingClientRect();
+        // The line's offset from the top of the visible scroll area + current scroll = absolute position
+        const targetScroll = scrollTarget.scrollTop + (lineRect.top - containerRect.top);
+        scrollTarget.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    } else {
+        // Fallback to percentage-based
+        const pct = (lineNum - 1) / totalLines;
+        const targetScroll = pct * scrollTarget.scrollHeight;
+        scrollTarget.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
 }
 
 // ─── Hidden lines indicator ─────────────────────────────

@@ -121,6 +121,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>/</kbd> <span>Search files</span></div>
                                 <div className="hotkey-row"><kbd>⌃+</kbd> <span>Grow cards</span></div>
                                 <div className="hotkey-row"><kbd>⌃-</kbd> <span>Shrink cards</span></div>
+                                <div className="hotkey-row"><kbd>Dbl-click</kbd> <span>Zoom to card</span></div>
                             </div>
                         </div>
                     </nav>
