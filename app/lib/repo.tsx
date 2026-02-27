@@ -11,7 +11,7 @@ import { getPositionKey } from './positions';
 import { updateHiddenUI } from './hidden-files';
 import { showLoadingProgress, updateLoadingProgress, hideLoadingProgress } from './loading';
 import { createFileCard, createAllFileCard, debounceSaveScroll } from './cards';
-import { renderConnections } from './connections';
+import { renderConnections, buildConnectionMarkers } from './connections';
 
 // Shared: reference to ctx for changed-files panel navigation
 let _panelCtx: CanvasContext | null = null;
@@ -286,6 +286,7 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
             ctx.fileCards.set(file.path, card);
         });
         renderConnections(ctx);
+        buildConnectionMarkers(ctx);
         forceMinimapRebuild(ctx);
     });
 }
@@ -416,6 +417,7 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         });
 
         renderConnections(ctx);
+        buildConnectionMarkers(ctx);
         forceMinimapRebuild(ctx);
     });
 }

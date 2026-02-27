@@ -1,6 +1,14 @@
 // @ts-nocheck
 /**
- * Connections — drag-to-connect, render SVG lines, dialog, navigate.
+ * Connections — click-on-line to connect, render SVG lines,
+ * left-side marker strip, navigate.
+ *
+ * Flow:
+ *   1. User clicks a line number/gutter → starts pending connection (source)
+ *   2. All cards show a subtle "click a target line" hint
+ *   3. User clicks a line in another card → completes connection
+ *   4. Connection markers appear on the LEFT side of both cards
+ *   5. SVG bezier curves connect the two lines across the canvas
  */
 import { measure } from 'measure-fn';
 import { render } from 'melina/client';
@@ -8,201 +16,174 @@ import type { CanvasContext } from './context';
 import { escapeHtml, showToast } from './utils';
 import { updateCanvasTransform, updateZoomUI } from './canvas';
 
-// ─── Setup connection drag from a card's connect button ─
-export function setupConnectionDrag(ctx: CanvasContext, card: HTMLElement, filePath: string) {
-    const connectBtn = card.querySelector('.connect-btn');
-    if (!connectBtn) return;
+// ─── Pending connection state ────────────────────────────
+let pendingConnection: {
+    sourceFile: string;
+    sourceLine: number;
+    sourceCard: HTMLElement;
+} | null = null;
 
-    connectBtn.addEventListener('mousedown', (e) => {
+// ─── Setup click-on-line connection for a card ──────────
+export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, filePath: string) {
+    const body = card.querySelector('.file-card-body') as HTMLElement;
+    if (!body) return;
+
+    body.addEventListener('click', (e) => {
+        const lineEl = (e.target as HTMLElement).closest('.diff-line') as HTMLElement;
+        if (!lineEl) return;
+
+        const lineNum = parseInt(lineEl.dataset.line);
+        if (!lineNum) return;
+
+        // If we're in "connecting" mode and clicking a line in a DIFFERENT card
+        if (pendingConnection && pendingConnection.sourceCard !== card) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            // Complete the connection
+            const conn = {
+                id: `conn_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                sourceFile: pendingConnection.sourceFile,
+                sourceLineStart: pendingConnection.sourceLine,
+                sourceLineEnd: pendingConnection.sourceLine,
+                targetFile: filePath,
+                targetLineStart: lineNum,
+                targetLineEnd: lineNum,
+                comment: '',
+            };
+
+            ctx.actor.send({
+                type: 'START_CONNECTION',
+                sourceFile: conn.sourceFile,
+                lineStart: conn.sourceLineStart,
+                lineEnd: conn.sourceLineEnd,
+            });
+            ctx.actor.send({
+                type: 'COMPLETE_CONNECTION',
+                targetFile: conn.targetFile,
+                lineStart: conn.targetLineStart,
+                lineEnd: conn.targetLineEnd,
+                comment: conn.comment,
+            });
+
+            // Clear pending
+            _clearPending(ctx);
+
+            renderConnections(ctx);
+            buildConnectionMarkers(ctx);
+            saveConnections(ctx);
+            showToast(`Connected ${conn.sourceFile}:${conn.sourceLineStart} → ${conn.targetFile}:${conn.targetLineStart}`, 'success');
+            return;
+        }
+
+        // If clicking same card and already pending → cancel
+        if (pendingConnection && pendingConnection.sourceCard === card) {
+            _clearPending(ctx);
+            showToast('Connection cancelled', 'info');
+            return;
+        }
+
+        // Start a new pending connection
         e.stopPropagation();
-        e.preventDefault();
+        pendingConnection = { sourceFile: filePath, sourceLine: lineNum, sourceCard: card };
 
-        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        const btnRect = connectBtn.getBoundingClientRect();
-        const vpRect = ctx.canvasViewport.getBoundingClientRect();
-        const state = ctx.snap().context;
+        // Visual: highlight the source line
+        lineEl.classList.add('connection-source-line');
+        card.classList.add('connecting-source');
 
-        const startX = (btnRect.left + btnRect.width / 2 - vpRect.left - state.offsetX) / state.zoom;
-        const startY = (btnRect.top + btnRect.height / 2 - vpRect.top - state.offsetY) / state.zoom;
+        // Highlight all other cards as potential targets
+        ctx.fileCards.forEach((c, p) => {
+            if (p !== filePath) c.classList.add('connect-target-ready');
+        });
 
-        arrow.setAttribute('x1', startX);
-        arrow.setAttribute('y1', startY);
-        arrow.setAttribute('x2', startX);
-        arrow.setAttribute('y2', startY);
-        arrow.setAttribute('stroke', 'var(--accent-primary)');
-        arrow.setAttribute('stroke-width', '2.5');
-        arrow.setAttribute('stroke-dasharray', '6,3');
-        arrow.setAttribute('opacity', '0.9');
-        ctx.svgOverlay.appendChild(arrow);
-
-        const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-        dot.setAttribute('cx', startX);
-        dot.setAttribute('cy', startY);
-        dot.setAttribute('r', '5');
-        dot.setAttribute('fill', 'var(--accent-primary)');
-        ctx.svgOverlay.appendChild(dot);
-
-        ctx.connectionDragState = { sourceFile: filePath, sourceCard: card, arrowEl: arrow, dotEl: dot, startX, startY };
-
-        card.classList.add('connecting');
-        document.body.style.cursor = 'crosshair';
-
-        const onMove = (e: MouseEvent) => onConnDragMove(ctx, e);
-        const onUp = (e: MouseEvent) => {
-            window.removeEventListener('mousemove', onMove);
-            window.removeEventListener('mouseup', onUp);
-            onConnDragUp(ctx, e);
-        };
-
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('mouseup', onUp);
+        showToast(`Click a line in another file to connect from ${filePath.split('/').pop()}:${lineNum}`, 'info');
     });
 }
 
-function onConnDragMove(ctx: CanvasContext, e: MouseEvent) {
-    if (!ctx.connectionDragState) return;
+function _clearPending(ctx: CanvasContext) {
+    if (!pendingConnection) return;
+    // Remove visual highlights
+    pendingConnection.sourceCard.querySelector('.connection-source-line')?.classList.remove('connection-source-line');
+    pendingConnection.sourceCard.classList.remove('connecting-source');
+    ctx.fileCards.forEach((c) => c.classList.remove('connect-target-ready'));
+    pendingConnection = null;
+}
+
+// ─── Cancel pending connection (called from Escape key) ──
+export function cancelPendingConnection(ctx: CanvasContext) {
+    if (pendingConnection) {
+        _clearPending(ctx);
+        showToast('Connection cancelled', 'info');
+    }
+}
+
+export function hasPendingConnection(): boolean {
+    return pendingConnection !== null;
+}
+
+// ─── Build connection marker strips (LEFT side of cards) ─
+export function buildConnectionMarkers(ctx: CanvasContext) {
     const state = ctx.snap().context;
-    const vpRect = ctx.canvasViewport.getBoundingClientRect();
-    const ex = (e.clientX - vpRect.left - state.offsetX) / state.zoom;
-    const ey = (e.clientY - vpRect.top - state.offsetY) / state.zoom;
+    const connections = state.connections || [];
+    if (connections.length === 0) return;
 
-    ctx.connectionDragState.arrowEl.setAttribute('x2', ex);
-    ctx.connectionDragState.arrowEl.setAttribute('y2', ey);
-    ctx.connectionDragState.dotEl.setAttribute('cx', ex);
-    ctx.connectionDragState.dotEl.setAttribute('cy', ey);
+    // Group connections by file
+    const connsByFile = new Map<string, Array<{ line: number; conn: any; role: 'source' | 'target' }>>();
 
-    const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.file-card');
-    ctx.fileCards.forEach((c) => c.classList.remove('connect-target'));
-    if (targetCard && targetCard !== ctx.connectionDragState.sourceCard) {
-        targetCard.classList.add('connect-target');
-    }
-}
+    connections.forEach(conn => {
+        // Source side
+        if (!connsByFile.has(conn.sourceFile)) connsByFile.set(conn.sourceFile, []);
+        connsByFile.get(conn.sourceFile)!.push({
+            line: conn.sourceLineStart,
+            conn,
+            role: 'source',
+        });
 
-function onConnDragUp(ctx: CanvasContext, e: MouseEvent) {
-    if (!ctx.connectionDragState) return;
+        // Target side
+        if (!connsByFile.has(conn.targetFile)) connsByFile.set(conn.targetFile, []);
+        connsByFile.get(conn.targetFile)!.push({
+            line: conn.targetLineStart,
+            conn,
+            role: 'target',
+        });
+    });
 
-    ctx.connectionDragState.arrowEl.remove();
-    ctx.connectionDragState.dotEl.remove();
-    ctx.connectionDragState.sourceCard.classList.remove('connecting');
-    ctx.fileCards.forEach((c) => c.classList.remove('connect-target'));
-    document.body.style.cursor = '';
+    // Build marker strip for each file card
+    connsByFile.forEach((markers, filePath) => {
+        const card = ctx.fileCards.get(filePath);
+        if (!card) return;
 
-    const targetCard = document.elementFromPoint(e.clientX, e.clientY)?.closest('.file-card');
-    if (!targetCard || targetCard === ctx.connectionDragState.sourceCard) {
-        ctx.connectionDragState = null;
-        return;
-    }
+        // Remove existing connection markers
+        card.querySelector('.conn-marker-strip')?.remove();
 
-    const targetPath = targetCard.dataset.path;
-    const sourceFile = ctx.connectionDragState.sourceFile;
-    ctx.connectionDragState = null;
+        const body = card.querySelector('.file-card-body') as HTMLElement;
+        if (!body) return;
 
-    showConnectionDialog(ctx, sourceFile, targetPath);
-}
+        const pre = body.querySelector('pre') as HTMLElement;
+        if (!pre) return;
 
-// ─── Connection dialog (JSX) ────────────────────────────
-function ConnectionDialog({
-    sourceFile, targetFile, sourceLineCount, targetLineCount, onCancel, onCreate
-}: {
-    sourceFile: string; targetFile: string;
-    sourceLineCount: number; targetLineCount: number;
-    onCancel: () => void;
-    onCreate: (srcStart: number, srcEnd: number, tgtStart: number, tgtEnd: number, comment: string) => void;
-}) {
-    const handleCreate = () => {
-        const srcStart = parseInt((document.getElementById('connSourceStart') as HTMLInputElement)?.value) || 1;
-        const srcEnd = parseInt((document.getElementById('connSourceEnd') as HTMLInputElement)?.value) || srcStart;
-        const tgtStart = parseInt((document.getElementById('connTargetStart') as HTMLInputElement)?.value) || 1;
-        const tgtEnd = parseInt((document.getElementById('connTargetEnd') as HTMLInputElement)?.value) || tgtStart;
-        const comment = (document.getElementById('connComment') as HTMLInputElement)?.value || '';
-        onCreate(srcStart, srcEnd, tgtStart, tgtEnd, comment);
-    };
+        const totalLines = pre.querySelectorAll('.diff-line').length || 1;
 
-    const handleKeydown = (e: KeyboardEvent) => {
-        if (e.key === 'Enter') handleCreate();
-        if (e.key === 'Escape') onCancel();
-    };
+        const strip = document.createElement('div');
+        strip.className = 'conn-marker-strip';
 
-    return (
-        <div className="connection-dialog" onKeydown={handleKeydown}>
-            <h3>Create Connection</h3>
-            <div className="conn-dialog-row">
-                <div className="conn-dialog-file">
-                    <label>Source</label>
-                    <span className="conn-file-name">{sourceFile}</span>
-                    <div className="conn-line-range">
-                        <label>Lines</label>
-                        <input type="number" id="connSourceStart" value={1} min={1} max={sourceLineCount} />
-                        <span>–</span>
-                        <input type="number" id="connSourceEnd" value={Math.min(10, sourceLineCount)} min={1} max={sourceLineCount} />
-                    </div>
-                </div>
-                <div className="conn-dialog-arrow">→</div>
-                <div className="conn-dialog-file">
-                    <label>Target</label>
-                    <span className="conn-file-name">{targetFile}</span>
-                    <div className="conn-line-range">
-                        <label>Lines</label>
-                        <input type="number" id="connTargetStart" value={1} min={1} max={targetLineCount} />
-                        <span>–</span>
-                        <input type="number" id="connTargetEnd" value={Math.min(10, targetLineCount)} min={1} max={targetLineCount} />
-                    </div>
-                </div>
-            </div>
-            <div className="conn-dialog-comment">
-                <label>Comment</label>
-                <input type="text" id="connComment" placeholder="Describe this connection..." />
-            </div>
-            <div className="conn-dialog-actions">
-                <button className="btn-secondary" onClick={onCancel}>Cancel</button>
-                <button className="btn-primary" onClick={handleCreate}>Create Connection</button>
-            </div>
-        </div>
-    );
-}
+        markers.forEach(({ line, conn, role }) => {
+            const pct = ((line - 1) / totalLines) * 100;
+            const marker = document.createElement('div');
+            marker.className = `conn-marker conn-marker--${role}`;
+            marker.style.top = `${pct}%`;
+            marker.title = `${role === 'source' ? '→' : '←'} ${role === 'source' ? conn.targetFile : conn.sourceFile}:${role === 'source' ? conn.targetLineStart : conn.sourceLineStart}`;
 
-function showConnectionDialog(ctx: CanvasContext, sourceFile: string, targetFile: string) {
-    const overlay = document.createElement('div');
-    overlay.className = 'connection-dialog-overlay';
-    document.body.appendChild(overlay);
+            marker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigateToConnection(ctx, conn, role === 'source' ? 'target' : 'source');
+            });
 
-    const sourceLineCount = getFileLineCount(ctx, sourceFile);
-    const targetLineCount = getFileLineCount(ctx, targetFile);
+            strip.appendChild(marker);
+        });
 
-    const close = () => {
-        render(null, overlay);
-        overlay.remove();
-    };
-
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-
-    render(
-        <ConnectionDialog
-            sourceFile={sourceFile}
-            targetFile={targetFile}
-            sourceLineCount={sourceLineCount}
-            targetLineCount={targetLineCount}
-            onCancel={close}
-            onCreate={(srcStart, srcEnd, tgtStart, tgtEnd, comment) => {
-                ctx.actor.send({ type: 'START_CONNECTION', sourceFile, lineStart: srcStart, lineEnd: srcEnd });
-                ctx.actor.send({ type: 'COMPLETE_CONNECTION', targetFile, lineStart: tgtStart, lineEnd: tgtEnd, comment });
-                renderConnections(ctx);
-                saveConnections(ctx);
-                showToast('Connection created!', 'success');
-                close();
-            }}
-        />,
-        overlay
-    );
-
-    setTimeout(() => document.getElementById('connComment')?.focus(), 100);
-}
-
-function getFileLineCount(ctx: CanvasContext, filePath: string): number {
-    const card = ctx.fileCards.get(filePath);
-    if (!card) return 100;
-    const lines = card.querySelectorAll('.diff-line');
-    return lines.length || 100;
+        body.appendChild(strip);
+    });
 }
 
 // ─── Render all SVG connection lines ────────────────────
@@ -211,129 +192,169 @@ export function renderConnections(ctx: CanvasContext) {
     ctx.svgOverlay.innerHTML = '';
 
     const state = ctx.snap().context;
+    const connections = state.connections || [];
 
-    state.connections.forEach(conn => {
+    connections.forEach(conn => {
         const sourceCard = ctx.fileCards.get(conn.sourceFile);
         const targetCard = ctx.fileCards.get(conn.targetFile);
         if (!sourceCard || !targetCard) return;
 
-        const getPoint = (card, lineNum, isStart) => {
-            const lineEl = card.querySelector(`.diff-line[data-line="${lineNum}"]`);
-            const canvasRect = ctx.canvasViewport.getBoundingClientRect();
+        // Get canvas-space coordinates for the line endpoints
+        const startPt = _getLinePoint(sourceCard, conn.sourceLineStart, 'left');
+        const endPt = _getLinePoint(targetCard, conn.targetLineStart, 'left');
 
-            if (lineEl) {
-                const rect = lineEl.getBoundingClientRect();
-                const x = (isStart ? rect.right : rect.left);
-                const y = rect.top + rect.height / 2;
-                return {
-                    x: (x - canvasRect.left - state.offsetX) / state.zoom,
-                    y: (y - canvasRect.top - state.offsetY) / state.zoom
-                };
-            } else {
-                const rect = card.getBoundingClientRect();
-                return {
-                    x: (isStart ? rect.right : rect.left - canvasRect.left - state.offsetX) / state.zoom,
-                    y: (rect.top + 50 - canvasRect.top - state.offsetY) / state.zoom
-                };
-            }
-        };
-
-        const startPt = getPoint(sourceCard, conn.sourceLineStart, true);
-        const endPt = getPoint(targetCard, conn.targetLineStart, false);
-
+        // Bezier curve connecting the two points (exits left side)
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-        const midX = (startPt.x + endPt.x) / 2;
-        path.setAttribute('d', `M ${startPt.x} ${startPt.y} C ${midX} ${startPt.y}, ${midX} ${endPt.y}, ${endPt.x} ${endPt.y}`);
-        path.setAttribute('stroke', 'var(--accent-primary)');
+        const dx = Math.abs(endPt.x - startPt.x);
+        const ctrlOffset = Math.max(80, dx * 0.4);
+
+        const d = `M ${startPt.x} ${startPt.y} C ${startPt.x - ctrlOffset} ${startPt.y}, ${endPt.x - ctrlOffset} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+        path.setAttribute('d', d);
+        path.setAttribute('stroke', '#a78bfa');
         path.setAttribute('stroke-width', '2');
         path.setAttribute('fill', 'none');
-        path.setAttribute('opacity', '0.7');
-        path.setAttribute('stroke-dasharray', '6,3');
+        path.setAttribute('opacity', '0.6');
         path.style.cursor = 'pointer';
+        path.style.pointerEvents = 'stroke';
 
-        path.addEventListener('click', () => navigateToConnection(ctx, conn));
+        // Hover effect
+        path.addEventListener('mouseenter', () => {
+            path.setAttribute('stroke-width', '3.5');
+            path.setAttribute('opacity', '1');
+        });
+        path.addEventListener('mouseleave', () => {
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('opacity', '0.6');
+        });
+        path.addEventListener('click', () => navigateToConnection(ctx, conn, 'target'));
 
+        ctx.svgOverlay.appendChild(path);
+
+        // Small circles at endpoints
+        [startPt, endPt].forEach(pt => {
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', String(pt.x));
+            circle.setAttribute('cy', String(pt.y));
+            circle.setAttribute('r', '4');
+            circle.setAttribute('fill', '#a78bfa');
+            circle.setAttribute('opacity', '0.8');
+            ctx.svgOverlay.appendChild(circle);
+        });
+
+        // Comment label if present
         if (conn.comment) {
-            const labelX = (startPt.x + endPt.x) / 2;
+            const labelX = (startPt.x + endPt.x) / 2 - ctrlOffset / 2;
             const labelY = (startPt.y + endPt.y) / 2;
 
             const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
             group.style.cursor = 'pointer';
-            group.addEventListener('click', () => navigateToConnection(ctx, conn));
+            group.addEventListener('click', () => navigateToConnection(ctx, conn, 'target'));
 
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            text.setAttribute('x', labelX);
-            text.setAttribute('y', labelY);
-            text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('alignment-baseline', 'middle');
-            text.setAttribute('fill', 'white');
-            text.setAttribute('font-size', '12');
-            text.textContent = conn.comment;
+            const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            textEl.setAttribute('x', String(labelX));
+            textEl.setAttribute('y', String(labelY));
+            textEl.setAttribute('text-anchor', 'middle');
+            textEl.setAttribute('alignment-baseline', 'middle');
+            textEl.setAttribute('fill', '#e0e0e0');
+            textEl.setAttribute('font-size', '11');
+            textEl.setAttribute('font-family', 'Inter, sans-serif');
+            textEl.textContent = conn.comment;
 
-            const bbox = { width: conn.comment.length * 7 + 10, height: 20 };
+            const bbox = { width: conn.comment.length * 7 + 12, height: 20 };
             const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('x', labelX - bbox.width / 2);
-            rect.setAttribute('y', labelY - bbox.height / 2);
-            rect.setAttribute('width', bbox.width);
-            rect.setAttribute('height', bbox.height);
-            rect.setAttribute('rx', '4');
-            rect.setAttribute('fill', '#000');
-            rect.setAttribute('opacity', '0.7');
+            rect.setAttribute('x', String(labelX - bbox.width / 2));
+            rect.setAttribute('y', String(labelY - bbox.height / 2));
+            rect.setAttribute('width', String(bbox.width));
+            rect.setAttribute('height', String(bbox.height));
+            rect.setAttribute('rx', '6');
+            rect.setAttribute('fill', 'rgba(30, 20, 50, 0.85)');
 
             group.appendChild(rect);
-            group.appendChild(text);
+            group.appendChild(textEl);
             ctx.svgOverlay.appendChild(group);
         }
-
-        ctx.svgOverlay.appendChild(path);
-
-        [startPt, endPt].forEach(pt => {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', pt.x);
-            circle.setAttribute('cy', pt.y);
-            circle.setAttribute('r', '3');
-            circle.setAttribute('fill', 'var(--accent-primary)');
-            ctx.svgOverlay.appendChild(circle);
-        });
     });
 }
 
-// ─── Navigate to connection target ──────────────────────
-export function navigateToConnection(ctx: CanvasContext, conn: any) {
+function _getLinePoint(card: HTMLElement, lineNum: number, side: 'left' | 'right'): { x: number; y: number } {
+    const cardX = parseFloat(card.style.left) || 0;
+    const cardY = parseFloat(card.style.top) || 0;
+    const cardW = card.offsetWidth;
+    const cardH = card.offsetHeight;
+
+    // Try to find the specific line element
+    const lineEl = card.querySelector(`.diff-line[data-line="${lineNum}"]`) as HTMLElement;
+    const body = card.querySelector('.file-card-body') as HTMLElement;
+
+    if (lineEl && body) {
+        // Calculate line position relative to card
+        const lineRect = lineEl.getBoundingClientRect();
+        const bodyRect = body.getBoundingClientRect();
+        const lineYInBody = lineEl.offsetTop - body.scrollTop;
+        const headerH = body.offsetTop; // header above body
+
+        const y = cardY + headerH + lineYInBody + lineEl.offsetHeight / 2;
+        const x = side === 'left' ? cardX : cardX + cardW;
+
+        // Clamp y to be within card bounds
+        return {
+            x,
+            y: Math.max(cardY + 30, Math.min(cardY + cardH - 10, y)),
+        };
+    }
+
+    // Fallback: estimate from line number
+    const totalLines = card.querySelectorAll('.diff-line').length || 100;
+    const pct = lineNum / totalLines;
+    const headerH = 36;
+    const bodyH = cardH - headerH;
+
+    return {
+        x: side === 'left' ? cardX : cardX + cardW,
+        y: cardY + headerH + pct * bodyH,
+    };
+}
+
+// ─── Navigate to connection endpoint ────────────────────
+export function navigateToConnection(ctx: CanvasContext, conn: any, navigateTo: 'source' | 'target' = 'target') {
     measure('connection:navigate', () => {
-        const targetCard = ctx.fileCards.get(conn.targetFile);
+        const file = navigateTo === 'target' ? conn.targetFile : conn.sourceFile;
+        const line = navigateTo === 'target' ? conn.targetLineStart : conn.sourceLineStart;
+        const targetCard = ctx.fileCards.get(file);
         if (!targetCard) return;
 
-        const targetLine = targetCard.querySelector(`.diff-line[data-line="${conn.targetLineStart}"]`);
-        if (!targetLine) return;
+        // Pan canvas to center on the target card
+        const vpRect = ctx.canvasViewport.getBoundingClientRect();
+        const state = ctx.snap().context;
+        const cardX = parseFloat(targetCard.style.left) || 0;
+        const cardY = parseFloat(targetCard.style.top) || 0;
+        const newOffsetX = -(cardX + targetCard.offsetWidth / 2) * state.zoom + vpRect.width / 2;
+        const newOffsetY = -(cardY + targetCard.offsetHeight / 2) * state.zoom + vpRect.height / 2;
 
-        const body = targetCard.querySelector('.file-card-body');
-        if (body && targetLine) {
-            targetLine.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        }
-
-        const cardX = parseInt(targetCard.style.left);
-        const cardY = parseInt(targetCard.style.top);
-        const viewportRect = ctx.canvasViewport.getBoundingClientRect();
-
-        const newZoom = 1;
-        const newOffsetX = viewportRect.width / 2 - cardX * newZoom - 290;
-        const newOffsetY = viewportRect.height / 2 - cardY * newZoom - 350;
-
-        ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
         ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
         updateCanvasTransform(ctx);
-        updateZoomUI(ctx);
 
+        // Scroll to target line inside the card
+        const body = targetCard.querySelector('.file-card-body') as HTMLElement;
+        const lineEl = targetCard.querySelector(`.diff-line[data-line="${line}"]`) as HTMLElement;
+        if (body && lineEl) {
+            const pre = body.querySelector('pre') as HTMLElement || body;
+            const preRect = pre.getBoundingClientRect();
+            const lineRect = lineEl.getBoundingClientRect();
+            const zoom = preRect.height / pre.clientHeight || 1;
+            pre.scrollTop += (lineRect.top - preRect.top) / zoom;
+        }
+
+        // Flash the target line
         targetCard.querySelectorAll('.diff-line').forEach(l => {
-            const ln = parseInt(l.dataset.line);
-            if (ln >= conn.targetLineStart && ln <= conn.targetLineEnd) {
+            const ln = parseInt((l as HTMLElement).dataset.line);
+            if (ln === line) {
                 l.classList.add('line-flash');
                 setTimeout(() => l.classList.remove('line-flash'), 1500);
             }
         });
 
-        showToast(conn.comment || `→ ${conn.targetFile}:${conn.targetLineStart}-${conn.targetLineEnd}`, 'info');
+        showToast(`→ ${file.split('/').pop()}:${line}`, 'info');
     });
 }
 
@@ -360,7 +381,6 @@ export async function loadConnections(ctx: CanvasContext) {
             const data = await response.json();
 
             if (data.connections && data.connections.length > 0) {
-                // Map DB format back to app format
                 const conns = data.connections.map(c => ({
                     id: c.conn_id,
                     sourceFile: c.source_file,
@@ -372,7 +392,6 @@ export async function loadConnections(ctx: CanvasContext) {
                     comment: c.comment || '',
                 }));
 
-                // Load them into state
                 conns.forEach(conn => {
                     ctx.actor.send({
                         type: 'START_CONNECTION',
@@ -389,8 +408,8 @@ export async function loadConnections(ctx: CanvasContext) {
                     });
                 });
 
-                // Render after loading
                 renderConnections(ctx);
+                buildConnectionMarkers(ctx);
                 showToast(`Loaded ${conns.length} connection${conns.length > 1 ? 's' : ''}`, 'info');
             }
         } catch (e) {
@@ -403,6 +422,13 @@ export async function loadConnections(ctx: CanvasContext) {
 export function deleteConnection(ctx: CanvasContext, connId: string) {
     ctx.actor.send({ type: 'DELETE_CONNECTION', id: connId });
     renderConnections(ctx);
+    buildConnectionMarkers(ctx);
     saveConnections(ctx);
     showToast('Connection deleted', 'info');
+}
+
+// ─── Legacy compat: setupConnectionDrag (now no-op) ─────
+export function setupConnectionDrag(ctx: CanvasContext, card: HTMLElement, filePath: string) {
+    // Replaced by setupLineClickConnection
+    setupLineClickConnection(ctx, card, filePath);
 }

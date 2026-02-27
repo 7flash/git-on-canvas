@@ -3118,6 +3118,65 @@ body {
     filter: drop-shadow(0 0 4px rgba(124, 58, 237, 0.5));
 }
 
+/* ─── Connection marker strip (LEFT side of cards) ────── */
+.conn-marker-strip {
+    position: absolute;
+    left: 0;
+    top: 36px;
+    /* below header */
+    bottom: 0;
+    width: 10px;
+    z-index: 5;
+    pointer-events: auto;
+}
+
+.conn-marker {
+    position: absolute;
+    left: 1px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    transform: translateY(-50%);
+    z-index: 6;
+}
+
+.conn-marker--source {
+    background: #a78bfa;
+    box-shadow: 0 0 4px rgba(167, 139, 250, 0.5);
+}
+
+.conn-marker--target {
+    background: #60a5fa;
+    box-shadow: 0 0 4px rgba(96, 165, 250, 0.5);
+}
+
+.conn-marker:hover {
+    transform: translateY(-50%) scale(1.5);
+    box-shadow: 0 0 8px rgba(167, 139, 250, 0.8);
+}
+
+/* Click-to-connect visual states */
+.diff-line.connection-source-line {
+    background: rgba(167, 139, 250, 0.25) !important;
+    border-left: 3px solid #a78bfa !important;
+}
+
+.file-card.connecting-source {
+    border-color: #a78bfa !important;
+    box-shadow: 0 0 12px 3px rgba(167, 139, 250, 0.3);
+}
+
+.file-card.connect-target-ready {
+    border-color: rgba(96, 165, 250, 0.3) !important;
+}
+
+.file-card.connect-target-ready .diff-line:hover {
+    background: rgba(96, 165, 250, 0.15) !important;
+    cursor: crosshair;
+}
+
 /* ─── AI Chat Panels ──────────────────────────────────── */
 
 /* Canvas sidebar chat */
