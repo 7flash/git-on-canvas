@@ -768,7 +768,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     // ── Diff marker strip (scrollbar annotations for changed lines) ──
     if ((addedLines.size > 0 || deletedBeforeLine.size > 0) && !isAllAdded && file.content) {
         const totalLines = file.content.split('\n').length;
-        _buildDiffMarkerStrip(card, body, addedLines, totalLines, deletedBeforeLine);
+        _buildDiffMarkerStrip(card, body, addedLines, totalLines, deletedBeforeLine, file.hunks);
     }
 
     // ── Deleted lines hover overlay ──
@@ -960,19 +960,19 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 }
 
 // ─── Diff marker strip (scrollbar annotations) ─────────
-function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines: Set<number>, totalLines: number, deletedBeforeLine?: Map<number, string[]>) {
+function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines: Set<number>, totalLines: number, deletedBeforeLine?: Map<number, string[]>, fileHunks?: any[]) {
     if (!body || totalLines === 0) return;
 
     const strip = document.createElement('div');
     strip.className = 'diff-marker-strip';
 
-    // Helper: merge line numbers into contiguous regions
-    function mergeIntoRegions(lineNums: number[]): { start: number; end: number }[] {
+    // Helper: merge line numbers into contiguous regions (gap of 4 to approximate hunks)
+    function mergeIntoRegions(lineNums: number[], gap = 4): { start: number; end: number }[] {
         const sorted = lineNums.sort((a, b) => a - b);
         const regions: { start: number; end: number }[] = [];
         for (const line of sorted) {
             const last = regions[regions.length - 1];
-            if (last && line <= last.end + 1) {
+            if (last && line <= last.end + gap) {
                 last.end = line;
             } else {
                 regions.push({ start: line, end: line });
@@ -1086,7 +1086,9 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
 
             const navLabel = document.createElement('span');
             navLabel.className = 'diff-nav-label';
-            navLabel.textContent = `${allRegions.length}`;
+            // Use actual hunk count when available, else region count
+            const hunkCount = fileHunks?.length || allRegions.length;
+            navLabel.textContent = `${hunkCount}`;
 
             navGroup.appendChild(navUp);
             navGroup.appendChild(navDown);
@@ -1188,20 +1190,15 @@ function _setupDeletedLinesOverlay(card: HTMLElement) {
 }
 
 function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
-    // The pre element is the actual scroll container
-    const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
-    const scrollTarget = pre || body;
-    // Find the actual line element for precise scrolling
+    // Find the actual line element
     const lineEl = body.querySelector(`.diff-line[data-line="${lineNum}"]`) as HTMLElement;
-    if (lineEl && scrollTarget) {
-        // Calculate position relative to the scroll container
-        const containerRect = scrollTarget.getBoundingClientRect();
-        const lineRect = lineEl.getBoundingClientRect();
-        // The line's offset from the top of the visible scroll area + current scroll = absolute position
-        const targetScroll = scrollTarget.scrollTop + (lineRect.top - containerRect.top);
-        scrollTarget.scrollTo({ top: targetScroll, behavior: 'auto' });
+    if (lineEl) {
+        // scrollIntoView is the most reliable way to scroll any nested container
+        lineEl.scrollIntoView({ behavior: 'auto', block: 'start' });
     } else {
-        // Fallback to percentage-based
+        // Fallback to percentage-based scroll
+        const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
+        const scrollTarget = pre || body;
         const pct = (lineNum - 1) / totalLines;
         const targetScroll = pct * scrollTarget.scrollHeight;
         scrollTarget.scrollTo({ top: targetScroll, behavior: 'auto' });
