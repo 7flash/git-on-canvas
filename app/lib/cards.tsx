@@ -836,13 +836,19 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
         });
     }
 
-    const body = card.querySelector('.file-card-body');
+    const body = card.querySelector('.file-card-body') as HTMLElement;
     if (body) {
         body.addEventListener('scroll', () => {
             debounceSaveScroll(ctx, file.path, body.scrollTop);
             renderConnections(ctx);
             _updateHiddenLinesIndicator(card, file.lines || 0);
         });
+    }
+
+    // ── Diff marker strip (scrollbar annotations for changed lines) ──
+    if (addedLines.size > 0 && !isAllAdded && file.content) {
+        const totalLines = file.content.split('\n').length;
+        _buildDiffMarkerStrip(card, body, addedLines, totalLines);
     }
 
     // Hidden lines indicator (delay to ensure layout is settled)
@@ -1026,6 +1032,87 @@ export function openFileModal(ctx: CanvasContext, file: any) {
             }
         }
     });
+}
+
+// ─── Diff marker strip (scrollbar annotations) ─────────
+function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines: Set<number>, totalLines: number) {
+    if (!body || totalLines === 0) return;
+
+    const strip = document.createElement('div');
+    strip.className = 'diff-marker-strip';
+
+    // Merge adjacent added lines into contiguous regions
+    const sorted = Array.from(addedLines).sort((a, b) => a - b);
+    const regions: { start: number; end: number }[] = [];
+    for (const line of sorted) {
+        const last = regions[regions.length - 1];
+        if (last && line <= last.end + 1) {
+            last.end = line;
+        } else {
+            regions.push({ start: line, end: line });
+        }
+    }
+
+    // Create markers for each region
+    for (const region of regions) {
+        const topPct = ((region.start - 1) / totalLines) * 100;
+        const heightPct = Math.max(0.5, ((region.end - region.start + 1) / totalLines) * 100);
+
+        const marker = document.createElement('div');
+        marker.className = 'diff-marker';
+        marker.style.top = `${topPct}%`;
+        marker.style.height = `${heightPct}%`;
+        marker.title = region.start === region.end
+            ? `Line ${region.start}`
+            : `Lines ${region.start}–${region.end}`;
+
+        marker.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _scrollToLine(body, region.start, totalLines);
+        });
+
+        strip.appendChild(marker);
+    }
+
+    // Navigation buttons (▲ prev ▼ next)
+    if (regions.length > 0) {
+        let currentIdx = -1;
+
+        const navUp = document.createElement('div');
+        navUp.className = 'diff-marker-nav diff-marker-nav-up';
+        navUp.textContent = '▲';
+        navUp.title = 'Previous change';
+        navUp.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentIdx = Math.max(0, currentIdx - 1);
+            _scrollToLine(body, regions[currentIdx].start, totalLines);
+        });
+
+        const navDown = document.createElement('div');
+        navDown.className = 'diff-marker-nav diff-marker-nav-down';
+        navDown.textContent = '▼';
+        navDown.title = 'Next change';
+        navDown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentIdx = Math.min(regions.length - 1, currentIdx + 1);
+            _scrollToLine(body, regions[currentIdx].start, totalLines);
+        });
+
+        strip.appendChild(navUp);
+        strip.appendChild(navDown);
+    }
+
+    // Append to card (not body) so it doesn't scroll with content
+    card.appendChild(strip);
+}
+
+function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
+    // The actual scroll container is .file-content-preview pre
+    const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
+    const scrollTarget = pre || body;
+    const pct = (lineNum - 1) / totalLines;
+    const targetScroll = pct * scrollTarget.scrollHeight;
+    scrollTarget.scrollTo({ top: targetScroll, behavior: 'smooth' });
 }
 
 // ─── Hidden lines indicator ─────────────────────────────

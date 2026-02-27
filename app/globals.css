@@ -1029,6 +1029,68 @@ body {
     background: linear-gradient(transparent, rgba(124, 58, 237, 0.2) 40%);
 }
 
+/* ─── Diff marker strip (scrollbar annotations) ────── */
+.diff-marker-strip {
+    position: absolute;
+    top: 36px;
+    /* below header */
+    bottom: 0;
+    right: 2px;
+    width: 10px;
+    z-index: 5;
+    pointer-events: none;
+}
+
+.diff-marker {
+    position: absolute;
+    right: 0;
+    width: 8px;
+    min-height: 3px;
+    background: #4ade80;
+    border-radius: 1px;
+    cursor: pointer;
+    pointer-events: auto;
+    opacity: 0.85;
+    transition: opacity 0.15s, width 0.15s, box-shadow 0.15s;
+}
+
+.diff-marker:hover {
+    opacity: 1;
+    width: 12px;
+    box-shadow: 0 0 4px rgba(74, 222, 128, 0.5);
+}
+
+.diff-marker-nav {
+    position: absolute;
+    right: 0;
+    width: 10px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 7px;
+    color: #4ade80;
+    cursor: pointer;
+    pointer-events: auto;
+    opacity: 0.5;
+    transition: opacity 0.15s;
+    user-select: none;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 2px;
+}
+
+.diff-marker-nav:hover {
+    opacity: 1;
+}
+
+.diff-marker-nav-up {
+    top: 2px;
+}
+
+.diff-marker-nav-down {
+    bottom: 2px;
+}
+
 .file-card.resizing {
     transition: none !important;
     user-select: none;
