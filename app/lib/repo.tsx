@@ -315,7 +315,7 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
 
         visibleFiles.forEach((file, index) => {
             const isChanged = ctx.changedFilePaths.has(file.path);
-            const posKey = `allfiles:${file.path} `;
+            const posKey = `allfiles:${file.path}`;
             let x: number, y: number;
 
             if (ctx.positions.has(posKey)) {
@@ -405,7 +405,7 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             ctx.fileCards.set(file.path, card);
 
             // Restore scroll position
-            const scrollKey = `scroll:${file.path} `;
+            const scrollKey = `scroll:${file.path}`;
             if (ctx.positions.has(scrollKey)) {
                 const savedScroll = ctx.positions.get(scrollKey);
                 requestAnimationFrame(() => {

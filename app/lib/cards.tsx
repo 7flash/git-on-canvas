@@ -244,7 +244,7 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
         } else if (action === 'fit-content') {
             ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
             updateSelectionHighlights(ctx);
-            fitContentSize(ctx);
+            toggleCardExpand(ctx);
         } else if (action === 'fit-screen') {
             ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
             updateSelectionHighlights(ctx);
@@ -1275,46 +1275,56 @@ export function changeCardsFontSize(ctx: CanvasContext, delta: number) {
     showToast(`Font size ${action} for ${targets.length} card${targets.length > 1 ? 's' : ''}`, 'info');
 }
 
-// ─── Fit selected cards to content ──────────────────────
-export function fitContentSize(ctx: CanvasContext) {
-    measure('cards:fitContent', () => {
-        const selected = ctx.snap().context.selectedCards;
-        const targets = selected.length > 0 ? selected : Array.from(ctx.fileCards.keys());
+// ─── Toggle card expand/collapse ────────────────────────
+const DEFAULT_CARD_HEIGHT = 700;
 
-        targets.forEach(path => {
+export function toggleCardExpand(ctx: CanvasContext) {
+    measure('cards:toggleExpand', () => {
+        const selected = ctx.snap().context.selectedCards;
+        if (selected.length === 0) return;
+
+        selected.forEach(path => {
             const card = ctx.fileCards.get(path);
             if (!card) return;
 
             const body = card.querySelector('.file-card-body') as HTMLElement;
             if (!body) return;
 
-            // Temporarily remove height constraints to measure natural height
-            const oldH = card.style.height;
-            const oldMax = card.style.maxHeight;
-            card.style.height = 'auto';
-            card.style.maxHeight = 'none';
+            const isExpanded = card.dataset.expanded === 'true';
 
-            // Measure full content height
-            const fullHeight = card.scrollHeight;
+            if (isExpanded) {
+                // Collapse back to default height
+                card.style.height = `${DEFAULT_CARD_HEIGHT}px`;
+                card.style.maxHeight = `${DEFAULT_CARD_HEIGHT}px`;
+                card.dataset.expanded = 'false';
+            } else {
+                // Expand to fit all content
+                const oldH = card.style.height;
+                const oldMax = card.style.maxHeight;
+                card.style.height = 'auto';
+                card.style.maxHeight = 'none';
 
-            // Cap at a reasonable max (3000px)
-            const newHeight = Math.min(3000, Math.max(120, fullHeight));
+                const fullHeight = card.scrollHeight;
+                const newHeight = Math.min(5000, Math.max(120, fullHeight));
 
-            card.style.height = `${newHeight}px`;
-            card.style.maxHeight = 'none';
+                card.style.height = `${newHeight}px`;
+                card.style.maxHeight = 'none';
+                card.dataset.expanded = 'true';
+            }
 
             const state = ctx.snap().context;
             const commitHash = state.currentCommitHash || 'allfiles';
-            ctx.actor.send({ type: 'RESIZE_CARD', path, width: card.offsetWidth, height: newHeight });
-            savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, card.offsetWidth, newHeight);
+            const newH = card.offsetHeight;
+            ctx.actor.send({ type: 'RESIZE_CARD', path, width: card.offsetWidth, height: newH });
+            savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, card.offsetWidth, newH);
 
-            // Update hidden lines indicator
             requestAnimationFrame(() => _updateHiddenLinesIndicator(card, 0));
         });
 
+        const anyExpanded = selected.some(p => ctx.fileCards.get(p)?.dataset.expanded === 'true');
         updateMinimap(ctx);
         renderConnections(ctx);
-        showToast(`Fit ${targets.length} card${targets.length > 1 ? 's' : ''} to content`, 'info');
+        showToast(`${anyExpanded ? 'Expanded' : 'Collapsed'} ${selected.length} card${selected.length > 1 ? 's' : ''}`, 'info');
     });
 }
 
