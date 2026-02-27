@@ -10,7 +10,7 @@ export default function RootLayout({ children }: { children: any }) {
         <html lang="en">
             <head>
                 <meta charSet="UTF-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                 <meta name="description" content="Git Canvas - Visual Git Repository Explorer with interactive file canvas" />
                 <title>Git Canvas — Visual Repository Explorer</title>
                 <link

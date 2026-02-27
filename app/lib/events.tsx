@@ -490,6 +490,22 @@ export function setupEventListeners(ctx: CanvasContext) {
             }
         });
 
+        // ── Prevent browser page zoom (Ctrl+scroll, Ctrl+0) ──
+        // Ctrl+scroll is already handled by the canvas wheel handler above.
+        // This global handler catches it at document level for any remaining cases.
+        document.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        // Prevent Ctrl+0 (reset browser zoom)
+        window.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+                e.preventDefault();
+            }
+        });
+
         // Space-bar release
         window.addEventListener('keyup', (e) => {
             if (e.code === 'Space') {
