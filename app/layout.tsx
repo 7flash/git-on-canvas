@@ -104,7 +104,6 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>Space+Drag</kbd> <span>Pan canvas</span></div>
                                 <div className="hotkey-row"><kbd>Space+Scroll</kbd> <span>Pan canvas</span></div>
                                 <div className="hotkey-row"><kbd>Drag card</kbd> <span>Move card</span></div>
-                                <div className="hotkey-row"><kbd>Corner drag</kbd> <span>Resize</span></div>
                                 <div className="hotkey-row"><kbd>Click</kbd> <span>Select</span></div>
                                 <div className="hotkey-row"><kbd>⇧ Click</kbd> <span>Multi-select</span></div>
                                 <div className="hotkey-row"><kbd>Drag canvas</kbd> <span>Rect select</span></div>
@@ -119,8 +118,8 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>Esc</kbd> <span>Deselect</span></div>
                                 <div className="hotkey-row"><kbd>←→</kbd> <span>Prev/next commit</span></div>
                                 <div className="hotkey-row"><kbd>/</kbd> <span>Search files</span></div>
-                                <div className="hotkey-row"><kbd>⌃+</kbd> <span>Grow cards</span></div>
-                                <div className="hotkey-row"><kbd>⌃-</kbd> <span>Shrink cards</span></div>
+                                <div className="hotkey-row"><kbd>⌃+</kbd> <span>Zoom text in</span></div>
+                                <div className="hotkey-row"><kbd>⌃-</kbd> <span>Zoom text out</span></div>
                                 <div className="hotkey-row"><kbd>Dbl-click</kbd> <span>Zoom to card</span></div>
                             </div>
                         </div>
