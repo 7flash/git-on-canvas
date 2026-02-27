@@ -1190,18 +1190,19 @@ function _setupDeletedLinesOverlay(card: HTMLElement) {
 }
 
 function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
-    // Find the actual line element
     const lineEl = body.querySelector(`.diff-line[data-line="${lineNum}"]`) as HTMLElement;
+    const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
+    if (!pre) return;
+
     if (lineEl) {
-        // scrollIntoView is the most reliable way to scroll any nested container
-        lineEl.scrollIntoView({ behavior: 'auto', block: 'start' });
+        // Direct scrollTop assignment — ONLY scrolls the pre element, never moves canvas
+        const preRect = pre.getBoundingClientRect();
+        const lineRect = lineEl.getBoundingClientRect();
+        pre.scrollTop = pre.scrollTop + (lineRect.top - preRect.top);
     } else {
         // Fallback to percentage-based scroll
-        const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
-        const scrollTarget = pre || body;
         const pct = (lineNum - 1) / totalLines;
-        const targetScroll = pct * scrollTarget.scrollHeight;
-        scrollTarget.scrollTo({ top: targetScroll, behavior: 'auto' });
+        pre.scrollTop = pct * pre.scrollHeight;
     }
 }
 

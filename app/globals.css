@@ -61,6 +61,7 @@ body {
     background: var(--bg-primary);
     color: var(--text-primary);
     line-height: 1.5;
+    touch-action: none;
 }
 
 /* Animations */
@@ -597,7 +598,9 @@ body {
     padding: 6px 12px;
     background: var(--bg-secondary);
     border-bottom: 1px solid var(--border-subtle);
-    min-height: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    overflow: hidden;
 }
 
 .header-left {
@@ -951,21 +954,26 @@ body {
 
 /* Styled scrollbar for file preview content (all-files mode) */
 .file-content-preview pre::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 14px;
+    height: 14px;
 }
 
 .file-content-preview pre::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 7px;
 }
 
 .file-content-preview pre::-webkit-scrollbar-thumb {
-    background: rgba(124, 58, 237, 0.3);
-    border-radius: 3px;
+    background: rgba(124, 58, 237, 0.35);
+    border-radius: 7px;
+    border: 3px solid transparent;
+    background-clip: padding-box;
 }
 
 .file-content-preview pre::-webkit-scrollbar-thumb:hover {
-    background: rgba(124, 58, 237, 0.5);
+    background: rgba(124, 58, 237, 0.55);
+    border: 2px solid transparent;
+    background-clip: padding-box;
 }
 
 .file-path {
