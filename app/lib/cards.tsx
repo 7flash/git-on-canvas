@@ -770,7 +770,6 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     const ext = file.ext || '';
     const iconClass = getFileIconClass(ext);
     const addedLines: Set<number> = file.addedLines || new Set();
-    const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
     const isAllAdded = file.status === 'added';
     const isAllDeleted = file.status === 'deleted';
 
@@ -779,31 +778,14 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
     } else if (file.content) {
         const lines = file.content.split('\n');
-        const codeLines: string[] = [];
-        for (let i = 0; i < lines.length; i++) {
+        const code = lines.map((line, i) => {
             const lineNum = i + 1;
-
-            // Insert deleted lines before this line (shown in red)
-            if (deletedBeforeLine.has(lineNum)) {
-                for (const delLine of deletedBeforeLine.get(lineNum)!) {
-                    codeLines.push(`<span class="diff-line diff-del" data-line=""><span class="line-num">   −</span>${escapeHtml(delLine)}</span>`);
-                }
-            }
-
             const lineClass = isAllAdded ? 'diff-add'
                 : isAllDeleted ? 'diff-del'
                     : addedLines.has(lineNum) ? 'diff-add'
                         : 'diff-ctx';
-            codeLines.push(`<span class="diff-line ${lineClass}" data-line="${lineNum}"><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(lines[i])}</span>`);
-        }
-        // Also flush any deleted lines past the end of the file
-        const afterEnd = lines.length + 1;
-        if (deletedBeforeLine.has(afterEnd)) {
-            for (const delLine of deletedBeforeLine.get(afterEnd)!) {
-                codeLines.push(`<span class="diff-line diff-del" data-line=""><span class="line-num">   −</span>${escapeHtml(delLine)}</span>`);
-            }
-        }
-        const code = codeLines.join('\n');
+            return `<span class="diff-line ${lineClass}" data-line="${lineNum}"><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`;
+        }).join('\n');
         const truncNote = file.lines > 10000 ? `<span class="more-lines">File too large (${file.lines.toLocaleString()} lines) — showing first 10,000</span>` : '';
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
     } else {
@@ -814,12 +796,8 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
 
     // Status badge for changed files
     const statusColors: Record<string, string> = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#60a5fa', copied: '#a78bfa' };
-    const deletedCount = Array.from(deletedBeforeLine.values()).reduce((sum, arr) => sum + arr.length, 0);
-    const diffStats = (addedLines.size > 0 || deletedCount > 0)
-        ? ` <span style="color:#22c55e">+${addedLines.size}</span> <span style="color:#ef4444">-${deletedCount}</span>`
-        : '';
     const statusBadge = file.status && file.status !== 'unmodified'
-        ? `<span style="font-size: 9px; color: ${statusColors[file.status] || 'var(--text-muted)'}; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(file.status)}${diffStats}</span>`
+        ? `<span style="font-size: 9px; color: ${statusColors[file.status] || 'var(--text-muted)'}; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(file.status)}${addedLines.size > 0 ? ` <span style="color:#22c55e">+${addedLines.size}</span>` : ''}</span>`
         : '';
     const metaInfo = file.status ? statusBadge : `<span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">${file.lines} lines</span>`;
 
@@ -1051,49 +1029,30 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 }
 
 // ─── Hidden lines indicator ─────────────────────────────
-function _updateHiddenLinesIndicator(card: HTMLElement, totalLines: number) {
+function _updateHiddenLinesIndicator(card: HTMLElement, _totalLines?: number) {
     const body = card.querySelector('.file-card-body') as HTMLElement;
     if (!body) return;
 
     let indicator = card.querySelector('.hidden-lines-indicator') as HTMLElement;
 
-    // Check both body overflow AND the nested pre/code overflow
-    // (the CSS may clip .file-content-preview, so body itself may not overflow)
-    let scrollRemaining = body.scrollHeight - body.scrollTop - body.clientHeight;
-
-    // Also check the pre element inside file-content-preview
-    if (scrollRemaining <= 20) {
-        const pre = card.querySelector('.file-content-preview pre') as HTMLElement;
-        if (pre) {
-            scrollRemaining = pre.scrollHeight - pre.scrollTop - pre.clientHeight;
-        }
+    // Count actual lines in the DOM
+    const lineEls = card.querySelectorAll('.diff-line');
+    const totalLines = _totalLines && _totalLines > 0 ? _totalLines : lineEls.length;
+    if (totalLines === 0) {
+        if (indicator) indicator.style.display = 'none';
+        return;
     }
 
-    // Also check .file-content-preview itself
-    if (scrollRemaining <= 20) {
-        const preview = card.querySelector('.file-content-preview') as HTMLElement;
-        if (preview) {
-            const previewRemaining = preview.scrollHeight - preview.scrollTop - preview.clientHeight;
-            if (previewRemaining > scrollRemaining) scrollRemaining = previewRemaining;
-        }
-    }
+    // Calculate how many lines fit in the visible card area
+    const cardH = card.offsetHeight;
+    const headerH = (card.querySelector('.file-card-header') as HTMLElement)?.offsetHeight || 36;
+    const pathH = (card.querySelector('.file-path') as HTMLElement)?.offsetHeight || 18;
+    const availableH = cardH - headerH - pathH - 8; // 8px padding
+    const lineHeight = 11; // approx line height at 0.65rem with 1.1 line-height
+    const visibleLines = Math.floor(availableH / lineHeight);
+    const hiddenLines = totalLines - visibleLines;
 
-    // Fallback: if card has explicit height and total lines is large, estimate hidden
-    if (scrollRemaining <= 20 && totalLines > 0) {
-        const cardH = card.offsetHeight;
-        const headerH = (card.querySelector('.file-card-header') as HTMLElement)?.offsetHeight || 40;
-        const availableH = cardH - headerH - 30; // 30px for path + padding
-        const lineHeight = 12; // approx line height at 0.65rem
-        const visibleLines = Math.floor(availableH / lineHeight);
-        if (totalLines > visibleLines + 5) {
-            scrollRemaining = (totalLines - visibleLines) * lineHeight;
-        }
-    }
-
-    if (scrollRemaining > 20) {
-        const lineHeight = 12;
-        const hiddenLines = Math.round(scrollRemaining / lineHeight);
-
+    if (hiddenLines > 2) {
         if (!indicator) {
             indicator = document.createElement('div');
             indicator.className = 'hidden-lines-indicator';
