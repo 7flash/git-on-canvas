@@ -1032,14 +1032,20 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
     }
 
     // Collect all change regions for navigation
-    const allRegions = [...addedRegions];
-    if (deletedBeforeLine && deletedBeforeLine.size > 0) {
-        allRegions.push(...mergeIntoRegions(Array.from(deletedBeforeLine.keys())));
-    }
-    allRegions.sort((a, b) => a.start - b.start);
+    // Build merged regions from all changed lines (added + deleted locations)
+    const allChangedLines = [
+        ...Array.from(addedLines),
+        ...(deletedBeforeLine ? Array.from(deletedBeforeLine.keys()) : [])
+    ];
+    const allRegions = mergeIntoRegions(allChangedLines);
+
+    // Build navigation regions: prefer actual git hunks, fallback to merged line regions
+    const navRegions: { start: number; end: number }[] = fileHunks && fileHunks.length > 0
+        ? fileHunks.map((h: any) => ({ start: h.newStart, end: h.newStart + (h.newCount || 1) - 1 }))
+        : allRegions;
 
     // Insert nav buttons inline inside the .file-path element
-    if (allRegions.length > 0) {
+    if (navRegions.length > 0) {
         let currentIdx = -1;
 
         const filePath = body.querySelector('.file-path') as HTMLElement;
@@ -1065,30 +1071,28 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
             const navUp = document.createElement('button');
             navUp.className = 'diff-nav-btn';
             navUp.textContent = '▲';
-            navUp.title = 'Previous change';
+            navUp.title = 'Previous hunk';
             navUp.addEventListener('click', (e) => {
                 e.stopPropagation();
                 currentIdx = Math.max(0, currentIdx - 1);
-                _scrollToLine(body, allRegions[currentIdx].start, totalLines);
-                navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
+                _scrollToLine(body, navRegions[currentIdx].start, totalLines);
+                navLabel.textContent = `${currentIdx + 1}/${navRegions.length}`;
             });
 
             const navDown = document.createElement('button');
             navDown.className = 'diff-nav-btn';
             navDown.textContent = '▼';
-            navDown.title = 'Next change';
+            navDown.title = 'Next hunk';
             navDown.addEventListener('click', (e) => {
                 e.stopPropagation();
-                currentIdx = Math.min(allRegions.length - 1, currentIdx + 1);
-                _scrollToLine(body, allRegions[currentIdx].start, totalLines);
-                navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
+                currentIdx = Math.min(navRegions.length - 1, currentIdx + 1);
+                _scrollToLine(body, navRegions[currentIdx].start, totalLines);
+                navLabel.textContent = `${currentIdx + 1}/${navRegions.length}`;
             });
 
             const navLabel = document.createElement('span');
             navLabel.className = 'diff-nav-label';
-            // Use actual hunk count when available, else region count
-            const hunkCount = fileHunks?.length || allRegions.length;
-            navLabel.textContent = `${hunkCount}`;
+            navLabel.textContent = `${navRegions.length}`;
 
             navGroup.appendChild(navUp);
             navGroup.appendChild(navDown);
@@ -1195,10 +1199,14 @@ function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
     if (!pre) return;
 
     if (lineEl) {
-        // Direct scrollTop assignment — ONLY scrolls the pre element, never moves canvas
+        // getBoundingClientRect() returns viewport coordinates (affected by CSS transform/zoom).
+        // pre.scrollTop works in LOCAL content coordinates (unaffected by zoom).
+        // Compute the effective zoom from rendered vs logical dimensions.
         const preRect = pre.getBoundingClientRect();
+        const zoom = preRect.height / pre.clientHeight || 1;
         const lineRect = lineEl.getBoundingClientRect();
-        pre.scrollTop = pre.scrollTop + (lineRect.top - preRect.top);
+        // Convert viewport delta to content delta by dividing by zoom
+        pre.scrollTop += (lineRect.top - preRect.top) / zoom;
     } else {
         // Fallback to percentage-based scroll
         const pct = (lineNum - 1) / totalLines;
