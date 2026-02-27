@@ -194,10 +194,10 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
         const state = ctx.snap().context;
         const commit = state.commits.find(c => c.hash === hash);
 
-        try {
-            showLoadingProgress(ctx, 'Loading commit files...');
-            updateLoadingProgress(ctx, `${hash.substring(0, 7)} — ${commit?.message || ''} `);
+        // Show non-blocking inline progress bar (not overlay)
+        _showCommitProgress(true, `${hash.substring(0, 7)} — ${commit?.message || ''}`);
 
+        try {
             const response = await fetch('/api/repo/files', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -220,16 +220,38 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
 
             const fileCountEl = document.getElementById('fileCount');
             if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
-            hideLoadingProgress(ctx);
+            _showCommitProgress(false);
 
             // Populate changed files panel with diff stats
             populateChangedFilesPanel(data.files);
         } catch (err) {
-            hideLoadingProgress(ctx);
+            _showCommitProgress(false);
             measure('commit:selectError', () => err);
             showToast(`Failed: ${err.message} `, 'error');
         }
     });
+}
+
+// ─── Inline commit progress bar (non-blocking) ──────────
+function _showCommitProgress(show: boolean, text?: string) {
+    let bar = document.getElementById('commitProgressBar');
+    if (show) {
+        if (!bar) {
+            bar = document.createElement('div');
+            bar.id = 'commitProgressBar';
+            bar.className = 'commit-progress-bar';
+            const canvasArea = document.querySelector('.canvas-area');
+            if (canvasArea) {
+                canvasArea.insertBefore(bar, canvasArea.querySelector('.canvas-viewport'));
+            } else {
+                document.body.appendChild(bar);
+            }
+        }
+        bar.innerHTML = `<div class="commit-progress-track"><div class="commit-progress-fill"></div></div>${text ? `<span class="commit-progress-text">${text}</span>` : ''}`;
+        bar.style.display = 'flex';
+    } else if (bar) {
+        bar.style.display = 'none';
+    }
 }
 
 // ─── Render files on canvas (commits mode) ───────────────
@@ -285,14 +307,11 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         // Square-ish grid: use ceil(sqrt(n)) columns for a dense rectangle
         const count = visibleFiles.length;
         const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
-        const cardWidth = 280;
-        const cardHeight = 180;
-        const changedCardWidth = 580;
-        const changedCardHeight = 700;
+        const defaultCardWidth = 580;
+        const defaultCardHeight = 700;
         const gap = 20;
-        // Grid spacing uses the bigger card size so nothing overlaps
-        const cellW = changedCardWidth + gap;
-        const cellH = changedCardHeight + gap;
+        const cellW = defaultCardWidth + gap;
+        const cellH = defaultCardHeight + gap;
 
         visibleFiles.forEach((file, index) => {
             const isChanged = ctx.changedFilePaths.has(file.path);
@@ -368,15 +387,11 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
                     fileWithDiff.addedLines = addedLines;
                     fileWithDiff.deletedBeforeLine = deletedBeforeLine;
                 }
-
-                // Default bigger size for changed files
-                if (!size) {
-                    size = { width: changedCardWidth, height: changedCardHeight };
-                }
             }
 
+            // All files use uniform default size unless user has a custom saved size
             if (!size) {
-                size = { width: cardWidth, height: cardHeight };
+                size = { width: defaultCardWidth, height: defaultCardHeight };
             }
 
             const card = createAllFileCard(ctx, fileWithDiff, x, y, size);

@@ -1013,15 +1013,17 @@ body {
     right: 0;
     text-align: center;
     font-family: var(--font-mono);
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     color: var(--accent-tertiary);
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8) 40%);
-    padding: 20px 8px 6px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 35%);
+    padding: 28px 8px 12px;
     cursor: ns-resize;
     z-index: 3;
     letter-spacing: 0.03em;
     user-select: none;
     transition: color 0.15s, background 0.15s;
+    /* Large grab area for easy dragging */
+    min-height: 40px;
 }
 
 .hidden-lines-indicator:hover {
@@ -1032,24 +1034,24 @@ body {
 /* ─── Diff marker strip (scrollbar annotations) ────── */
 .diff-marker-strip {
     position: absolute;
-    top: 36px;
-    /* below header */
+    /* Start below header (36px) + file-path bar (~30px) = 66px */
+    top: 66px;
     bottom: 0;
-    right: 2px;
-    width: 10px;
+    right: 0;
+    width: 18px;
     z-index: 5;
     pointer-events: none;
 }
 
 .diff-marker {
     position: absolute;
-    right: 0;
-    width: 8px;
-    min-height: 3px;
-    border-radius: 1px;
+    right: 2px;
+    width: 12px;
+    min-height: 5px;
+    border-radius: 2px;
     cursor: pointer;
     pointer-events: auto;
-    opacity: 0.85;
+    opacity: 0.9;
     transition: opacity 0.15s, width 0.15s, box-shadow 0.15s;
 }
 
@@ -1065,14 +1067,14 @@ body {
 
 .diff-marker--add:hover {
     opacity: 1;
-    width: 12px;
-    box-shadow: 0 0 4px rgba(74, 222, 128, 0.5);
+    width: 14px;
+    box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
 }
 
 .diff-marker--del:hover {
     opacity: 1;
-    width: 10px;
-    box-shadow: 0 0 4px rgba(248, 113, 113, 0.5);
+    width: 12px;
+    box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
 }
 
 .diff-marker-nav {
@@ -3498,4 +3500,54 @@ body {
     font-size: 0.82rem;
     text-align: center;
     font-style: italic;
+}
+
+/* ─── Commit Progress Bar (non-blocking) ──────── */
+.commit-progress-bar {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 12px;
+    background: rgba(124, 58, 237, 0.08);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+    min-height: 28px;
+    flex-shrink: 0;
+    animation: fadeIn 0.15s ease;
+}
+
+.commit-progress-track {
+    flex: 1;
+    max-width: 200px;
+    height: 3px;
+    background: rgba(124, 58, 237, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.commit-progress-fill {
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 2px;
+    animation: progressSlide 1s ease-in-out infinite;
+}
+
+@keyframes progressSlide {
+    0% {
+        transform: translateX(-100%);
+    }
+
+    100% {
+        transform: translateX(400%);
+    }
+}
+
+.commit-progress-text {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
 }
