@@ -25,7 +25,7 @@ import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
-import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize, changeCardsFontSize } from './cards';
+import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
 
@@ -433,10 +433,13 @@ export function setupEventListeners(ctx: CanvasContext) {
                 updateArrangeToolbar(ctx);
             }
 
-            // F = Fit selected cards to content height
-            if (e.key === 'f' || e.key === 'F') {
-                e.preventDefault();
-                fitContentSize(ctx);
+            // F = Toggle selected cards expanded/collapsed (skip if Ctrl held — Ctrl+F is file search)
+            if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
+                const selected = ctx.snap().context.selectedCards;
+                if (selected.length > 0) {
+                    e.preventDefault();
+                    toggleCardExpand(ctx);
+                }
             }
 
             // W = Fit selected cards to screen/viewport size

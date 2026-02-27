@@ -111,7 +111,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>H</kbd> <span>Arrange row</span></div>
                                 <div className="hotkey-row"><kbd>V</kbd> <span>Arrange col</span></div>
                                 <div className="hotkey-row"><kbd>G</kbd> <span>Arrange grid</span></div>
-                                <div className="hotkey-row"><kbd>F</kbd> <span>Fit content</span></div>
+                                <div className="hotkey-row"><kbd>F</kbd> <span>Toggle expand</span></div>
                                 <div className="hotkey-row"><kbd>W</kbd> <span>Fit screen</span></div>
                                 <div className="hotkey-row"><kbd>I</kbd> <span>AI Chat</span></div>
                                 <div className="hotkey-row"><kbd>⌃A</kbd> <span>Select all</span></div>
