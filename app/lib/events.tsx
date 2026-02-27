@@ -28,6 +28,7 @@ import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hi
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
+import { cancelPendingConnection, hasPendingConnection } from './connections';
 
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
@@ -391,6 +392,11 @@ export function setupEventListeners(ctx: CanvasContext) {
                 closePreview();
                 const hiddenModal = document.getElementById('hiddenFilesModal');
                 if (hiddenModal) hiddenModal.remove();
+                // Cancel click-to-connect if pending
+                if (hasPendingConnection()) {
+                    cancelPendingConnection(ctx);
+                    return;
+                }
                 if (ctx.snap().context.pendingConnection) {
                     ctx.actor.send({ type: 'CANCEL_CONNECTION' });
                     showToast('Connection cancelled', 'info');
