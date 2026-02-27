@@ -57,34 +57,13 @@ function isNearCorner(e: MouseEvent, card: HTMLElement, cornerSize: number, zoom
     return null;
 }
 
-// ─── Setup card interaction (click-select + corner-resize + drag) ─
+// ─── Setup card interaction (click-select + drag) ────────
 export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, commitHash: string) {
-    let action = null; // null | 'resize' | 'move' | 'pending'
+    let action = null; // null | 'move' | 'pending'
     let startX: number, startY: number;
-    let resizeStartW: number, resizeStartH: number, resizeStartLeft: number, resizeStartTop: number;
-    let resizeCorner: string | null = null;
     let moveStartPositions: any[] = [];
-    let resizeTargets: { card: HTMLElement; path: string; startW: number; startH: number; startLeft: number; startTop: number }[] = [];
     let rafPending = false;
     const DRAG_THRESHOLD = 3;
-
-    card.addEventListener('mousemove', (e) => {
-        if (action) return;
-        const state = ctx.snap().context;
-        const selected = state.selectedCards;
-        const isMulti = selected.length > 1;
-        const corner = isNearCorner(e, card, ctx.CORNER_SIZE, state.zoom);
-
-        if (corner && !isMulti) {
-            card.style.cursor = CORNER_CURSORS[corner];
-        } else {
-            card.style.cursor = '';
-        }
-    });
-
-    card.addEventListener('mouseleave', () => {
-        if (!action) card.style.cursor = '';
-    });
 
     function onMouseDown(e) {
         // Only respond to left-click (button 0). Middle-click/right-click should not start card interaction.
@@ -96,51 +75,7 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
         e.stopPropagation();
         startX = e.clientX;
         startY = e.clientY;
-
-        const state = ctx.snap().context;
-        const selected = state.selectedCards;
-        resizeCorner = isNearCorner(e, card, ctx.CORNER_SIZE, state.zoom);
-
-        if (resizeCorner) {
-            action = 'resize';
-            resizeStartW = card.offsetWidth;
-            resizeStartH = card.offsetHeight;
-            resizeStartLeft = parseInt(card.style.left) || 0;
-            resizeStartTop = parseInt(card.style.top) || 0;
-            card.classList.add('resizing');
-            document.body.style.cursor = CORNER_CURSORS[resizeCorner];
-
-            // Collect all selected cards for multi-resize
-            resizeTargets = [];
-            const cardPath = card.dataset.path;
-            if (selected.includes(cardPath) && selected.length > 1) {
-                selected.forEach(path => {
-                    const c = ctx.fileCards.get(path);
-                    if (c) {
-                        resizeTargets.push({
-                            card: c,
-                            path,
-                            startW: c.offsetWidth,
-                            startH: c.offsetHeight,
-                            startLeft: parseInt(c.style.left) || 0,
-                            startTop: parseInt(c.style.top) || 0,
-                        });
-                        c.classList.add('resizing');
-                    }
-                });
-            } else {
-                resizeTargets.push({
-                    card,
-                    path: cardPath,
-                    startW: resizeStartW,
-                    startH: resizeStartH,
-                    startLeft: resizeStartLeft,
-                    startTop: resizeStartTop,
-                });
-            }
-        } else {
-            action = 'pending';
-        }
+        action = 'pending';
 
         window.addEventListener('mousemove', onMouseMove);
         window.addEventListener('mouseup', onMouseUp);
@@ -202,49 +137,6 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
             }
             return;
         }
-
-        if (action === 'resize') {
-            const minH = 120;
-            const minW = 240;
-
-            // Calculate new dimensions based on the primary card
-            let newW, newH;
-            if (resizeCorner === 'br') {
-                newW = Math.max(minW, resizeStartW + dx);
-                newH = Math.max(minH, resizeStartH + dy);
-            } else if (resizeCorner === 'bl') {
-                newW = Math.max(minW, resizeStartW - dx);
-                newH = Math.max(minH, resizeStartH + dy);
-            } else if (resizeCorner === 'tr') {
-                newW = Math.max(minW, resizeStartW + dx);
-                newH = Math.max(minH, resizeStartH - dy);
-            } else if (resizeCorner === 'tl') {
-                newW = Math.max(minW, resizeStartW - dx);
-                newH = Math.max(minH, resizeStartH - dy);
-            }
-
-            // Apply to all resize targets
-            resizeTargets.forEach(info => {
-                info.card.style.width = `${newW}px`;
-                info.card.style.height = `${newH}px`;
-                info.card.style.maxHeight = 'none';
-            });
-
-            // Position adjustment only for the primary card (anchor)
-            let newLeft = resizeStartLeft, newTop = resizeStartTop;
-            if (resizeCorner === 'bl') {
-                newLeft = resizeStartLeft + (resizeStartW - newW);
-            } else if (resizeCorner === 'tr') {
-                newTop = resizeStartTop + (resizeStartH - newH);
-            } else if (resizeCorner === 'tl') {
-                newLeft = resizeStartLeft + (resizeStartW - newW);
-                newTop = resizeStartTop + (resizeStartH - newH);
-            }
-            card.style.left = `${newLeft}px`;
-            card.style.top = `${newTop}px`;
-
-            renderConnections(ctx);
-        }
     }
 
     function onMouseUp(e) {
@@ -271,20 +163,9 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
                 savePosition(ctx, commitHash, info.path, x, y);
             });
             moveStartPositions = [];
-        } else if (action === 'resize') {
-            resizeTargets.forEach(info => {
-                info.card.classList.remove('resizing');
-                const x = parseInt(info.card.style.left) || 0;
-                const y = parseInt(info.card.style.top) || 0;
-                ctx.actor.send({ type: 'RESIZE_CARD', path: info.path, width: info.card.offsetWidth, height: info.card.offsetHeight });
-                savePosition(ctx, commitHash, info.path, x, y, info.card.offsetWidth, info.card.offsetHeight);
-            });
-            document.body.style.cursor = '';
-            resizeTargets = [];
         }
 
         action = null;
-        resizeCorner = null;
     }
 
     card.addEventListener('mousedown', onMouseDown);
@@ -293,6 +174,7 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     card.addEventListener('dblclick', (e) => {
         // Don't trigger on buttons
         if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
+        e.preventDefault();
         e.stopPropagation();
 
         const vpRect = ctx.canvasViewport.getBoundingClientRect();
@@ -1083,6 +965,9 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
 
     const strip = document.createElement('div');
     strip.className = 'diff-marker-strip';
+    // If there are changes, nav bar adds ~26px below the header+path
+    const hasChanges = addedLines.size > 0 || (deletedBeforeLine && deletedBeforeLine.size > 0);
+    strip.style.top = hasChanges ? '92px' : '66px';
 
     // Helper: merge line numbers into contiguous regions
     function mergeIntoRegions(lineNums: number[]): { start: number; end: number }[] {
@@ -1156,35 +1041,53 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
     }
     allRegions.sort((a, b) => a.start - b.start);
 
-    // Navigation buttons (▲ prev ▼ next)
+    // Build a nav bar (▲▼ + change count) inserted after .file-path
     if (allRegions.length > 0) {
         let currentIdx = -1;
 
-        const navUp = document.createElement('div');
-        navUp.className = 'diff-marker-nav diff-marker-nav-up';
+        const navBar = document.createElement('div');
+        navBar.className = 'diff-nav-bar';
+
+        const navUp = document.createElement('button');
+        navUp.className = 'diff-nav-btn';
         navUp.textContent = '▲';
         navUp.title = 'Previous change';
         navUp.addEventListener('click', (e) => {
             e.stopPropagation();
             currentIdx = Math.max(0, currentIdx - 1);
             _scrollToLine(body, allRegions[currentIdx].start, totalLines);
+            navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
         });
 
-        const navDown = document.createElement('div');
-        navDown.className = 'diff-marker-nav diff-marker-nav-down';
+        const navDown = document.createElement('button');
+        navDown.className = 'diff-nav-btn';
         navDown.textContent = '▼';
         navDown.title = 'Next change';
         navDown.addEventListener('click', (e) => {
             e.stopPropagation();
             currentIdx = Math.min(allRegions.length - 1, currentIdx + 1);
             _scrollToLine(body, allRegions[currentIdx].start, totalLines);
+            navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
         });
 
-        strip.appendChild(navUp);
-        strip.appendChild(navDown);
+        const navLabel = document.createElement('span');
+        navLabel.className = 'diff-nav-label';
+        navLabel.textContent = `${allRegions.length} changes`;
+
+        navBar.appendChild(navUp);
+        navBar.appendChild(navDown);
+        navBar.appendChild(navLabel);
+
+        // Insert after file-path
+        const filePath = body.querySelector('.file-path');
+        if (filePath && filePath.nextSibling) {
+            body.insertBefore(navBar, filePath.nextSibling);
+        } else {
+            body.insertBefore(navBar, body.firstChild);
+        }
     }
 
-    // Append to card (not body) so it doesn't scroll with content
+    // Append strip to card (not body) so it doesn't scroll with content
     card.appendChild(strip);
 }
 
@@ -1288,12 +1191,12 @@ function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
         const lineRect = lineEl.getBoundingClientRect();
         // The line's offset from the top of the visible scroll area + current scroll = absolute position
         const targetScroll = scrollTarget.scrollTop + (lineRect.top - containerRect.top);
-        scrollTarget.scrollTo({ top: targetScroll, behavior: 'smooth' });
+        scrollTarget.scrollTo({ top: targetScroll, behavior: 'auto' });
     } else {
         // Fallback to percentage-based
         const pct = (lineNum - 1) / totalLines;
         const targetScroll = pct * scrollTarget.scrollHeight;
-        scrollTarget.scrollTo({ top: targetScroll, behavior: 'smooth' });
+        scrollTarget.scrollTo({ top: targetScroll, behavior: 'auto' });
     }
 }
 
@@ -1316,8 +1219,11 @@ function _updateHiddenLinesIndicator(card: HTMLElement, _totalLines?: number) {
     const cardH = card.offsetHeight;
     const headerH = (card.querySelector('.file-card-header') as HTMLElement)?.offsetHeight || 36;
     const pathH = (card.querySelector('.file-path') as HTMLElement)?.offsetHeight || 18;
-    const availableH = cardH - headerH - pathH - 8; // 8px padding
-    const lineHeight = 11; // approx line height at 0.65rem with 1.1 line-height
+    const availableH = cardH - headerH - pathH - 8;
+    // Get current font size for accurate line count
+    const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
+    const fontSize = pre ? parseFloat(getComputedStyle(pre).fontSize) : 8.5;
+    const lineHeight = fontSize * 1.1;
     const visibleLines = Math.floor(availableH / lineHeight);
     const hiddenLines = totalLines - visibleLines;
 
@@ -1326,76 +1232,33 @@ function _updateHiddenLinesIndicator(card: HTMLElement, _totalLines?: number) {
             indicator = document.createElement('div');
             indicator.className = 'hidden-lines-indicator';
             card.appendChild(indicator);
-            _setupIndicatorDrag(card, indicator);
         }
-        indicator.textContent = `⋯ ${hiddenLines} more lines — drag to resize`;
+        indicator.textContent = `⋯ ${hiddenLines} more lines · Ctrl+/− to zoom`;
         indicator.style.display = '';
     } else if (indicator) {
         indicator.style.display = 'none';
     }
 }
 
-function _setupIndicatorDrag(card: HTMLElement, indicator: HTMLElement) {
-    let startY = 0;
-    let startH = 0;
-    let isDragging = false;
-
-    indicator.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        isDragging = true;
-        startY = e.clientY;
-        startH = card.offsetHeight;
-        document.body.style.cursor = 'ns-resize';
-        card.classList.add('resizing');
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        e.preventDefault();
-        const dy = e.clientY - startY;
-        const newH = Math.max(120, startH + dy);
-        card.style.height = `${newH}px`;
-        card.style.maxHeight = `${newH}px`;
-        _updateHiddenLinesIndicator(card, 0);
-    });
-
-    window.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        document.body.style.cursor = '';
-        card.classList.remove('resizing');
-        // Save the new size
-        const path = card.dataset.path;
-        if (path) {
-            const event = new CustomEvent('card-resized', {
-                detail: { path, width: card.offsetWidth, height: card.offsetHeight },
-                bubbles: true,
-            });
-            card.dispatchEvent(event);
-        }
-    });
-}
-
-// ─── Resize cards by height delta (Ctrl +/-) ────────────
-export function resizeCardsHeight(ctx: CanvasContext, delta: number) {
+// ─── Change card font size (Ctrl +/-) ─────────────────
+export function changeCardsFontSize(ctx: CanvasContext, delta: number) {
     const selected = ctx.snap().context.selectedCards;
     const targets = selected.length > 0 ? selected : Array.from(ctx.fileCards.keys());
-    const state = ctx.snap().context;
-    const commitHash = state.currentCommitHash || 'allfiles';
 
     targets.forEach(path => {
         const card = ctx.fileCards.get(path);
         if (!card) return;
-        const currentH = card.offsetHeight;
-        const newH = Math.max(120, currentH + delta);
-        card.style.height = `${newH}px`;
-        card.style.maxHeight = `${newH}px`;
-        ctx.actor.send({ type: 'RESIZE_CARD', path, width: card.offsetWidth, height: newH });
-        savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, card.offsetWidth, newH);
+        const pre = card.querySelector('.file-content-preview pre') as HTMLElement;
+        if (!pre) return;
+        const current = parseFloat(getComputedStyle(pre).fontSize) || 8.5;
+        const newSize = Math.max(5, Math.min(24, current + delta));
+        pre.style.fontSize = `${newSize}px`;
+        pre.style.lineHeight = '1.1';
+        // Update hidden lines count since visible lines changed
         _updateHiddenLinesIndicator(card, 0);
     });
-    renderConnections(ctx);
+    const action = delta > 0 ? 'increased' : 'decreased';
+    showToast(`Font size ${action} for ${targets.length} card${targets.length > 1 ? 's' : ''}`, 'info');
 }
 
 // ─── Fit selected cards to content ──────────────────────

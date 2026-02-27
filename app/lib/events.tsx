@@ -25,7 +25,7 @@ import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
-import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize, resizeCardsHeight } from './cards';
+import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, fitContentSize, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
 
@@ -448,14 +448,14 @@ export function setupEventListeners(ctx: CanvasContext) {
                 }
             }
 
-            // Ctrl + / Ctrl - = increase/decrease card height
+            // Ctrl + / Ctrl - = increase/decrease card font size
             if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
                 e.preventDefault();
-                resizeCardsHeight(ctx, 100);
+                changeCardsFontSize(ctx, 1);
             }
             if ((e.ctrlKey || e.metaKey) && (e.key === '-' || e.key === '_')) {
                 e.preventDefault();
-                resizeCardsHeight(ctx, -100);
+                changeCardsFontSize(ctx, -1);
             }
 
             // I = Toggle AI chat sidebar

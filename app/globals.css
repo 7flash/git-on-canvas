@@ -1014,21 +1014,17 @@ body {
     text-align: center;
     font-family: var(--font-mono);
     font-size: 0.7rem;
-    color: var(--accent-tertiary);
+    color: var(--text-muted);
     background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 35%);
-    padding: 28px 8px 12px;
-    cursor: ns-resize;
+    padding: 28px 8px 10px;
+    cursor: default;
     z-index: 3;
     letter-spacing: 0.03em;
     user-select: none;
-    transition: color 0.15s, background 0.15s;
-    /* Large grab area for easy dragging */
-    min-height: 40px;
 }
 
 .hidden-lines-indicator:hover {
-    color: var(--accent-primary);
-    background: linear-gradient(transparent, rgba(124, 58, 237, 0.2) 40%);
+    color: var(--text-secondary);
 }
 
 /* ─── Diff marker strip (scrollbar annotations) ────── */
@@ -1077,35 +1073,44 @@ body {
     box-shadow: 0 0 6px rgba(248, 113, 113, 0.6);
 }
 
-.diff-marker-nav {
-    position: absolute;
-    right: 0;
-    width: 10px;
-    height: 14px;
+/* ─── Diff nav bar (▲▼ + change count, next to file-path) ─── */
+.diff-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 12px;
+    background: rgba(74, 222, 128, 0.06);
+    border-bottom: 1px solid rgba(74, 222, 128, 0.12);
+    flex-shrink: 0;
+}
+
+.diff-nav-btn {
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+    font-size: 9px;
+    width: 20px;
+    height: 18px;
+    border-radius: 3px;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 7px;
+    transition: background 0.15s, border-color 0.15s;
+    padding: 0;
+}
+
+.diff-nav-btn:hover {
+    background: rgba(74, 222, 128, 0.3);
+    border-color: rgba(74, 222, 128, 0.4);
+}
+
+.diff-nav-label {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
     color: #4ade80;
-    cursor: pointer;
-    pointer-events: auto;
-    opacity: 0.5;
-    transition: opacity 0.15s;
-    user-select: none;
-    background: rgba(0, 0, 0, 0.4);
-    border-radius: 2px;
-}
-
-.diff-marker-nav:hover {
-    opacity: 1;
-}
-
-.diff-marker-nav-up {
-    top: 2px;
-}
-
-.diff-marker-nav-down {
-    bottom: 2px;
+    opacity: 0.7;
+    margin-left: 4px;
 }
 
 /* ─── Deleted lines indicators ─── */
