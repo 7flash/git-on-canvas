@@ -149,7 +149,7 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
 
     // First clean up all existing markers
     ctx.fileCards.forEach((card) => {
-        card.querySelector('.conn-marker-strip')?.remove();
+        card.querySelectorAll('.conn-marker-strip').forEach(el => el.remove());
     });
 
     if (connections.length === 0) return;
@@ -186,16 +186,29 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
         const pre = body.querySelector('pre') as HTMLElement;
         if (!pre) return;
 
-        const totalLines = pre.querySelectorAll('.diff-line').length || 1;
+        // Make the pre position:relative so absolute markers inside it scroll with content
+        if (getComputedStyle(pre).position === 'static') {
+            pre.style.position = 'relative';
+        }
 
         const strip = document.createElement('div');
         strip.className = 'conn-marker-strip';
 
         markers.forEach(({ line, conn, role }) => {
-            const pct = ((line - 1) / totalLines) * 100;
             const marker = document.createElement('div');
             marker.className = `conn-marker conn-marker--${role}`;
-            marker.style.top = `${pct}%`;
+
+            // Try to find the actual line element and use its offsetTop
+            const lineEl = pre.querySelector(`.diff-line[data-line="${line}"]`) as HTMLElement;
+            if (lineEl) {
+                // Position marker at the line element's vertical position
+                marker.style.top = `${lineEl.offsetTop + lineEl.offsetHeight / 2}px`;
+            } else {
+                // Fallback: estimate from total lines
+                const totalLines = pre.querySelectorAll('.diff-line').length || 1;
+                const lineH = pre.scrollHeight / totalLines;
+                marker.style.top = `${(line - 1) * lineH + lineH / 2}px`;
+            }
 
             const otherFile = role === 'source' ? conn.targetFile : conn.sourceFile;
             const otherLine = role === 'source' ? conn.targetLineStart : conn.sourceLineStart;
@@ -217,7 +230,8 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
             strip.appendChild(marker);
         });
 
-        body.appendChild(strip);
+        // Append strip INSIDE the pre element so it scrolls with content
+        pre.appendChild(strip);
     });
 }
 
@@ -456,17 +470,30 @@ function _getLinePoint(card: HTMLElement, lineNum: number, side: 'left' | 'right
     const body = card.querySelector('.file-card-body') as HTMLElement;
 
     if (lineEl && body) {
-        // Calculate line position relative to card
-        const lineYInBody = lineEl.offsetTop - body.scrollTop;
-        const headerH = body.offsetTop; // header above body
+        const pre = body.querySelector('pre') as HTMLElement;
 
-        const y = cardY + headerH + lineYInBody + lineEl.offsetHeight / 2;
+        // Line's position within the pre/body content
+        // offsetTop is relative to offsetParent (pre if position:relative, otherwise body)
+        const lineOffsetInContent = lineEl.offsetTop;
+
+        // How much the body has scrolled
+        const scrollTop = body.scrollTop;
+
+        // The body's top edge relative to the card
+        // (header height + any other elements above body)
+        const bodyTopInCard = body.offsetTop;
+
+        // The pre's top edge relative to body (accounts for file-path bar)
+        const preTopInBody = pre ? pre.offsetTop : 0;
+
+        // Final Y: card position + body offset + pre offset + line position - scroll + half line height
+        const y = cardY + bodyTopInCard + preTopInBody + lineOffsetInContent - scrollTop + lineEl.offsetHeight / 2;
         const x = side === 'left' ? cardX : cardX + cardW;
 
-        // Clamp y to be within card bounds
+        // Clamp y to be within visible card bounds
         return {
             x,
-            y: Math.max(cardY + 30, Math.min(cardY + cardH - 10, y)),
+            y: Math.max(cardY + bodyTopInCard, Math.min(cardY + cardH - 5, y)),
         };
     }
 
