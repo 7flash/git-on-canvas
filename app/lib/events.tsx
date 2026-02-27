@@ -399,7 +399,6 @@ export function setupEventListeners(ctx: CanvasContext) {
                 }
                 if (ctx.snap().context.pendingConnection) {
                     ctx.actor.send({ type: 'CANCEL_CONNECTION' });
-                    showToast('Connection cancelled', 'info');
                 }
                 // Deselect all cards
                 ctx.actor.send({ type: 'DESELECT_ALL' });

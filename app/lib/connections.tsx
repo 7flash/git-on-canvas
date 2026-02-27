@@ -1,19 +1,20 @@
 // @ts-nocheck
 /**
- * Connections — click-on-line to connect, render SVG lines,
+ * Connections — click-on-line to connect, render SVG lines with labels,
  * left-side marker strip, navigate.
  *
  * Flow:
  *   1. User clicks a line number/gutter → starts pending connection (source)
- *   2. All cards show a subtle "click a target line" hint
+ *   2. All cards show a subtle "click a target line" visual hint (border glow)
  *   3. User clicks a line in another card → completes connection
  *   4. Connection markers appear on the LEFT side of both cards
- *   5. SVG bezier curves connect the two lines across the canvas
+ *   5. SVG bezier curves with gradient & filename labels connect the two lines
+ *   6. No toasts — visual feedback only (glows, highlights, labels)
  */
 import { measure } from 'measure-fn';
 import { render } from 'melina/client';
 import type { CanvasContext } from './context';
-import { escapeHtml, showToast } from './utils';
+import { escapeHtml } from './utils';
 import { updateCanvasTransform, updateZoomUI } from './canvas';
 
 // ─── Pending connection state ────────────────────────────
@@ -22,6 +23,25 @@ let pendingConnection: {
     sourceLine: number;
     sourceCard: HTMLElement;
 } | null = null;
+
+// ─── Status indicator element ────────────────────────────
+let statusIndicator: HTMLElement | null = null;
+
+function _showStatus(text: string) {
+    if (!statusIndicator) {
+        statusIndicator = document.createElement('div');
+        statusIndicator.className = 'conn-status-indicator';
+        document.body.appendChild(statusIndicator);
+    }
+    statusIndicator.textContent = text;
+    statusIndicator.classList.add('visible');
+}
+
+function _hideStatus() {
+    if (statusIndicator) {
+        statusIndicator.classList.remove('visible');
+    }
+}
 
 // ─── Setup click-on-line connection for a card ──────────
 export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, filePath: string) {
@@ -41,6 +61,8 @@ export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, 
             e.preventDefault();
 
             // Complete the connection
+            const srcName = pendingConnection.sourceFile.split('/').pop();
+            const tgtName = filePath.split('/').pop();
             const conn = {
                 id: `conn_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
                 sourceFile: pendingConnection.sourceFile,
@@ -49,7 +71,7 @@ export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, 
                 targetFile: filePath,
                 targetLineStart: lineNum,
                 targetLineEnd: lineNum,
-                comment: '',
+                comment: `${srcName}:${pendingConnection.sourceLine} → ${tgtName}:${lineNum}`,
             };
 
             ctx.actor.send({
@@ -72,19 +94,18 @@ export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, 
             renderConnections(ctx);
             buildConnectionMarkers(ctx);
             saveConnections(ctx);
-            showToast(`Connected ${conn.sourceFile}:${conn.sourceLineStart} → ${conn.targetFile}:${conn.targetLineStart}`, 'success');
             return;
         }
 
         // If clicking same card and already pending → cancel
         if (pendingConnection && pendingConnection.sourceCard === card) {
             _clearPending(ctx);
-            showToast('Connection cancelled', 'info');
             return;
         }
 
         // Start a new pending connection
         e.stopPropagation();
+        const fileName = filePath.split('/').pop();
         pendingConnection = { sourceFile: filePath, sourceLine: lineNum, sourceCard: card };
 
         // Visual: highlight the source line
@@ -96,7 +117,7 @@ export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, 
             if (p !== filePath) c.classList.add('connect-target-ready');
         });
 
-        showToast(`Click a line in another file to connect from ${filePath.split('/').pop()}:${lineNum}`, 'info');
+        _showStatus(`Connecting from ${fileName}:${lineNum} — click a line in another file`);
     });
 }
 
@@ -107,13 +128,13 @@ function _clearPending(ctx: CanvasContext) {
     pendingConnection.sourceCard.classList.remove('connecting-source');
     ctx.fileCards.forEach((c) => c.classList.remove('connect-target-ready'));
     pendingConnection = null;
+    _hideStatus();
 }
 
 // ─── Cancel pending connection (called from Escape key) ──
 export function cancelPendingConnection(ctx: CanvasContext) {
     if (pendingConnection) {
         _clearPending(ctx);
-        showToast('Connection cancelled', 'info');
     }
 }
 
@@ -125,6 +146,12 @@ export function hasPendingConnection(): boolean {
 export function buildConnectionMarkers(ctx: CanvasContext) {
     const state = ctx.snap().context;
     const connections = state.connections || [];
+
+    // First clean up all existing markers
+    ctx.fileCards.forEach((card) => {
+        card.querySelector('.conn-marker-strip')?.remove();
+    });
+
     if (connections.length === 0) return;
 
     // Group connections by file
@@ -153,9 +180,6 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
         const card = ctx.fileCards.get(filePath);
         if (!card) return;
 
-        // Remove existing connection markers
-        card.querySelector('.conn-marker-strip')?.remove();
-
         const body = card.querySelector('.file-card-body') as HTMLElement;
         if (!body) return;
 
@@ -172,11 +196,22 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
             const marker = document.createElement('div');
             marker.className = `conn-marker conn-marker--${role}`;
             marker.style.top = `${pct}%`;
-            marker.title = `${role === 'source' ? '→' : '←'} ${role === 'source' ? conn.targetFile : conn.sourceFile}:${role === 'source' ? conn.targetLineStart : conn.sourceLineStart}`;
+
+            const otherFile = role === 'source' ? conn.targetFile : conn.sourceFile;
+            const otherLine = role === 'source' ? conn.targetLineStart : conn.sourceLineStart;
+            const otherName = otherFile.split('/').pop();
+            marker.title = `${role === 'source' ? '→' : '←'} ${otherName}:${otherLine}`;
 
             marker.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigateToConnection(ctx, conn, role === 'source' ? 'target' : 'source');
+            });
+
+            // Right-click to delete
+            marker.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteConnection(ctx, conn.id);
             });
 
             strip.appendChild(marker);
@@ -186,6 +221,52 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
     });
 }
 
+// ─── SVG defs (gradients, filters) ──────────────────────
+function _ensureSvgDefs(svg: SVGSVGElement) {
+    if (svg.querySelector('defs#conn-defs')) return;
+
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    defs.id = 'conn-defs';
+
+    // Connection gradient 
+    const grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+    grad.id = 'conn-gradient';
+    grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+
+    const stop1 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop1.setAttribute('offset', '0%');
+    stop1.setAttribute('stop-color', '#a78bfa');
+    const stop2 = document.createElementNS('http://www.w3.org/2000/svg', 'stop');
+    stop2.setAttribute('offset', '100%');
+    stop2.setAttribute('stop-color', '#60a5fa');
+    grad.appendChild(stop1);
+    grad.appendChild(stop2);
+    defs.appendChild(grad);
+
+    // Glow filter
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.id = 'conn-glow';
+    filter.setAttribute('x', '-20%');
+    filter.setAttribute('y', '-20%');
+    filter.setAttribute('width', '140%');
+    filter.setAttribute('height', '140%');
+    const blur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+    blur.setAttribute('stdDeviation', '3');
+    blur.setAttribute('result', 'glow');
+    const merge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+    const mNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+    mNode1.setAttribute('in', 'glow');
+    const mNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+    mNode2.setAttribute('in', 'SourceGraphic');
+    merge.appendChild(mNode1);
+    merge.appendChild(mNode2);
+    filter.appendChild(blur);
+    filter.appendChild(merge);
+    defs.appendChild(filter);
+
+    svg.insertBefore(defs, svg.firstChild);
+}
+
 // ─── Render all SVG connection lines ────────────────────
 export function renderConnections(ctx: CanvasContext) {
     if (!ctx.svgOverlay) return;
@@ -193,6 +274,9 @@ export function renderConnections(ctx: CanvasContext) {
 
     const state = ctx.snap().context;
     const connections = state.connections || [];
+    if (connections.length === 0) return;
+
+    _ensureSvgDefs(ctx.svgOverlay);
 
     connections.forEach(conn => {
         const sourceCard = ctx.fileCards.get(conn.sourceFile);
@@ -200,80 +284,165 @@ export function renderConnections(ctx: CanvasContext) {
         if (!sourceCard || !targetCard) return;
 
         // Get canvas-space coordinates for the line endpoints
-        const startPt = _getLinePoint(sourceCard, conn.sourceLineStart, 'left');
+        const startPt = _getLinePoint(sourceCard, conn.sourceLineStart, 'right');
         const endPt = _getLinePoint(targetCard, conn.targetLineStart, 'left');
 
-        // Bezier curve connecting the two points (exits left side)
-        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        // Decide curve direction based on card positions
+        const goingRight = endPt.x >= startPt.x;
         const dx = Math.abs(endPt.x - startPt.x);
-        const ctrlOffset = Math.max(80, dx * 0.4);
+        const dy = Math.abs(endPt.y - startPt.y);
+        const ctrlOffset = Math.max(60, Math.min(dx * 0.4, 200));
 
-        const d = `M ${startPt.x} ${startPt.y} C ${startPt.x - ctrlOffset} ${startPt.y}, ${endPt.x - ctrlOffset} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+        // Bezier: from right side of source → left side of target
+        let d: string;
+        if (goingRight) {
+            d = `M ${startPt.x} ${startPt.y} C ${startPt.x + ctrlOffset} ${startPt.y}, ${endPt.x - ctrlOffset} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+        } else {
+            // Cards overlap or wrong order — curve around
+            const arcHeight = Math.max(80, dy * 0.3);
+            d = `M ${startPt.x} ${startPt.y} C ${startPt.x + ctrlOffset} ${startPt.y - arcHeight}, ${endPt.x - ctrlOffset} ${endPt.y - arcHeight}, ${endPt.x} ${endPt.y}`;
+        }
+
+        // Connection group
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        group.classList.add('conn-group');
+        group.dataset.connId = conn.id;
+
+        // Glow path (underneath)
+        const glowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        glowPath.setAttribute('d', d);
+        glowPath.setAttribute('stroke', '#a78bfa');
+        glowPath.setAttribute('stroke-width', '6');
+        glowPath.setAttribute('fill', 'none');
+        glowPath.setAttribute('opacity', '0');
+        glowPath.classList.add('conn-glow-path');
+        group.appendChild(glowPath);
+
+        // Main path
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', d);
-        path.setAttribute('stroke', '#a78bfa');
-        path.setAttribute('stroke-width', '2');
+        path.setAttribute('stroke', 'url(#conn-gradient)');
+        path.setAttribute('stroke-width', '2.5');
         path.setAttribute('fill', 'none');
-        path.setAttribute('opacity', '0.6');
+        path.setAttribute('opacity', '0.7');
+        path.classList.add('conn-main-path');
         path.style.cursor = 'pointer';
         path.style.pointerEvents = 'stroke';
 
-        // Hover effect
-        path.addEventListener('mouseenter', () => {
-            path.setAttribute('stroke-width', '3.5');
+        // Animated dash
+        const pathLength = _estimatePathLength(startPt, endPt);
+        path.setAttribute('stroke-dasharray', '8 4');
+
+        group.appendChild(path);
+
+        // Endpoint circles
+        const srcCircle = _makeEndpoint(startPt.x, startPt.y, '#a78bfa');
+        const tgtCircle = _makeEndpoint(endPt.x, endPt.y, '#60a5fa');
+        group.appendChild(srcCircle);
+        group.appendChild(tgtCircle);
+
+        // Label badge at midpoint
+        const midX = (startPt.x + endPt.x) / 2;
+        const midY = (startPt.y + endPt.y) / 2 - (goingRight ? 0 : ctrlOffset * 0.3);
+
+        const srcName = conn.sourceFile.split('/').pop() || '';
+        const tgtName = conn.targetFile.split('/').pop() || '';
+        const labelText = `${srcName}:${conn.sourceLineStart} → ${tgtName}:${conn.targetLineStart}`;
+
+        const labelGroup = _makeLabel(midX, midY, labelText);
+        labelGroup.classList.add('conn-label');
+        group.appendChild(labelGroup);
+
+        // Hover: brighten
+        group.addEventListener('mouseenter', () => {
+            path.setAttribute('stroke-width', '4');
             path.setAttribute('opacity', '1');
+            glowPath.setAttribute('opacity', '0.15');
+            srcCircle.setAttribute('r', '7');
+            tgtCircle.setAttribute('r', '7');
+            labelGroup.style.opacity = '1';
         });
-        path.addEventListener('mouseleave', () => {
-            path.setAttribute('stroke-width', '2');
-            path.setAttribute('opacity', '0.6');
-        });
-        path.addEventListener('click', () => navigateToConnection(ctx, conn, 'target'));
-
-        ctx.svgOverlay.appendChild(path);
-
-        // Small circles at endpoints
-        [startPt, endPt].forEach(pt => {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', String(pt.x));
-            circle.setAttribute('cy', String(pt.y));
-            circle.setAttribute('r', '4');
-            circle.setAttribute('fill', '#a78bfa');
-            circle.setAttribute('opacity', '0.8');
-            ctx.svgOverlay.appendChild(circle);
+        group.addEventListener('mouseleave', () => {
+            path.setAttribute('stroke-width', '2.5');
+            path.setAttribute('opacity', '0.7');
+            glowPath.setAttribute('opacity', '0');
+            srcCircle.setAttribute('r', '5');
+            tgtCircle.setAttribute('r', '5');
+            labelGroup.style.opacity = '0.85';
         });
 
-        // Comment label if present
-        if (conn.comment) {
-            const labelX = (startPt.x + endPt.x) / 2 - ctrlOffset / 2;
-            const labelY = (startPt.y + endPt.y) / 2;
+        // Click → navigate
+        group.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateToConnection(ctx, conn, 'target');
+        });
 
-            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            group.style.cursor = 'pointer';
-            group.addEventListener('click', () => navigateToConnection(ctx, conn, 'target'));
+        // Right-click → delete
+        group.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteConnection(ctx, conn.id);
+        });
 
-            const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            textEl.setAttribute('x', String(labelX));
-            textEl.setAttribute('y', String(labelY));
-            textEl.setAttribute('text-anchor', 'middle');
-            textEl.setAttribute('alignment-baseline', 'middle');
-            textEl.setAttribute('fill', '#e0e0e0');
-            textEl.setAttribute('font-size', '11');
-            textEl.setAttribute('font-family', 'Inter, sans-serif');
-            textEl.textContent = conn.comment;
-
-            const bbox = { width: conn.comment.length * 7 + 12, height: 20 };
-            const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            rect.setAttribute('x', String(labelX - bbox.width / 2));
-            rect.setAttribute('y', String(labelY - bbox.height / 2));
-            rect.setAttribute('width', String(bbox.width));
-            rect.setAttribute('height', String(bbox.height));
-            rect.setAttribute('rx', '6');
-            rect.setAttribute('fill', 'rgba(30, 20, 50, 0.85)');
-
-            group.appendChild(rect);
-            group.appendChild(textEl);
-            ctx.svgOverlay.appendChild(group);
-        }
+        ctx.svgOverlay.appendChild(group);
     });
+}
+
+function _makeEndpoint(x: number, y: number, color: string): SVGCircleElement {
+    const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    circle.setAttribute('cx', String(x));
+    circle.setAttribute('cy', String(y));
+    circle.setAttribute('r', '5');
+    circle.setAttribute('fill', color);
+    circle.setAttribute('stroke', 'rgba(0,0,0,0.5)');
+    circle.setAttribute('stroke-width', '1');
+    circle.style.transition = 'r 0.15s ease';
+    return circle;
+}
+
+function _makeLabel(x: number, y: number, text: string): SVGGElement {
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.style.opacity = '0.85';
+    group.style.transition = 'opacity 0.15s ease';
+    group.style.pointerEvents = 'all';
+    group.style.cursor = 'pointer';
+
+    const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    textEl.setAttribute('x', String(x));
+    textEl.setAttribute('y', String(y));
+    textEl.setAttribute('text-anchor', 'middle');
+    textEl.setAttribute('alignment-baseline', 'middle');
+    textEl.setAttribute('fill', '#e0e0f0');
+    textEl.setAttribute('font-size', '10');
+    textEl.setAttribute('font-family', "'JetBrains Mono', 'Fira Code', monospace");
+    textEl.setAttribute('font-weight', '500');
+    textEl.textContent = text;
+
+    // Background rect — sized by text length estimate
+    const padding = 8;
+    const charW = 6.2;
+    const w = text.length * charW + padding * 2;
+    const h = 20;
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(x - w / 2));
+    rect.setAttribute('y', String(y - h / 2));
+    rect.setAttribute('width', String(w));
+    rect.setAttribute('height', String(h));
+    rect.setAttribute('rx', '6');
+    rect.setAttribute('fill', 'rgba(20, 15, 40, 0.92)');
+    rect.setAttribute('stroke', 'rgba(167, 139, 250, 0.3)');
+    rect.setAttribute('stroke-width', '1');
+
+    group.appendChild(rect);
+    group.appendChild(textEl);
+    return group;
+}
+
+function _estimatePathLength(p1: { x: number, y: number }, p2: { x: number, y: number }): number {
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    return Math.sqrt(dx * dx + dy * dy) * 1.3;  // rough bezier estimate
 }
 
 function _getLinePoint(card: HTMLElement, lineNum: number, side: 'left' | 'right'): { x: number; y: number } {
@@ -288,8 +457,6 @@ function _getLinePoint(card: HTMLElement, lineNum: number, side: 'left' | 'right
 
     if (lineEl && body) {
         // Calculate line position relative to card
-        const lineRect = lineEl.getBoundingClientRect();
-        const bodyRect = body.getBoundingClientRect();
         const lineYInBody = lineEl.offsetTop - body.scrollTop;
         const headerH = body.offsetTop; // header above body
 
@@ -353,8 +520,6 @@ export function navigateToConnection(ctx: CanvasContext, conn: any, navigateTo: 
                 setTimeout(() => l.classList.remove('line-flash'), 1500);
             }
         });
-
-        showToast(`→ ${file.split('/').pop()}:${line}`, 'info');
     });
 }
 
@@ -410,7 +575,6 @@ export async function loadConnections(ctx: CanvasContext) {
 
                 renderConnections(ctx);
                 buildConnectionMarkers(ctx);
-                showToast(`Loaded ${conns.length} connection${conns.length > 1 ? 's' : ''}`, 'info');
             }
         } catch (e) {
             measure('connections:loadError', () => e);
@@ -424,7 +588,6 @@ export function deleteConnection(ctx: CanvasContext, connId: string) {
     renderConnections(ctx);
     buildConnectionMarkers(ctx);
     saveConnections(ctx);
-    showToast('Connection deleted', 'info');
 }
 
 // ─── Legacy compat: setupConnectionDrag (now no-op) ─────

@@ -6,7 +6,7 @@
 import { measure } from 'measure-fn';
 import { render } from 'melina/client';
 import type { CanvasContext } from './context';
-import { showToast } from './utils';
+
 
 // ─── Load hidden files from localStorage ────────────────
 export function loadHiddenFiles(ctx: CanvasContext) {
@@ -52,7 +52,7 @@ export function hideSelectedFiles(ctx: CanvasContext, paths: string[]) {
         });
 
         updateHiddenUI(ctx);
-        showToast(`Hidden ${paths.length} file${paths.length > 1 ? 's' : ''}`, 'info');
+
     });
 }
 
@@ -109,7 +109,7 @@ function HiddenFilesModalContent({
 export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: () => void) {
     measure('modal:hiddenFiles', () => {
         if (ctx.hiddenFiles.size === 0) {
-            showToast('No hidden files', 'info');
+
             return;
         }
 
@@ -141,7 +141,7 @@ export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: ()
                         render(null, modal);
                         modal.remove();
                         rerenderCurrentView();
-                        showToast('All files restored', 'success');
+
                     }}
                     onClose={() => {
                         render(null, modal);
