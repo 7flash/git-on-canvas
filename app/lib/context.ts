@@ -74,7 +74,7 @@ export function createCanvasContext(actor: any): CanvasContext {
         connectionDragState: null,
         loadingOverlay: null,
 
-        allFilesActive: false,
+        allFilesActive: true,
         changedFilePaths: new Set(),
         allFilesData: null,
         commitFilesData: null,

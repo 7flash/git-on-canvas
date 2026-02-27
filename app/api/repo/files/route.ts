@@ -72,11 +72,12 @@ export async function POST(req: Request) {
                     try { content = await git.show([`${commit}~1:${filePath}`]); } catch (e: any) { error = e.message; }
 
                 } else if (fileStatus === 'modified') {
-                    // Modified — parse unified diff into hunks
+                    // Modified — parse unified diff into hunks + get full new content
                     try {
                         const rawDiff = await git.raw(['diff', '-U3', `${commit}~1`, commit, '--', filePath]);
                         hunks = parseHunks(rawDiff);
                     } catch (e: any) { error = e.message; }
+                    try { content = await git.show([`${commit}:${filePath}`]); } catch (e: any) { /* ignore, hunks enough */ }
 
                 } else if (fileStatus === 'renamed' || fileStatus === 'copied') {
                     // Renamed/copied — diff between old path and new path across the commit
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
                         ]);
                         hunks = parseHunks(rawDiff);
                     } catch (e: any) { error = e.message; }
+                    try { content = await git.show([`${commit}:${filePath}`]); } catch (e: any) { /* ignore */ }
 
                     // If 100% rename with no content changes, hunks will be empty
                     // Still include the file so it shows up as renamed

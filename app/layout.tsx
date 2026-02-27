@@ -60,24 +60,7 @@ export default function RootLayout({ children }: { children: any }) {
                             <input type="file" id="folderPickerInput" style={{ display: 'none' }} />
                         </div>
 
-                        {/* View mode */}
-                        <div className="view-tabs">
-                            <button id="modeCommits" className="view-tab active">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="6" r="2" />
-                                    <circle cx="12" cy="18" r="2" />
-                                    <path d="M12 8v8" />
-                                </svg>
-                                Commits
-                            </button>
-                            <label className="view-toggle" id="allFilesToggle" title="Show all repository files — changed files display their diffs">
-                                <input type="checkbox" id="allFilesCheckbox" />
-                                <span className="toggle-track">
-                                    <span className="toggle-thumb"></span>
-                                </span>
-                                <span className="toggle-label">All files</span>
-                            </label>
-                        </div>
+                        {/* Always shows all files — no mode switching needed */}
 
                         <div className="commit-timeline" id="commitTimeline">
                             <div className="section-header">
