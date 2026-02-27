@@ -616,13 +616,9 @@ body {
     flex: 1;
     overflow: hidden;
     position: relative;
-    cursor: grab;
+    cursor: default;
     background:
         radial-gradient(circle at center, rgba(124, 58, 237, 0.03) 0%, transparent 70%);
-}
-
-.canvas-viewport:active {
-    cursor: grabbing;
 }
 
 .canvas {

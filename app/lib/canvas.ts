@@ -90,6 +90,9 @@ function _rebuildMinimap(ctx: CanvasContext) {
         const w = card.offsetWidth || 580;
         const h = card.offsetHeight || 200;
         const name = path.split('/').pop() || path;
+        // Get folder-prefixed name for tooltip (e.g. "lib/cards.tsx")
+        const parts = path.split('/');
+        const displayPath = parts.length > 1 ? parts.slice(-2).join('/') : name;
         const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
         const changed = card.dataset.changed === 'true';
 
@@ -98,7 +101,7 @@ function _rebuildMinimap(ctx: CanvasContext) {
         maxX = Math.max(maxX, x + w);
         maxY = Math.max(maxY, y + h);
 
-        cardInfos.push({ x, y, w, h, name, status, path, changed });
+        cardInfos.push({ x, y, w, h, name, displayPath, status, path, changed });
     });
 
     // If no cards, just hide viewport
@@ -141,7 +144,6 @@ function _rebuildMinimap(ctx: CanvasContext) {
             dot.classList.add('minimap-dot--changed');
         }
         dot.dataset.path = info.name;
-        dot.title = info.name;
         dot.style.cssText = `left:${dotX}px;top:${dotY}px;width:${dotW}px;height:${dotH}px`;
         frag.appendChild(dot);
 
@@ -171,7 +173,7 @@ function _rebuildMinimap(ctx: CanvasContext) {
             minimap.querySelector('.minimap-tooltip')?.remove();
             const tooltip = document.createElement('div');
             tooltip.className = 'minimap-tooltip';
-            tooltip.textContent = info.name;
+            tooltip.textContent = info.displayPath;
             tooltip.style.left = `${dotX + dotW / 2}px`;
             tooltip.style.top = `${dotY}px`;
             minimap.appendChild(tooltip);

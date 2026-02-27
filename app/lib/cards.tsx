@@ -6,10 +6,10 @@
 import { measure } from 'measure-fn';
 import { render } from 'melina/client';
 import type { CanvasContext } from './context';
-import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
+import { escapeHtml, getFileIcon, getFileIconClass } from './utils';
 import { savePosition, getPositionKey } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
-import { renderConnections, setupConnectionDrag } from './connections';
+import { renderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { openFileChatInModal } from './chat';
 
@@ -72,6 +72,10 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
         const bodyEl = e.target.closest('.file-card-body');
         if (bodyEl && (e.offsetX > e.target.clientWidth || e.offsetY > e.target.clientHeight)) return;
 
+        // If a connection is pending and the click is inside body (on a diff-line),
+        // don't start drag — let the connection click handler handle it
+        if (hasPendingConnection() && bodyEl && (e.target as HTMLElement).closest('.diff-line')) return;
+
         e.stopPropagation();
         startX = e.clientX;
         startY = e.clientY;
@@ -91,7 +95,7 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
             if (screenDist < DRAG_THRESHOLD) return;
 
             action = 'move';
-            card.style.cursor = 'grabbing';
+            card.style.cursor = 'move';
 
             const selected = ctx.snap().context.selectedCards;
             const cardPath = card.dataset.path;
@@ -307,7 +311,7 @@ function FileHistoryContent({ fileName, commits, error, loading, onClose, onSele
 async function showFileHistory(ctx: CanvasContext, filePath: string) {
     const state = ctx.snap().context;
     if (!state.repoPath) {
-        showToast('No repository loaded', 'error');
+        console.warn('No repository loaded');
         return;
     }
 
@@ -382,7 +386,7 @@ export function arrangeRow(ctx: CanvasContext) {
         });
         renderConnections(ctx);
         updateMinimap(ctx);
-        showToast(`Arranged ${infos.length} files in a row`, 'info');
+
     });
 }
 
@@ -403,7 +407,7 @@ export function arrangeColumn(ctx: CanvasContext) {
         });
         renderConnections(ctx);
         updateMinimap(ctx);
-        showToast(`Arranged ${infos.length} files in a column`, 'info');
+
     });
 }
 
@@ -440,7 +444,7 @@ export function arrangeGrid(ctx: CanvasContext) {
 
         renderConnections(ctx);
         updateMinimap(ctx);
-        showToast(`Arranged ${infos.length} files in a ${cols}-col grid`, 'info');
+
     });
 }
 
@@ -1272,7 +1276,7 @@ export function changeCardsFontSize(ctx: CanvasContext, delta: number) {
         _updateHiddenLinesIndicator(card, 0);
     });
     const action = delta > 0 ? 'increased' : 'decreased';
-    showToast(`Font size ${action} for ${targets.length} card${targets.length > 1 ? 's' : ''}`, 'info');
+
 }
 
 // ─── Toggle card expand/collapse ────────────────────────
@@ -1283,6 +1287,15 @@ export function toggleCardExpand(ctx: CanvasContext) {
         const selected = ctx.snap().context.selectedCards;
         if (selected.length === 0) return;
 
+        // Determine if we're expanding or collapsing based on first card
+        const firstCard = ctx.fileCards.get(selected[0]);
+        if (!firstCard) return;
+        const willExpand = firstCard.dataset.expanded !== 'true';
+
+        // Uniform expand height = viewport height (for consistent look)
+        const vpRect = ctx.canvasViewport.getBoundingClientRect();
+        const expandHeight = Math.max(600, vpRect.height - 40);
+
         selected.forEach(path => {
             const card = ctx.fileCards.get(path);
             if (!card) return;
@@ -1290,24 +1303,14 @@ export function toggleCardExpand(ctx: CanvasContext) {
             const body = card.querySelector('.file-card-body') as HTMLElement;
             if (!body) return;
 
-            const isExpanded = card.dataset.expanded === 'true';
-
-            if (isExpanded) {
+            if (!willExpand) {
                 // Collapse back to default height
                 card.style.height = `${DEFAULT_CARD_HEIGHT}px`;
                 card.style.maxHeight = `${DEFAULT_CARD_HEIGHT}px`;
                 card.dataset.expanded = 'false';
             } else {
-                // Expand to fit all content
-                const oldH = card.style.height;
-                const oldMax = card.style.maxHeight;
-                card.style.height = 'auto';
-                card.style.maxHeight = 'none';
-
-                const fullHeight = card.scrollHeight;
-                const newHeight = Math.min(5000, Math.max(120, fullHeight));
-
-                card.style.height = `${newHeight}px`;
+                // Expand to uniform height
+                card.style.height = `${expandHeight}px`;
                 card.style.maxHeight = 'none';
                 card.dataset.expanded = 'true';
             }
@@ -1321,10 +1324,9 @@ export function toggleCardExpand(ctx: CanvasContext) {
             requestAnimationFrame(() => _updateHiddenLinesIndicator(card, 0));
         });
 
-        const anyExpanded = selected.some(p => ctx.fileCards.get(p)?.dataset.expanded === 'true');
         updateMinimap(ctx);
         renderConnections(ctx);
-        showToast(`${anyExpanded ? 'Expanded' : 'Collapsed'} ${selected.length} card${selected.length > 1 ? 's' : ''}`, 'info');
+
     });
 }
 
@@ -1333,7 +1335,7 @@ export function fitScreenSize(ctx: CanvasContext) {
     measure('cards:fitScreen', () => {
         const selected = ctx.snap().context.selectedCards;
         if (selected.length === 0) {
-            showToast('Select cards to fit to screen', 'info');
+
             return;
         }
 
@@ -1365,6 +1367,6 @@ export function fitScreenSize(ctx: CanvasContext) {
 
         updateMinimap(ctx);
         renderConnections(ctx);
-        showToast(`Fit ${selected.length} card${selected.length > 1 ? 's' : ''} to screen height`, 'info');
+
     });
 }

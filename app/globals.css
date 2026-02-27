@@ -3177,6 +3177,52 @@ body {
     cursor: crosshair;
 }
 
+/* ─── Connection status indicator (bottom bar, replaces toasts) ─── */
+.conn-status-indicator {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    padding: 8px 20px;
+    background: rgba(20, 15, 40, 0.92);
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    border-radius: 8px;
+    color: #a78bfa;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.78rem;
+    font-weight: 500;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.conn-status-indicator.visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ─── SVG connection group interaction ────────────────── */
+.conn-group {
+    cursor: pointer;
+}
+
+.conn-glow-path {
+    transition: opacity 0.15s ease;
+}
+
+.conn-main-path {
+    transition: stroke-width 0.15s ease, opacity 0.15s ease;
+}
+
+/* ─── File card dragging cursor ───────────────────────── */
+.file-card.dragging {
+    cursor: move !important;
+}
+
 /* ─── AI Chat Panels ──────────────────────────────────── */
 
 /* Canvas sidebar chat */
