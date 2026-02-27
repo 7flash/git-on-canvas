@@ -773,6 +773,8 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     const isAllAdded = file.status === 'added';
     const isAllDeleted = file.status === 'deleted';
 
+    const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
+
     let contentHTML = '';
     if (file.isBinary) {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
@@ -784,7 +786,11 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
                 : isAllDeleted ? 'diff-del'
                     : addedLines.has(lineNum) ? 'diff-add'
                         : 'diff-ctx';
-            return `<span class="diff-line ${lineClass}" data-line="${lineNum}"><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`;
+            const hasDel = deletedBeforeLine.has(lineNum);
+            const delCount = hasDel ? deletedBeforeLine.get(lineNum)!.length : 0;
+            const delAttr = hasDel ? ` data-del-count="${delCount}"` : '';
+            const delLines = hasDel ? ` data-del-lines="${encodeURIComponent(JSON.stringify(deletedBeforeLine.get(lineNum)))}"` : '';
+            return `<span class="diff-line ${lineClass}${hasDel ? ' has-deleted' : ''}" data-line="${lineNum}"${delAttr}${delLines}><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`;
         }).join('\n');
         const truncNote = file.lines > 10000 ? `<span class="more-lines">File too large (${file.lines.toLocaleString()} lines) — showing first 10,000</span>` : '';
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
@@ -797,7 +803,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     // Status badge for changed files
     const statusColors: Record<string, string> = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#60a5fa', copied: '#a78bfa' };
     const statusBadge = file.status && file.status !== 'unmodified'
-        ? `<span style="font-size: 9px; color: ${statusColors[file.status] || 'var(--text-muted)'}; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(file.status)}${addedLines.size > 0 ? ` <span style="color:#22c55e">+${addedLines.size}</span>` : ''}</span>`
+        ? `<span style="font-size: 9px; color: ${statusColors[file.status] || 'var(--text-muted)'}; margin-left: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${escapeHtml(file.status)}${addedLines.size > 0 ? ` <span style="color:#22c55e">+${addedLines.size}</span>` : ''}${deletedBeforeLine.size > 0 ? ` <span style="color:#f87171">-${Array.from(deletedBeforeLine.values()).reduce((s, a) => s + a.length, 0)}</span>` : ''}</span>`
         : '';
     const metaInfo = file.status ? statusBadge : `<span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">${file.lines} lines</span>`;
 
@@ -846,9 +852,14 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     }
 
     // ── Diff marker strip (scrollbar annotations for changed lines) ──
-    if (addedLines.size > 0 && !isAllAdded && file.content) {
+    if ((addedLines.size > 0 || deletedBeforeLine.size > 0) && !isAllAdded && file.content) {
         const totalLines = file.content.split('\n').length;
-        _buildDiffMarkerStrip(card, body, addedLines, totalLines);
+        _buildDiffMarkerStrip(card, body, addedLines, totalLines, deletedBeforeLine);
+    }
+
+    // ── Deleted lines hover overlay ──
+    if (deletedBeforeLine.size > 0) {
+        _setupDeletedLinesOverlay(card);
     }
 
     // Hidden lines indicator (delay to ensure layout is settled)
@@ -1035,36 +1046,40 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 }
 
 // ─── Diff marker strip (scrollbar annotations) ─────────
-function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines: Set<number>, totalLines: number) {
+function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines: Set<number>, totalLines: number, deletedBeforeLine?: Map<number, string[]>) {
     if (!body || totalLines === 0) return;
 
     const strip = document.createElement('div');
     strip.className = 'diff-marker-strip';
 
-    // Merge adjacent added lines into contiguous regions
-    const sorted = Array.from(addedLines).sort((a, b) => a - b);
-    const regions: { start: number; end: number }[] = [];
-    for (const line of sorted) {
-        const last = regions[regions.length - 1];
-        if (last && line <= last.end + 1) {
-            last.end = line;
-        } else {
-            regions.push({ start: line, end: line });
+    // Helper: merge line numbers into contiguous regions
+    function mergeIntoRegions(lineNums: number[]): { start: number; end: number }[] {
+        const sorted = lineNums.sort((a, b) => a - b);
+        const regions: { start: number; end: number }[] = [];
+        for (const line of sorted) {
+            const last = regions[regions.length - 1];
+            if (last && line <= last.end + 1) {
+                last.end = line;
+            } else {
+                regions.push({ start: line, end: line });
+            }
         }
+        return regions;
     }
 
-    // Create markers for each region
-    for (const region of regions) {
+    // Green markers for added lines
+    const addedRegions = mergeIntoRegions(Array.from(addedLines));
+    for (const region of addedRegions) {
         const topPct = ((region.start - 1) / totalLines) * 100;
         const heightPct = Math.max(0.5, ((region.end - region.start + 1) / totalLines) * 100);
 
         const marker = document.createElement('div');
-        marker.className = 'diff-marker';
+        marker.className = 'diff-marker diff-marker--add';
         marker.style.top = `${topPct}%`;
         marker.style.height = `${heightPct}%`;
         marker.title = region.start === region.end
-            ? `Line ${region.start}`
-            : `Lines ${region.start}–${region.end}`;
+            ? `Added: line ${region.start}`
+            : `Added: lines ${region.start}–${region.end}`;
 
         marker.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1074,8 +1089,43 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
         strip.appendChild(marker);
     }
 
+    // Red markers for deleted line locations
+    if (deletedBeforeLine && deletedBeforeLine.size > 0) {
+        const deletedRegions = mergeIntoRegions(Array.from(deletedBeforeLine.keys()));
+        for (const region of deletedRegions) {
+            const topPct = ((region.start - 1) / totalLines) * 100;
+            // Deleted markers are thin indicators (they don't occupy real lines)
+            const heightPct = Math.max(0.5, ((region.end - region.start + 1) / totalLines) * 100);
+
+            const marker = document.createElement('div');
+            marker.className = 'diff-marker diff-marker--del';
+            marker.style.top = `${topPct}%`;
+            marker.style.height = `${heightPct}%`;
+            // Count total deleted lines in this region
+            let delCount = 0;
+            for (let ln = region.start; ln <= region.end; ln++) {
+                delCount += (deletedBeforeLine.get(ln) || []).length;
+            }
+            marker.title = `${delCount} deleted line${delCount > 1 ? 's' : ''} near line ${region.start}`;
+
+            marker.addEventListener('click', (e) => {
+                e.stopPropagation();
+                _scrollToLine(body, region.start, totalLines);
+            });
+
+            strip.appendChild(marker);
+        }
+    }
+
+    // Collect all change regions for navigation
+    const allRegions = [...addedRegions];
+    if (deletedBeforeLine && deletedBeforeLine.size > 0) {
+        allRegions.push(...mergeIntoRegions(Array.from(deletedBeforeLine.keys())));
+    }
+    allRegions.sort((a, b) => a.start - b.start);
+
     // Navigation buttons (▲ prev ▼ next)
-    if (regions.length > 0) {
+    if (allRegions.length > 0) {
         let currentIdx = -1;
 
         const navUp = document.createElement('div');
@@ -1085,7 +1135,7 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
         navUp.addEventListener('click', (e) => {
             e.stopPropagation();
             currentIdx = Math.max(0, currentIdx - 1);
-            _scrollToLine(body, regions[currentIdx].start, totalLines);
+            _scrollToLine(body, allRegions[currentIdx].start, totalLines);
         });
 
         const navDown = document.createElement('div');
@@ -1094,8 +1144,8 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
         navDown.title = 'Next change';
         navDown.addEventListener('click', (e) => {
             e.stopPropagation();
-            currentIdx = Math.min(regions.length - 1, currentIdx + 1);
-            _scrollToLine(body, regions[currentIdx].start, totalLines);
+            currentIdx = Math.min(allRegions.length - 1, currentIdx + 1);
+            _scrollToLine(body, allRegions[currentIdx].start, totalLines);
         });
 
         strip.appendChild(navUp);
@@ -1104,6 +1154,90 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
 
     // Append to card (not body) so it doesn't scroll with content
     card.appendChild(strip);
+}
+
+// ─── Deleted lines hover overlay ────────────────────────
+function _setupDeletedLinesOverlay(card: HTMLElement) {
+    let overlay: HTMLElement | null = null;
+    let hideTimeout: any = null;
+
+    card.addEventListener('mouseover', (e) => {
+        const target = e.target as HTMLElement;
+        // Check if hovering over a line-num inside a .has-deleted line
+        const lineNum = target.closest('.line-num');
+        const diffLine = target.closest('.has-deleted') as HTMLElement;
+        if (!lineNum || !diffLine) return;
+
+        const delLinesRaw = diffLine.dataset.delLines;
+        if (!delLinesRaw) return;
+
+        if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+
+        try {
+            const deletedLines: string[] = JSON.parse(decodeURIComponent(delLinesRaw));
+            if (deletedLines.length === 0) return;
+
+            // Remove old overlay
+            if (overlay) overlay.remove();
+
+            overlay = document.createElement('div');
+            overlay.className = 'deleted-lines-overlay';
+
+            const header = document.createElement('div');
+            header.className = 'deleted-overlay-header';
+            header.textContent = `${deletedLines.length} deleted line${deletedLines.length > 1 ? 's' : ''}`;
+            overlay.appendChild(header);
+
+            const pre = document.createElement('pre');
+            const code = document.createElement('code');
+            code.innerHTML = deletedLines.map((line, i) =>
+                `<span class="diff-line diff-del"><span class="line-num del-line-num">  −${String(i + 1).padStart(2, ' ')}</span>${escapeHtml(line)}</span>`
+            ).join('\n');
+            pre.appendChild(code);
+            overlay.appendChild(pre);
+
+            // Position relative to the line element
+            const lineRect = diffLine.getBoundingClientRect();
+            const cardRect = card.getBoundingClientRect();
+            overlay.style.top = `${lineRect.top - cardRect.top - overlay.offsetHeight}px`;
+            overlay.style.left = '50px';  // Offset past line numbers
+
+            card.appendChild(overlay);
+
+            // Reposition after render (to know actual height)
+            requestAnimationFrame(() => {
+                if (!overlay) return;
+                const overlayH = overlay.offsetHeight;
+                const yPos = lineRect.top - cardRect.top;
+                // Show above the line, or below if not enough room
+                if (yPos - overlayH > 36) {
+                    overlay.style.top = `${yPos - overlayH}px`;
+                } else {
+                    overlay.style.top = `${yPos + lineRect.height}px`;
+                }
+            });
+
+            overlay.addEventListener('mouseenter', () => {
+                if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+            });
+            overlay.addEventListener('mouseleave', () => {
+                hideTimeout = setTimeout(() => {
+                    if (overlay) { overlay.remove(); overlay = null; }
+                }, 200);
+            });
+        } catch (err) { /* ignore parse errors */ }
+    });
+
+    card.addEventListener('mouseout', (e) => {
+        const target = e.target as HTMLElement;
+        const lineNum = target.closest('.line-num');
+        const diffLine = target.closest('.has-deleted');
+        if (!lineNum || !diffLine) return;
+
+        hideTimeout = setTimeout(() => {
+            if (overlay) { overlay.remove(); overlay = null; }
+        }, 300);
+    });
 }
 
 function _scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
