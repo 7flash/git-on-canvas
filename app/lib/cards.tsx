@@ -965,9 +965,6 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
 
     const strip = document.createElement('div');
     strip.className = 'diff-marker-strip';
-    // If there are changes, nav bar adds ~26px below the header+path
-    const hasChanges = addedLines.size > 0 || (deletedBeforeLine && deletedBeforeLine.size > 0);
-    strip.style.top = hasChanges ? '92px' : '66px';
 
     // Helper: merge line numbers into contiguous regions
     function mergeIntoRegions(lineNums: number[]): { start: number; end: number }[] {
@@ -1041,49 +1038,60 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
     }
     allRegions.sort((a, b) => a.start - b.start);
 
-    // Build a nav bar (▲▼ + change count) inserted after .file-path
+    // Insert nav buttons inline inside the .file-path element
     if (allRegions.length > 0) {
         let currentIdx = -1;
 
-        const navBar = document.createElement('div');
-        navBar.className = 'diff-nav-bar';
+        const filePath = body.querySelector('.file-path') as HTMLElement;
+        if (filePath) {
+            // Make file-path a flex container
+            filePath.style.display = 'flex';
+            filePath.style.alignItems = 'center';
+            filePath.style.justifyContent = 'space-between';
 
-        const navUp = document.createElement('button');
-        navUp.className = 'diff-nav-btn';
-        navUp.textContent = '▲';
-        navUp.title = 'Previous change';
-        navUp.addEventListener('click', (e) => {
-            e.stopPropagation();
-            currentIdx = Math.max(0, currentIdx - 1);
-            _scrollToLine(body, allRegions[currentIdx].start, totalLines);
-            navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
-        });
+            // Wrap existing text in a span to keep it on the left
+            const pathText = filePath.textContent || '';
+            filePath.textContent = '';
+            const pathSpan = document.createElement('span');
+            pathSpan.textContent = pathText;
+            pathSpan.style.overflow = 'hidden';
+            pathSpan.style.textOverflow = 'ellipsis';
+            filePath.appendChild(pathSpan);
 
-        const navDown = document.createElement('button');
-        navDown.className = 'diff-nav-btn';
-        navDown.textContent = '▼';
-        navDown.title = 'Next change';
-        navDown.addEventListener('click', (e) => {
-            e.stopPropagation();
-            currentIdx = Math.min(allRegions.length - 1, currentIdx + 1);
-            _scrollToLine(body, allRegions[currentIdx].start, totalLines);
-            navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
-        });
+            // Create nav group on the right
+            const navGroup = document.createElement('span');
+            navGroup.className = 'diff-nav-inline';
 
-        const navLabel = document.createElement('span');
-        navLabel.className = 'diff-nav-label';
-        navLabel.textContent = `${allRegions.length} changes`;
+            const navUp = document.createElement('button');
+            navUp.className = 'diff-nav-btn';
+            navUp.textContent = '▲';
+            navUp.title = 'Previous change';
+            navUp.addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentIdx = Math.max(0, currentIdx - 1);
+                _scrollToLine(body, allRegions[currentIdx].start, totalLines);
+                navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
+            });
 
-        navBar.appendChild(navUp);
-        navBar.appendChild(navDown);
-        navBar.appendChild(navLabel);
+            const navDown = document.createElement('button');
+            navDown.className = 'diff-nav-btn';
+            navDown.textContent = '▼';
+            navDown.title = 'Next change';
+            navDown.addEventListener('click', (e) => {
+                e.stopPropagation();
+                currentIdx = Math.min(allRegions.length - 1, currentIdx + 1);
+                _scrollToLine(body, allRegions[currentIdx].start, totalLines);
+                navLabel.textContent = `${currentIdx + 1}/${allRegions.length}`;
+            });
 
-        // Insert after file-path
-        const filePath = body.querySelector('.file-path');
-        if (filePath && filePath.nextSibling) {
-            body.insertBefore(navBar, filePath.nextSibling);
-        } else {
-            body.insertBefore(navBar, body.firstChild);
+            const navLabel = document.createElement('span');
+            navLabel.className = 'diff-nav-label';
+            navLabel.textContent = `${allRegions.length}`;
+
+            navGroup.appendChild(navUp);
+            navGroup.appendChild(navDown);
+            navGroup.appendChild(navLabel);
+            filePath.appendChild(navGroup);
         }
     }
 
