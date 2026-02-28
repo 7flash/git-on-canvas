@@ -1129,6 +1129,45 @@ body {
     opacity: 0.7;
 }
 
+/* ─── Connection navigation (in file-path bar) ─── */
+.conn-nav-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+
+.conn-nav-btn {
+    background: rgba(56, 189, 248, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    color: #38bdf8;
+    font-size: 8px;
+    width: 16px;
+    height: 15px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+    padding: 0;
+    line-height: 1;
+}
+
+.conn-nav-btn:hover {
+    background: rgba(56, 189, 248, 0.3);
+    border-color: rgba(56, 189, 248, 0.5);
+}
+
+.conn-nav-label {
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    color: #38bdf8;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
 /* ─── Deleted lines indicators ─── */
 .has-deleted {
     border-left: 2px solid rgba(248, 113, 113, 0.5);

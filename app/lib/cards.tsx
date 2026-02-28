@@ -1114,14 +1114,20 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
             // Create nav group on the right
             const navGroup = document.createElement('span');
             navGroup.className = 'diff-nav-inline';
+            navGroup.title = `${navRegions.length} change${navRegions.length > 1 ? 's' : ''}`;
+
+            const navLabel = document.createElement('span');
+            navLabel.className = 'diff-nav-label';
+            navLabel.textContent = `—/${navRegions.length}`;
 
             const navUp = document.createElement('button');
             navUp.className = 'diff-nav-btn';
             navUp.textContent = '▲';
-            navUp.title = 'Previous hunk';
+            navUp.title = 'Previous change';
             navUp.addEventListener('click', (e) => {
                 e.stopPropagation();
-                currentIdx = Math.max(0, currentIdx - 1);
+                if (currentIdx <= 0) currentIdx = navRegions.length - 1;
+                else currentIdx--;
                 _scrollToLine(body, navRegions[currentIdx].start, totalLines);
                 navLabel.textContent = `${currentIdx + 1}/${navRegions.length}`;
             });
@@ -1129,21 +1135,18 @@ function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines:
             const navDown = document.createElement('button');
             navDown.className = 'diff-nav-btn';
             navDown.textContent = '▼';
-            navDown.title = 'Next hunk';
+            navDown.title = 'Next change';
             navDown.addEventListener('click', (e) => {
                 e.stopPropagation();
-                currentIdx = Math.min(navRegions.length - 1, currentIdx + 1);
+                if (currentIdx >= navRegions.length - 1) currentIdx = 0;
+                else currentIdx++;
                 _scrollToLine(body, navRegions[currentIdx].start, totalLines);
                 navLabel.textContent = `${currentIdx + 1}/${navRegions.length}`;
             });
 
-            const navLabel = document.createElement('span');
-            navLabel.className = 'diff-nav-label';
-            navLabel.textContent = `${navRegions.length}`;
-
             navGroup.appendChild(navUp);
-            navGroup.appendChild(navDown);
             navGroup.appendChild(navLabel);
+            navGroup.appendChild(navDown);
             filePath.appendChild(navGroup);
         }
     }
