@@ -342,6 +342,73 @@ export function buildConnectionMarkers(ctx: CanvasContext) {
 
         // Append strip INSIDE the pre element so it scrolls with content
         pre.appendChild(strip);
+
+        // ── Connection navigation in the file-path bar ──
+        const filePathEl = body.querySelector('.file-path') as HTMLElement;
+        if (filePathEl && markers.length > 0) {
+            // Remove any previously injected connection nav
+            filePathEl.querySelectorAll('.conn-nav-inline').forEach(e => e.remove());
+
+            // Ensure file-path is flex (might have been set by diff nav already)
+            filePathEl.style.display = 'flex';
+            filePathEl.style.alignItems = 'center';
+            filePathEl.style.justifyContent = 'space-between';
+
+            // If the path text wasn't already wrapped in a span (by diff nav), wrap it
+            if (!filePathEl.querySelector('.file-path-text')) {
+                const existingText = filePathEl.childNodes[0];
+                if (existingText && existingText.nodeType === Node.TEXT_NODE) {
+                    const pathSpan = document.createElement('span');
+                    pathSpan.className = 'file-path-text';
+                    pathSpan.textContent = existingText.textContent || '';
+                    pathSpan.style.overflow = 'hidden';
+                    pathSpan.style.textOverflow = 'ellipsis';
+                    filePathEl.replaceChild(pathSpan, existingText);
+                }
+            }
+
+            let connIdx = -1;
+            const sorted = [...markers].sort((a, b) => a.line - b.line);
+
+            const connNav = document.createElement('span');
+            connNav.className = 'conn-nav-inline';
+            connNav.title = `${sorted.length} connection${sorted.length > 1 ? 's' : ''}`;
+
+            const connLabel = document.createElement('span');
+            connLabel.className = 'conn-nav-label';
+            connLabel.textContent = `🔗${sorted.length}`;
+
+            const connPrev = document.createElement('button');
+            connPrev.className = 'conn-nav-btn';
+            connPrev.textContent = '◀';
+            connPrev.title = 'Previous connection';
+            connPrev.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (connIdx <= 0) connIdx = sorted.length - 1;
+                else connIdx--;
+                const m = sorted[connIdx];
+                navigateToConnection(ctx, m.conn, m.role === 'source' ? 'target' : 'source');
+                connLabel.textContent = `🔗${connIdx + 1}/${sorted.length}`;
+            });
+
+            const connNext = document.createElement('button');
+            connNext.className = 'conn-nav-btn';
+            connNext.textContent = '▶';
+            connNext.title = 'Next connection';
+            connNext.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (connIdx >= sorted.length - 1) connIdx = 0;
+                else connIdx++;
+                const m = sorted[connIdx];
+                navigateToConnection(ctx, m.conn, m.role === 'source' ? 'target' : 'source');
+                connLabel.textContent = `🔗${connIdx + 1}/${sorted.length}`;
+            });
+
+            connNav.appendChild(connPrev);
+            connNav.appendChild(connLabel);
+            connNav.appendChild(connNext);
+            filePathEl.appendChild(connNav);
+        }
     });
 }
 
