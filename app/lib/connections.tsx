@@ -310,17 +310,16 @@ export function renderConnections(ctx: CanvasContext) {
         const dy = Math.abs(endPt.y - startPt.y);
         const ctrlOffset = Math.max(60, Math.min(dx * 0.4, 200));
 
-        // Orthogonal routing (circuit board style)
+        // Smooth Bezier Routing (More robust, avoids overlapping vertical lines)
         let d: string;
-        const MID_GAP = 30;
         if (goingRight) {
-            const midX = startPt.x + dx / 2;
-            d = `M ${startPt.x} ${startPt.y} L ${midX} ${startPt.y} L ${midX} ${endPt.y} L ${endPt.x} ${endPt.y}`;
+            d = `M ${startPt.x} ${startPt.y} C ${startPt.x + ctrlOffset} ${startPt.y}, ${endPt.x - ctrlOffset} ${endPt.y}, ${endPt.x} ${endPt.y}`;
         } else {
-            // Cards overlap or wrong order — route around top
-            const arcHeight = Math.max(80, dy * 0.3);
+            // Cards overlap or wrong order — route elegantly above them using smooth curves
+            const arcHeight = Math.max(120, dy * 0.4);
             const topY = Math.min(startPt.y, endPt.y) - arcHeight;
-            d = `M ${startPt.x} ${startPt.y} L ${startPt.x + MID_GAP} ${startPt.y} L ${startPt.x + MID_GAP} ${topY} L ${endPt.x - MID_GAP} ${topY} L ${endPt.x - MID_GAP} ${endPt.y} L ${endPt.x} ${endPt.y}`;
+            const midX = (startPt.x + endPt.x) / 2;
+            d = `M ${startPt.x} ${startPt.y} C ${startPt.x + ctrlOffset} ${startPt.y}, ${startPt.x + ctrlOffset} ${topY}, ${midX} ${topY} C ${endPt.x - ctrlOffset} ${topY}, ${endPt.x - ctrlOffset} ${endPt.y}, ${endPt.x} ${endPt.y}`;
         }
 
         // Connection group
@@ -346,7 +345,7 @@ export function renderConnections(ctx: CanvasContext) {
         path.setAttribute('stroke-width', '2.5');
         path.setAttribute('stroke-linejoin', 'round');
         path.setAttribute('fill', 'none');
-        path.setAttribute('opacity', '0.7');
+        path.setAttribute('opacity', '0.35'); // Reduced opacity to prevent visual obstruction
         path.classList.add('conn-main-path');
         path.style.cursor = 'pointer';
         path.style.pointerEvents = 'stroke';
@@ -393,7 +392,7 @@ export function renderConnections(ctx: CanvasContext) {
         });
         group.addEventListener('mouseleave', () => {
             path.setAttribute('stroke-width', '2.5');
-            path.setAttribute('opacity', '0.7');
+            path.setAttribute('opacity', '0.35');
             glowPath.setAttribute('opacity', '0');
             srcCircle.setAttribute('r', '5');
             tgtCircle.setAttribute('r', '5');

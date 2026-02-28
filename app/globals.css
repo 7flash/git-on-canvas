@@ -83,21 +83,21 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 6px;
+    height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: var(--bg-secondary);
+    background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--bg-elevated);
-    border-radius: 4px;
+    background: rgba(124, 58, 237, 0.2);
+    border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-primary);
+    background: rgba(124, 58, 237, 0.4);
 }
 
 /* App Layout */
@@ -955,26 +955,21 @@ body {
 
 /* Styled scrollbar for file preview content (all-files mode) */
 .file-content-preview pre::-webkit-scrollbar {
-    width: 14px;
-    height: 14px;
+    width: 6px;
+    height: 6px;
 }
 
 .file-content-preview pre::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.15);
-    border-radius: 7px;
+    background: transparent;
 }
 
 .file-content-preview pre::-webkit-scrollbar-thumb {
-    background: rgba(124, 58, 237, 0.35);
-    border-radius: 7px;
-    border: 3px solid transparent;
-    background-clip: padding-box;
+    background: rgba(124, 58, 237, 0.18);
+    border-radius: 3px;
 }
 
 .file-content-preview pre::-webkit-scrollbar-thumb:hover {
-    background: rgba(124, 58, 237, 0.55);
-    border: 2px solid transparent;
-    background-clip: padding-box;
+    background: rgba(124, 58, 237, 0.4);
 }
 
 .file-path {
@@ -1014,27 +1009,7 @@ body {
     opacity: 1;
 }
 
-/* Hidden lines indicator */
-.hidden-lines-indicator {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85) 35%);
-    padding: 28px 8px 10px;
-    cursor: default;
-    z-index: 3;
-    letter-spacing: 0.03em;
-    user-select: none;
-}
 
-.hidden-lines-indicator:hover {
-    color: var(--text-secondary);
-}
 
 /* ─── Diff marker strip (scrollbar annotations) ────── */
 .diff-marker-strip {
@@ -3761,4 +3736,16 @@ body {
     color: var(--text-primary);
     border-color: var(--text-muted);
     background: var(--bg-tertiary);
+}
+
+.layers-bar-add.autogen {
+    border-style: solid;
+    border-color: rgba(124, 58, 237, 0.25);
+    color: var(--accent-tertiary);
+}
+
+.layers-bar-add.autogen:hover {
+    background: rgba(124, 58, 237, 0.12);
+    border-color: rgba(124, 58, 237, 0.4);
+    color: var(--accent-secondary);
 }

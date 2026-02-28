@@ -630,8 +630,19 @@ function populateChangedFilesPanel(files: any[]) {
         return;
     }
 
+    // Filter by active layer — only show changed files that are in the layer
+    const activeLayer = getActiveLayer();
+    const filteredFiles = activeLayer
+        ? files.filter(f => !!activeLayer.files[f.path])
+        : files;
+
+    if (filteredFiles.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
     let totalAdd = 0, totalDel = 0;
-    const fileStats = files.map(f => {
+    const fileStats = filteredFiles.map(f => {
         let additions = 0, deletions = 0;
         if (f.hunks) {
             f.hunks.forEach(h => {
@@ -651,7 +662,7 @@ function populateChangedFilesPanel(files: any[]) {
     });
 
     render(
-        <ChangedFilesList fileStats={fileStats} totalAdd={totalAdd} totalDel={totalDel} count={files.length} />,
+        <ChangedFilesList fileStats={fileStats} totalAdd={totalAdd} totalDel={totalDel} count={filteredFiles.length} />,
         listEl
     );
 
