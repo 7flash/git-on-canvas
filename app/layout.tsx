@@ -159,6 +159,12 @@ export default function RootLayout({ children }: { children: any }) {
                                     </svg>
                                     <span id="hiddenCount">0</span>
                                 </button>
+                                <button id="toggleConnections" className="btn-ghost btn-sm" title="Toggle connection lines">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                    </svg>
+                                </button>
                                 <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat (I)">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
