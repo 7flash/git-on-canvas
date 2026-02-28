@@ -23,12 +23,14 @@ import { measure } from 'measure-fn';
 import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
+import { createLayer, getActiveLayer, addSectionToLayer } from './layers';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
 import { cancelPendingConnection, hasPendingConnection } from './connections';
+import { promptAddSection } from './layers';
 
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
@@ -290,13 +292,36 @@ function setupChangedFilesPanel() {
             toggleBtn.addEventListener('click', () => {
                 const isVisible = panel.style.display !== 'none';
                 panel.style.display = isVisible ? 'none' : 'flex';
+                panel.dataset.manuallyClosed = isVisible ? 'true' : 'false';
             });
         }
 
         if (closeBtn && panel) {
             closeBtn.addEventListener('click', () => {
                 panel.style.display = 'none';
+                panel.dataset.manuallyClosed = 'true';
             });
+        }
+    });
+}
+
+function setupConnectionsPanel() {
+    measure('panel:setupConnections', () => {
+        const toggleBtn = document.getElementById('toggleConnectionsPanel');
+        const panel = document.getElementById('connectionsPanel');
+        const closeBtn = document.getElementById('closeConnectionsPanel');
+
+        if (toggleBtn && panel) {
+            toggleBtn.addEventListener('click', () => {
+                const isVisible = panel.style.display !== 'none';
+                panel.style.display = isVisible ? 'none' : 'flex';
+                if (!isVisible) {
+                    import('./connections').then(m => m.populateConnectionsList(ctx));
+                }
+            });
+        }
+        if (closeBtn && panel) {
+            closeBtn.addEventListener('click', () => panel.style.display = 'none');
         }
     });
 }
@@ -304,6 +329,9 @@ function setupChangedFilesPanel() {
 // ─── Global event listeners ─────────────────────────────
 export function setupEventListeners(ctx: CanvasContext) {
     measure('events:setup', () => {
+        setupChangedFilesPanel();
+        setupConnectionsPanel();
+
         // Load repo
         document.getElementById('loadRepo')?.addEventListener('click', () => {
             const path = (document.getElementById('repoPath') as HTMLInputElement)?.value.trim();
@@ -553,8 +581,11 @@ function openFileSearch(ctx: CanvasContext) {
     overlay.className = 'file-search-overlay';
     document.body.appendChild(overlay);
 
-    // Get all file paths from canvas
+    // Get all file paths from canvas or all active files
     function getAllPaths(): string[] {
+        if (ctx.allFilesData && ctx.allFilesData.length > 0) {
+            return ctx.allFilesData.map(f => f.path);
+        }
         if (ctx.fileCards.size > 0) return Array.from(ctx.fileCards.keys());
         const cards = document.querySelectorAll('.file-card[data-path]');
         return Array.from(cards).map(c => (c as HTMLElement).dataset.path || '').filter(Boolean);
@@ -564,10 +595,33 @@ function openFileSearch(ctx: CanvasContext) {
     let currentQuery = '';
 
     function navigateToFile(path: string) {
-        const card = ctx.fileCards.get(path);
-        if (!card) return;
-        close();
+        let card = ctx.fileCards.get(path);
 
+        if (!card) {
+            const layer = getActiveLayer();
+            if (layer && ctx.allFilesActive) {
+                // Instantly add the whole file to the active layer
+                addSectionToLayer(ctx, layer.id, path, '', '');
+
+                // Wait for the active layer to apply/render then jump
+                setTimeout(() => {
+                    card = ctx.fileCards.get(path);
+                    if (card) {
+                        close();
+                        doNavigate(path, card);
+                    }
+                }, 50);
+            } else if (!ctx.allFilesActive) {
+                showToast("File was not modified in the current view.", 'info');
+            }
+            return;
+        }
+
+        close();
+        doNavigate(path, card);
+    }
+
+    function doNavigate(path: string, card: HTMLElement) {
         const vpRect = ctx.canvasViewport.getBoundingClientRect();
         const state = ctx.snap().context;
         const cardX = parseFloat(card.style.left) || 0;

@@ -16,8 +16,9 @@ import { loadSavedPositions } from './lib/positions';
 import { loadHiddenFiles, updateHiddenUI } from './lib/hidden-files';
 import { setupCanvasInteraction, setupEventListeners } from './lib/events';
 import { loadConnections } from './lib/connections';
-import { clearCanvas, updateCanvasTransform, updateZoomUI } from './lib/canvas';
+import { clearCanvas, updateCanvasTransform, updateZoomUI, restoreViewport } from './lib/canvas';
 import { loadRepository } from './lib/repo';
+import { initLayers, renderLayersUI } from './lib/layers';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -41,7 +42,7 @@ export default function mount(): () => void {
                 // Fallback: create overlay if not present
                 ctx.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
                 ctx.svgOverlay.id = 'connectionsOverlay';
-                ctx.svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:100;overflow:visible;';
+                ctx.svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;';
                 ctx.canvas.appendChild(ctx.svgOverlay);
             }
 
@@ -59,11 +60,29 @@ export default function mount(): () => void {
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
             if (hashRepo) {
                 (document.getElementById('repoPath') as HTMLInputElement).value = hashRepo;
+
+                // Init layers based on repo
+                ctx.actor.send({ type: 'LOAD_REPO', path: hashRepo }); // Hack to set repoPath in context early
+                ctx.snap().context.repoPath = hashRepo;
+                initLayers(ctx);
+                renderLayersUI(ctx);
+                restoreViewport(ctx);
+                updateCanvasTransform(ctx);
+                updateZoomUI(ctx);
+
                 if (!disposed) loadRepository(ctx, hashRepo);
             } else {
                 const saved = localStorage.getItem('gitcanvas:lastRepo');
                 if (saved) {
                     (document.getElementById('repoPath') as HTMLInputElement).value = saved;
+
+                    ctx.actor.send({ type: 'LOAD_REPO', path: saved });
+                    ctx.snap().context.repoPath = saved;
+                    initLayers(ctx);
+                    renderLayersUI(ctx);
+                    restoreViewport(ctx);
+                    updateCanvasTransform(ctx);
+                    updateZoomUI(ctx);
                 }
             }
 

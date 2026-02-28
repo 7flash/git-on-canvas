@@ -13,6 +13,7 @@ export default function RootLayout({ children }: { children: any }) {
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                 <meta name="description" content="Git Canvas - Visual Git Repository Explorer with interactive file canvas" />
                 <title>Git Canvas — Visual Repository Explorer</title>
+                <link rel="icon" href="data:," />
                 <link
                     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
                     rel="stylesheet"
@@ -60,7 +61,6 @@ export default function RootLayout({ children }: { children: any }) {
                             <input type="file" id="folderPickerInput" style={{ display: 'none' }} />
                         </div>
 
-                        {/* Always shows all files — no mode switching needed */}
 
                         <div className="commit-timeline" id="commitTimeline">
                             <div className="section-header">
@@ -158,6 +158,12 @@ export default function RootLayout({ children }: { children: any }) {
                                         </svg>
                                     </button>
                                 </div>
+                                <button id="toggleConnectionsPanel" className="btn-ghost btn-sm" title="Show connections">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M12 11c0 3.532 1.613 6.436 4.649 8.273a1.5 1.5 0 002.351-1.273V6a1.5 1.5 0 00-2.351-1.273C13.613 6.564 12 9.468 12 13z" />
+                                    </svg>
+                                    <span id="connCount">0</span>
+                                </button>
                                 <button id="toggleChangedFiles" className="btn-ghost btn-sm" title="Show changed files">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -198,6 +204,20 @@ export default function RootLayout({ children }: { children: any }) {
                             <div className="changed-files-list" id="changedFilesList"></div>
                         </div>
 
+                        {/* Connections Panel */}
+                        <div className="changed-files-panel" id="connectionsPanel" style={{ display: 'none', right: '300px' }}>
+                            <div className="panel-header">
+                                <span className="panel-title">Connections</span>
+                                <button id="closeConnectionsPanel" className="btn-ghost btn-xs" title="Close">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div className="changed-files-list" id="connectionsList"></div>
+                        </div>
+
                         <div className="minimap-container">
                             <div className="minimap" id="minimap">
                                 <div className="minimap-viewport" id="minimapViewport"></div>
@@ -211,6 +231,9 @@ export default function RootLayout({ children }: { children: any }) {
                                 </svg>
                             </button>
                         </div>
+
+                        {/* Bottom Layers Bar */}
+                        <div id="layersBarContainer"></div>
                     </main>
                 </div>
 

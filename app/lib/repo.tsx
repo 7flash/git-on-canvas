@@ -11,6 +11,7 @@ import { getPositionKey } from './positions';
 import { updateHiddenUI } from './hidden-files';
 import { showLoadingProgress, updateLoadingProgress, hideLoadingProgress } from './loading';
 import { createFileCard, createAllFileCard, debounceSaveScroll } from './cards';
+import { getActiveLayer } from './layers';
 import { renderConnections, buildConnectionMarkers } from './connections';
 
 // Shared: reference to ctx for changed-files panel navigation
@@ -259,16 +260,19 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
     measure('canvas:renderFiles', () => {
         clearCanvas(ctx);
 
-        const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
-        updateHiddenUI(ctx);
+        let layerFiles = visibleFiles;
+        const activeLayer = getActiveLayer();
+        if (activeLayer) {
+            layerFiles = visibleFiles.filter(f => !!activeLayer.files[f.path]);
+        }
 
-        const cols = Math.min(visibleFiles.length, getAutoColumnCount(ctx));
+        const cols = Math.min(layerFiles.length, getAutoColumnCount(ctx));
         const cardWidth = 580;
         const cardHeight = 700;
         const gap = 40;
 
-        visibleFiles.forEach((file, index) => {
-            const posKey = getPositionKey(file.path, commitHash);
+        layerFiles.forEach((f, index) => {
+            const posKey = getPositionKey(f.path, commitHash);
             let x: number, y: number;
 
             if (ctx.positions.has(posKey)) {
@@ -279,6 +283,11 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
                 const row = Math.floor(index / cols);
                 x = 50 + col * (cardWidth + gap);
                 y = 50 + row * (cardHeight + gap);
+            }
+
+            const file = { ...f };
+            if (activeLayer && activeLayer.files[file.path]) {
+                file.layerSections = activeLayer.files[file.path].sections;
             }
 
             const card = createFileCard(ctx, file, x, y, commitHash);
@@ -305,8 +314,14 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             ctx.commitFilesData.forEach(f => changedFileDataMap.set(f.path, f));
         }
 
+        let layerFiles = visibleFiles;
+        const activeLayer = getActiveLayer();
+        if (activeLayer) {
+            layerFiles = visibleFiles.filter(f => !!activeLayer.files[f.path]);
+        }
+
         // Square-ish grid: use ceil(sqrt(n)) columns for a dense rectangle
-        const count = visibleFiles.length;
+        const count = layerFiles.length;
         const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
         const defaultCardWidth = 580;
         const defaultCardHeight = 700;
@@ -314,9 +329,9 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         const cellW = defaultCardWidth + gap;
         const cellH = defaultCardHeight + gap;
 
-        visibleFiles.forEach((file, index) => {
-            const isChanged = ctx.changedFilePaths.has(file.path);
-            const posKey = `allfiles:${file.path}`;
+        layerFiles.forEach((f, index) => {
+            const isChanged = ctx.changedFilePaths.has(f.path);
+            const posKey = `allfiles:${f.path}`;
             let x: number, y: number;
 
             if (ctx.positions.has(posKey)) {
@@ -330,16 +345,20 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             }
 
             const state = ctx.snap().context;
-            let size = state.cardSizes?.[file.path];
+            let size = state.cardSizes?.[f.path];
             if (!size && ctx.positions.has(posKey)) {
                 const pos = ctx.positions.get(posKey);
                 if (pos.width) size = { width: pos.width, height: pos.height };
             }
 
             // Merge diff data into the file for highlighting
-            let fileWithDiff = { ...file };
-            if (isChanged && changedFileDataMap.has(file.path)) {
-                const diffData = changedFileDataMap.get(file.path);
+            let fileWithDiff = { ...f };
+            if (activeLayer && activeLayer.files[fileWithDiff.path]) {
+                fileWithDiff.layerSections = activeLayer.files[fileWithDiff.path].sections;
+            }
+
+            if (isChanged && changedFileDataMap.has(fileWithDiff.path)) {
+                const diffData = changedFileDataMap.get(fileWithDiff.path);
 
                 // Use full content from diff data if available (has the latest version)
                 if (diffData.content) {
@@ -403,10 +422,10 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             }
 
             ctx.canvas.appendChild(card);
-            ctx.fileCards.set(file.path, card);
+            ctx.fileCards.set(f.path, card);
 
             // Restore scroll position
-            const scrollKey = `scroll:${file.path}`;
+            const scrollKey = `scroll:${f.path}`;
             if (ctx.positions.has(scrollKey)) {
                 const savedScroll = ctx.positions.get(scrollKey);
                 requestAnimationFrame(() => {
@@ -636,5 +655,7 @@ function populateChangedFilesPanel(files: any[]) {
         listEl
     );
 
-    panel.style.display = 'flex';
+    if (panel.dataset.manuallyClosed !== 'true') {
+        panel.style.display = 'flex';
+    }
 }
