@@ -65,7 +65,7 @@ function MessageList({ messages, isTyping }: { messages: ChatMessage[]; isTyping
         return <EmptyChat />;
     }
     return (
-        <>
+        <div className="chat-message-list-inner">
             {messages.map((msg, i) => (
                 <div key={i} className={`chat-message chat-${msg.role}`}>
                     <div className="chat-message-role">{msg.role === 'user' ? 'You' : 'AI'}</div>
@@ -73,7 +73,7 @@ function MessageList({ messages, isTyping }: { messages: ChatMessage[]; isTyping
                 </div>
             ))}
             {isTyping && <TypingIndicator />}
-        </>
+        </div>
     );
 }
 
@@ -130,7 +130,7 @@ function ChatPanel({
 function renderChatPanel(container: HTMLElement, containerId: string, title: string, state: ChatState) {
     const onSend = (text: string) => {
         if (!text.trim() || state.isStreaming) return;
-        state.messages.push({ role: 'user', content: text.trim() });
+        state.messages = [...state.messages, { role: 'user', content: text.trim() }];
         rerender();
         streamResponse(state, container, containerId, title, () => rerender());
     };
@@ -172,7 +172,7 @@ async function streamResponse(
     state.isStreaming = true;
 
     // Add assistant placeholder
-    state.messages.push({ role: 'assistant', content: '' });
+    state.messages = [...state.messages, { role: 'assistant', content: '' }];
     const assistantIdx = state.messages.length - 1;
     onUpdate();
 
@@ -194,20 +194,33 @@ async function streamResponse(
         const reader = response.body?.getReader();
         const decoder = new TextDecoder();
         let fullText = '';
+        let buffer = '';
 
         while (reader) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '));
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+
             for (const line of lines) {
-                const data = line.slice(6);
-                if (data === '[DONE]') break;
+                if (!line.startsWith('data: ')) continue;
+                const data = line.slice(6).trim();
+                if (!data || data === '[DONE]') break;
+
                 try {
                     const parsed = JSON.parse(data);
-                    if (parsed.error) { fullText += `\n\n**Error:** ${parsed.error}`; break; }
+                    if (parsed.error) {
+                        fullText += `\n\n**Error:** ${parsed.error}`;
+                        state.messages = [...state.messages];
+                        state.messages[assistantIdx].content = fullText;
+                        onUpdate();
+                        break;
+                    }
                     if (parsed.text) {
                         fullText += parsed.text;
+                        state.messages = [...state.messages];
                         state.messages[assistantIdx].content = fullText;
                         onUpdate();
                     }
@@ -218,6 +231,7 @@ async function streamResponse(
         if (!fullText) state.messages[assistantIdx].content = '*No response received.*';
 
     } catch (err) {
+        state.messages = [...state.messages];
         state.messages[assistantIdx].content = `**Error:** ${err.message}`;
     }
 

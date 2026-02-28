@@ -103,6 +103,9 @@ export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, 
             return;
         }
 
+        // Must hold Alt key to START a new connection, to prevent conflict with dragging
+        if (!e.altKey) return;
+
         // Start a new pending connection
         e.stopPropagation();
         const fileName = filePath.split('/').pop();
@@ -307,14 +310,17 @@ export function renderConnections(ctx: CanvasContext) {
         const dy = Math.abs(endPt.y - startPt.y);
         const ctrlOffset = Math.max(60, Math.min(dx * 0.4, 200));
 
-        // Bezier: from right side of source → left side of target
+        // Orthogonal routing (circuit board style)
         let d: string;
+        const MID_GAP = 30;
         if (goingRight) {
-            d = `M ${startPt.x} ${startPt.y} C ${startPt.x + ctrlOffset} ${startPt.y}, ${endPt.x - ctrlOffset} ${endPt.y}, ${endPt.x} ${endPt.y}`;
+            const midX = startPt.x + dx / 2;
+            d = `M ${startPt.x} ${startPt.y} L ${midX} ${startPt.y} L ${midX} ${endPt.y} L ${endPt.x} ${endPt.y}`;
         } else {
-            // Cards overlap or wrong order — curve around
+            // Cards overlap or wrong order — route around top
             const arcHeight = Math.max(80, dy * 0.3);
-            d = `M ${startPt.x} ${startPt.y} C ${startPt.x + ctrlOffset} ${startPt.y - arcHeight}, ${endPt.x - ctrlOffset} ${endPt.y - arcHeight}, ${endPt.x} ${endPt.y}`;
+            const topY = Math.min(startPt.y, endPt.y) - arcHeight;
+            d = `M ${startPt.x} ${startPt.y} L ${startPt.x + MID_GAP} ${startPt.y} L ${startPt.x + MID_GAP} ${topY} L ${endPt.x - MID_GAP} ${topY} L ${endPt.x - MID_GAP} ${endPt.y} L ${endPt.x} ${endPt.y}`;
         }
 
         // Connection group
@@ -328,6 +334,7 @@ export function renderConnections(ctx: CanvasContext) {
         glowPath.setAttribute('stroke', '#a78bfa');
         glowPath.setAttribute('stroke-width', '6');
         glowPath.setAttribute('fill', 'none');
+        glowPath.setAttribute('stroke-linejoin', 'round');
         glowPath.setAttribute('opacity', '0');
         glowPath.classList.add('conn-glow-path');
         group.appendChild(glowPath);
@@ -337,6 +344,7 @@ export function renderConnections(ctx: CanvasContext) {
         path.setAttribute('d', d);
         path.setAttribute('stroke', 'url(#conn-gradient)');
         path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-linejoin', 'round');
         path.setAttribute('fill', 'none');
         path.setAttribute('opacity', '0.7');
         path.classList.add('conn-main-path');
@@ -363,9 +371,16 @@ export function renderConnections(ctx: CanvasContext) {
         const tgtName = conn.targetFile.split('/').pop() || '';
         const labelText = `${srcName}:${conn.sourceLineStart} → ${tgtName}:${conn.targetLineStart}`;
 
-        const labelGroup = _makeLabel(midX, midY, labelText);
+        const { group: labelGroup, deleteGroup } = _makeLabel(midX, midY, labelText);
         labelGroup.classList.add('conn-label');
         group.appendChild(labelGroup);
+
+        // Delete button logic
+        deleteGroup.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteConnection(ctx, conn.id);
+        });
 
         // Hover: brighten
         group.addEventListener('mouseenter', () => {
@@ -414,7 +429,7 @@ function _makeEndpoint(x: number, y: number, color: string): SVGCircleElement {
     return circle;
 }
 
-function _makeLabel(x: number, y: number, text: string): SVGGElement {
+function _makeLabel(x: number, y: number, text: string): { group: SVGGElement, deleteGroup: SVGGElement } {
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.style.opacity = '0.85';
     group.style.transition = 'opacity 0.15s ease';
@@ -435,7 +450,8 @@ function _makeLabel(x: number, y: number, text: string): SVGGElement {
     // Background rect — sized by text length estimate
     const padding = 8;
     const charW = 6.2;
-    const w = text.length * charW + padding * 2;
+    const textW = text.length * charW;
+    const w = textW + padding * 2 + 20; // Extra 20px for the X button
     const h = 20;
 
     const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -450,7 +466,42 @@ function _makeLabel(x: number, y: number, text: string): SVGGElement {
 
     group.appendChild(rect);
     group.appendChild(textEl);
-    return group;
+
+    // X / Delete button group
+    const deleteGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const delX = x + textW / 2 + 6;
+
+    const delRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    delRect.setAttribute('x', String(delX));
+    delRect.setAttribute('y', String(y - h / 2 + 3));
+    delRect.setAttribute('width', '14');
+    delRect.setAttribute('height', '14');
+    delRect.setAttribute('rx', '3');
+    delRect.setAttribute('fill', 'rgba(239, 68, 68, 0.15)');
+    delRect.style.cursor = 'pointer';
+
+    const delText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    delText.setAttribute('x', String(delX + 7)); // center of 14px rect
+    delText.setAttribute('y', String(y));
+    delText.setAttribute('text-anchor', 'middle');
+    delText.setAttribute('alignment-baseline', 'middle');
+    delText.setAttribute('fill', '#ef4444');
+    delText.setAttribute('font-size', '10');
+    delText.setAttribute('font-family', 'sans-serif');
+    delText.setAttribute('font-weight', 'bold');
+    delText.textContent = '×';
+    delText.style.pointerEvents = 'none';
+
+    deleteGroup.appendChild(delRect);
+    deleteGroup.appendChild(delText);
+
+    // Delete hover effect
+    deleteGroup.addEventListener('mouseenter', () => delRect.setAttribute('fill', 'rgba(239, 68, 68, 0.4)'));
+    deleteGroup.addEventListener('mouseleave', () => delRect.setAttribute('fill', 'rgba(239, 68, 68, 0.15)'));
+
+    group.appendChild(deleteGroup);
+
+    return { group, deleteGroup };
 }
 
 function _estimatePathLength(p1: { x: number, y: number }, p2: { x: number, y: number }): number {
@@ -615,6 +666,46 @@ export function deleteConnection(ctx: CanvasContext, connId: string) {
     renderConnections(ctx);
     buildConnectionMarkers(ctx);
     saveConnections(ctx);
+    populateConnectionsList();
+}
+
+// ─── Populate connections UI list ───────────────────────
+let _cachedCtxForConnections: CanvasContext | null = null;
+export function populateConnectionsList(ctx?: CanvasContext) {
+    if (ctx) _cachedCtxForConnections = ctx;
+    const currentCtx = ctx || _cachedCtxForConnections;
+    if (!currentCtx) return;
+
+    const listEl = document.getElementById('connectionsList');
+    const panel = document.getElementById('connectionsPanel');
+    const countEl = document.getElementById('connCount');
+    if (!listEl || !panel) return;
+
+    const connections = currentCtx.snap().context.connections || [];
+    if (countEl) countEl.textContent = String(connections.length);
+
+    if (connections.length === 0) {
+        render(<div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No connections</div>, listEl);
+        return;
+    }
+
+    render(
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 8px;">
+            {connections.map(conn => (
+                <div key={conn.id} className="changed-file-item" style="justify-content: space-between;">
+                    <div style="display: flex; flex-direction: column; flex: 1; overflow: hidden; margin-right: 8px;" onClick={() => navigateToConnection(currentCtx, conn, 'target')}>
+                        <span style="font-size: 0.72rem; color: var(--accent-tertiary); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {conn.sourceFile.split('/').pop()}:{conn.sourceLineStart} → {conn.targetFile.split('/').pop()}:{conn.targetLineStart}
+                        </span>
+                    </div>
+                    <button className="btn-ghost btn-xs" style="color: var(--error);" onClick={(e) => { e.stopPropagation(); deleteConnection(currentCtx, conn.id); }} title="Delete Connection">
+                        ✕
+                    </button>
+                </div>
+            ))}
+        </div>,
+        listEl
+    );
 }
 
 // ─── Legacy compat: setupConnectionDrag (now no-op) ─────

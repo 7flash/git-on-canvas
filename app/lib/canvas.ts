@@ -13,12 +13,36 @@ let _mmCache: {
 } | null = null;
 let _mmRebuildTimer: any = null;
 
+export function restoreViewport(ctx: CanvasContext) {
+    const state = ctx.snap().context;
+    if (!state.repoPath) return;
+    try {
+        const saved = localStorage.getItem(`gitcanvas:viewport:${state.repoPath}`);
+        if (saved) {
+            const vp = JSON.parse(saved);
+            if (vp.zoom) ctx.actor.send({ type: 'SET_ZOOM', zoom: vp.zoom });
+            if (vp.x !== undefined && vp.y !== undefined) ctx.actor.send({ type: 'SET_OFFSET', x: vp.x, y: vp.y });
+        }
+    } catch (e) { }
+}
+
 // ─── Update canvas CSS transform from state ─────────────
 export function updateCanvasTransform(ctx: CanvasContext) {
     const state = ctx.snap().context;
     ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
     // Cheap: only move the viewport rect using cached bounds
     updateMinimapViewport(ctx);
+
+    if (state.repoPath) {
+        if ((window as any)._saveViewportTimer) clearTimeout((window as any)._saveViewportTimer);
+        (window as any)._saveViewportTimer = setTimeout(() => {
+            localStorage.setItem(`gitcanvas:viewport:${state.repoPath}`, JSON.stringify({
+                zoom: state.zoom,
+                x: state.offsetX,
+                y: state.offsetY
+            }));
+        }, 300);
+    }
 }
 
 // ─── Update zoom slider UI ──────────────────────────────

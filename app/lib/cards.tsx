@@ -11,6 +11,7 @@ import { savePosition, getPositionKey } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
 import { renderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
+import { filterFileContentByLayer, promptAddSection, layerState, createLayer } from './layers';
 import { openFileChatInModal } from './chat';
 
 // ─── Constants ──────────────────────────────────────────
@@ -216,9 +217,27 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 }
 
 // ─── Card context menu (JSX) ────────────────────────
-function ContextMenu({ onAction }: { onAction: (action: string) => void }) {
+function ContextMenu({ onAction, onActionLayer }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void }) {
+    const customLayers = layerState.layers.filter(l => l.id !== 'default');
     return (
         <>
+            <div className="ctx-item ctx-dropdown">
+                <span>✨ Add to Layer ⏵</span>
+                <div className="ctx-dropdown-content">
+                    {customLayers.length === 0 ? (
+                        <div className="ctx-item" style="opacity: 0.5; pointer-events: none">No custom layers</div>
+                    ) : (
+                        customLayers.map(l => (
+                            <button className="ctx-item" onClick={() => onActionLayer(l.id)}>
+                                + {l.name}
+                            </button>
+                        ))
+                    )}
+                    <div className="ctx-divider"></div>
+                    <button className="ctx-item" onClick={() => onActionLayer('new')}>✨ Create New Layer</button>
+                </div>
+            </div>
+            <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
             <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
             <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
@@ -239,7 +258,9 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
 
     function handleAction(action: string) {
         menu.remove();
-        if (action === 'expand') {
+        if (action === 'layer-section') {
+            promptAddSection(ctx, filePath);
+        } else if (action === 'expand') {
             const state = ctx.snap().context;
             const file = state.commitFiles?.find(f => f.path === filePath) ||
                 ctx.allFilesData?.find(f => f.path === filePath) ||
@@ -258,7 +279,23 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
         }
     }
 
-    render(<ContextMenu onAction={handleAction} />, menu);
+    function handleActionLayer(layerId: string) {
+        menu.remove();
+        if (layerId === 'new') {
+            const name = prompt('Enter a name for the new layer:');
+            if (!name) return;
+            const state = ctx.snap().context;
+            // The logic to add the section works by checking layerState, we need a slight hack: 
+            // createLayer sets it as active, then we can add the section.
+            createLayer(ctx, name);
+            // After creating, activeLayerId is the new layer
+            promptAddSection(ctx, filePath, layerState.activeLayerId);
+        } else {
+            promptAddSection(ctx, filePath, layerId);
+        }
+    }
+
+    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} />, menu);
     document.body.appendChild(menu);
 
     requestAnimationFrame(() => {
@@ -531,7 +568,7 @@ function FileCardContent({ file }: { file: any }) {
         const lines = file.content.split('\n');
         return (
             <div className="file-content-preview">
-                <pre><code>{lines.map((line, i) => <DiffLine type="add" lineNum={i + 1} content={line} />)}</code></pre>
+                <pre><code>{lines.map((line, i) => (!file.visibleLineIndices || file.visibleLineIndices.has(i)) ? <DiffLine type="add" lineNum={i + 1} content={line} /> : null)}</code></pre>
             </div>
         );
     }
@@ -539,7 +576,7 @@ function FileCardContent({ file }: { file: any }) {
         const lines = file.content.split('\n');
         return (
             <div className="file-content-preview">
-                <pre><code>{lines.map((line, i) => <DiffLine type="del" lineNum={i + 1} content={line} />)}</code></pre>
+                <pre><code>{lines.map((line, i) => (!file.visibleLineIndices || file.visibleLineIndices.has(i)) ? <DiffLine type="del" lineNum={i + 1} content={line} /> : null)}</code></pre>
             </div>
         );
     }
@@ -576,6 +613,21 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
     card.dataset.path = file.path;
+
+    if (file.layerSections && file.layerSections.length > 0) {
+        if (file.content) {
+            const { visibleLineIndices } = filterFileContentByLayer(file.content, file.layerSections);
+            file.visibleLineIndices = visibleLineIndices;
+        }
+        if (file.hunks) {
+            // Very simplistic filtering for hunks
+            file.hunks = file.hunks.filter(h => {
+                // If the hunk's content has ANY line overlapping with visible lines, keep it. But we don't have exactly the full file contents to compare.
+                // Keep all hunks for now if layers view, else users might miss diffs.
+                return true;
+            });
+        }
+    }
 
     // Apply saved size
     const posKey = getPositionKey(file.path, commitHash);
@@ -697,8 +749,11 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     if (file.isBinary) {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
     } else if (file.content) {
+        const { filteredContent, visibleLineIndices } = filterFileContentByLayer(file.content, file.layerSections);
         const lines = file.content.split('\n');
-        const code = lines.map((line, i) => {
+        let code = '';
+        lines.forEach((line, i) => {
+            if (!visibleLineIndices.has(i)) return;
             const lineNum = i + 1;
             const lineClass = isAllAdded ? 'diff-add'
                 : isAllDeleted ? 'diff-del'
@@ -708,8 +763,8 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             const delCount = hasDel ? deletedBeforeLine.get(lineNum)!.length : 0;
             const delAttr = hasDel ? ` data-del-count="${delCount}"` : '';
             const delLines = hasDel ? ` data-del-lines="${encodeURIComponent(JSON.stringify(deletedBeforeLine.get(lineNum)))}"` : '';
-            return `<span class="diff-line ${lineClass}${hasDel ? ' has-deleted' : ''}" data-line="${lineNum}"${delAttr}${delLines}><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>`;
-        }).join('\n');
+            code += `<span class="diff-line ${lineClass}${hasDel ? ' has-deleted' : ''}" data-line="${lineNum}"${delAttr}${delLines}><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>\n`;
+        });
         const truncNote = file.lines > 10000 ? `<span class="more-lines">File too large (${file.lines.toLocaleString()} lines) — showing first 10,000</span>` : '';
         contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
     } else {
