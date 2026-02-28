@@ -59,6 +59,10 @@ export default function mount(): () => void {
             // Check URL hash for repo path
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
             if (hashRepo) {
+                // Hide landing immediately since we have a repo
+                const landing = document.getElementById('landingOverlay');
+                if (landing) landing.style.display = 'none';
+
                 const sel = document.getElementById('repoSelect') as HTMLSelectElement;
                 if (sel) sel.value = hashRepo;
 
