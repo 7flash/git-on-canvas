@@ -343,6 +343,24 @@ export function setupEventListeners(ctx: CanvasContext) {
         setupChangedFilesPanel();
         setupConnectionsPanel();
 
+        // Connections visibility toggle
+        const connToggle = document.getElementById('toggleConnections');
+        if (connToggle) {
+            let connectionsVisible = true;
+            connToggle.classList.add('active');
+            connToggle.addEventListener('click', () => {
+                connectionsVisible = !connectionsVisible;
+                const svg = document.getElementById('connectionsOverlay') as HTMLElement;
+                if (svg) svg.style.display = connectionsVisible ? '' : 'none';
+                // Also toggle marker strips on cards
+                document.querySelectorAll('.connection-markers').forEach(el => {
+                    (el as HTMLElement).style.display = connectionsVisible ? '' : 'none';
+                });
+                connToggle.classList.toggle('active', connectionsVisible);
+                connToggle.title = connectionsVisible ? 'Hide connection lines' : 'Show connection lines';
+            });
+        }
+
         // Repo dropdown selector
         const repoSelect = document.getElementById('repoSelect') as HTMLSelectElement;
         if (repoSelect) {

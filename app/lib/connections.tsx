@@ -115,12 +115,8 @@ export function setupLineClickConnection(ctx: CanvasContext, card: HTMLElement, 
         lineEl.classList.add('connection-source-line');
         card.classList.add('connecting-source');
 
-        // Highlight all other cards as potential targets
-        ctx.fileCards.forEach((c, p) => {
-            if (p !== filePath) c.classList.add('connect-target-ready');
-        });
-
-        _showStatus(`Connecting from ${fileName}:${lineNum} — click a line in another file`);
+        // Show file picker to select target file
+        _showTargetFilePicker(ctx, filePath);
     });
 }
 
@@ -143,6 +139,117 @@ export function cancelPendingConnection(ctx: CanvasContext) {
 
 export function hasPendingConnection(): boolean {
     return pendingConnection !== null;
+}
+
+// ─── Target file picker for connections ─────────────────
+function _showTargetFilePicker(ctx: CanvasContext, sourceFile: string) {
+    // Remove existing picker if any
+    document.getElementById('connFilePickerOverlay')?.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'connFilePickerOverlay';
+    overlay.className = 'file-search-overlay';
+    document.body.appendChild(overlay);
+
+    const container = document.createElement('div');
+    container.className = 'file-search-container';
+
+    const header = document.createElement('div');
+    header.className = 'conn-picker-header';
+    const srcName = sourceFile.split('/').pop();
+    const srcLine = pendingConnection?.sourceLine || '?';
+    header.innerHTML = `<span class="conn-picker-from">Connect from <strong>${escapeHtml(srcName!)}:${srcLine}</strong> → select target file:</span>`;
+    container.appendChild(header);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'file-search-input';
+    input.placeholder = 'Filter files...';
+    input.autocomplete = 'off';
+    container.appendChild(input);
+
+    const resultsContainer = document.createElement('div');
+    resultsContainer.className = 'file-search-results';
+    container.appendChild(resultsContainer);
+    overlay.appendChild(container);
+
+    // Get all file paths except source
+    const allPaths = Array.from(ctx.fileCards.keys()).filter(p => p !== sourceFile);
+    let currentQuery = '';
+    let selectedIdx = 0;
+
+    function getMatches() {
+        const q = currentQuery.toLowerCase().trim();
+        return q ? allPaths.filter(p => p.toLowerCase().includes(q)).slice(0, 15) : allPaths.slice(0, 15);
+    }
+
+    function selectFile(path: string) {
+        overlay.remove();
+        // Navigate to the target card
+        const targetCard = ctx.fileCards.get(path);
+        if (!targetCard) return;
+
+        // Scroll viewport to center on target card
+        const vpRect = ctx.canvasViewport.getBoundingClientRect();
+        const state = ctx.snap().context;
+        const cardX = parseFloat(targetCard.style.left) || 0;
+        const cardY = parseFloat(targetCard.style.top) || 0;
+        const newOffsetX = -(cardX + targetCard.offsetWidth / 2) * state.zoom + vpRect.width / 2;
+        const newOffsetY = -(cardY + targetCard.offsetHeight / 2) * state.zoom + vpRect.height / 2;
+        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+        updateCanvasTransform(ctx);
+
+        // Highlight target card
+        targetCard.classList.add('connect-target-ready');
+        targetCard.classList.add('card-flash');
+        setTimeout(() => targetCard.classList.remove('card-flash'), 1500);
+
+        const tgtName = path.split('/').pop();
+        _showStatus(`Click a line in ${tgtName} to complete connection`);
+    }
+
+    function close() {
+        overlay.remove();
+        _clearPending(ctx);
+    }
+
+    function renderResults() {
+        const matches = getMatches();
+        const q = currentQuery.toLowerCase().trim();
+        if (matches.length === 0 && q) {
+            resultsContainer.innerHTML = `<div class="file-search-empty">No files matching "${escapeHtml(q)}"</div>`;
+        } else {
+            resultsContainer.innerHTML = matches.map((path, i) => {
+                const name = path.split('/').pop() || path;
+                const dir = path.substring(0, path.length - name.length);
+                return `<div class="file-search-item ${i === selectedIdx ? 'selected' : ''}" data-path="${escapeHtml(path)}">
+                    <span class="search-file-dir">${escapeHtml(dir)}</span><span class="search-file-name">${escapeHtml(name)}</span>
+                </div>`;
+            }).join('');
+            resultsContainer.querySelectorAll('.file-search-item').forEach(el => {
+                el.addEventListener('click', () => selectFile((el as HTMLElement).dataset.path!));
+            });
+        }
+    }
+
+    input.addEventListener('input', () => {
+        currentQuery = input.value;
+        selectedIdx = 0;
+        renderResults();
+    });
+    input.addEventListener('keydown', (e) => {
+        const matches = getMatches();
+        if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, matches.length - 1); renderResults(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); renderResults(); }
+        else if (e.key === 'Enter') { e.preventDefault(); if (matches[selectedIdx]) selectFile(matches[selectedIdx]); }
+        else if (e.key === 'Escape') { e.preventDefault(); close(); }
+    });
+    overlay.addEventListener('click', (e) => {
+        if ((e.target as HTMLElement) === overlay) close();
+    });
+
+    renderResults();
+    requestAnimationFrame(() => input.focus());
 }
 
 // ─── Build connection marker strips (LEFT side of cards) ─

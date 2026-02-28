@@ -3664,6 +3664,28 @@ body {
     font-style: italic;
 }
 
+/* ─── Connection picker header ───────────────── */
+.conn-picker-header {
+    padding: 12px 18px 8px;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.conn-picker-from strong {
+    color: var(--accent-primary);
+    font-family: var(--font-mono);
+}
+
+/* ─── Toggle button active state ─────────────── */
+#toggleConnections.active {
+    color: var(--accent-primary);
+}
+
+#toggleConnections:not(.active) {
+    opacity: 0.4;
+}
+
 /* ─── Commit Progress Bar (non-blocking) ──────── */
 .commit-progress-bar {
     display: none;
