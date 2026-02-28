@@ -59,7 +59,8 @@ export default function mount(): () => void {
             // Check URL hash for repo path
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
             if (hashRepo) {
-                (document.getElementById('repoPath') as HTMLInputElement).value = hashRepo;
+                const sel = document.getElementById('repoSelect') as HTMLSelectElement;
+                if (sel) sel.value = hashRepo;
 
                 // Init layers based on repo
                 ctx.actor.send({ type: 'LOAD_REPO', path: hashRepo }); // Hack to set repoPath in context early
@@ -74,7 +75,8 @@ export default function mount(): () => void {
             } else {
                 const saved = localStorage.getItem('gitcanvas:lastRepo');
                 if (saved) {
-                    (document.getElementById('repoPath') as HTMLInputElement).value = saved;
+                    const sel2 = document.getElementById('repoSelect') as HTMLSelectElement;
+                    if (sel2) sel2.value = saved;
 
                     ctx.actor.send({ type: 'LOAD_REPO', path: saved });
                     ctx.snap().context.repoPath = saved;
@@ -91,7 +93,8 @@ export default function mount(): () => void {
                 if (disposed) return;
                 const path = decodeURIComponent(window.location.hash.replace('#', ''));
                 if (path && path !== ctx.snap().context.repoPath) {
-                    (document.getElementById('repoPath') as HTMLInputElement).value = path;
+                    const sel3 = document.getElementById('repoSelect') as HTMLSelectElement;
+                    if (sel3) sel3.value = path;
                     loadRepository(ctx, path);
                 }
             });

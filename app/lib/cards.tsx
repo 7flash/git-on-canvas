@@ -11,7 +11,7 @@ import { savePosition, getPositionKey } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
 import { renderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
-import { filterFileContentByLayer, promptAddSection, layerState, createLayer } from './layers';
+import { filterFileContentByLayer, layerState, createLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
 import { openFileChatInModal } from './chat';
 
 // ─── Constants ──────────────────────────────────────────
@@ -217,18 +217,18 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 }
 
 // ─── Card context menu (JSX) ────────────────────────
-function ContextMenu({ onAction, onActionLayer }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void }) {
+function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void, isInActiveLayer: boolean }) {
     const customLayers = layerState.layers.filter(l => l.id !== 'default');
     return (
         <>
             <div className="ctx-item ctx-dropdown">
-                <span>✨ Add to Layer ⏵</span>
+                <span>✨ Add to Layer ▸</span>
                 <div className="ctx-dropdown-content">
                     {customLayers.length === 0 ? (
                         <div className="ctx-item" style="opacity: 0.5; pointer-events: none">No custom layers</div>
                     ) : (
                         customLayers.map(l => (
-                            <button className="ctx-item" onClick={() => onActionLayer(l.id)}>
+                            <button key={l.id} className="ctx-item" onClick={() => onActionLayer(l.id)}>
                                 + {l.name}
                             </button>
                         ))
@@ -237,6 +237,11 @@ function ContextMenu({ onAction, onActionLayer }: { onAction: (action: string) =
                     <button className="ctx-item" onClick={() => onActionLayer('new')}>✨ Create New Layer</button>
                 </div>
             </div>
+            {isInActiveLayer && (
+                <button className="ctx-item" onClick={() => onAction('remove-from-layer')} style="color: #ef4444">
+                    ✕ Remove from Layer
+                </button>
+            )}
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
             <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
@@ -256,10 +261,14 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
     menu.style.left = `${x}px`;
     menu.style.top = `${y}px`;
 
+    // Check if file is in the active layer
+    const activeLayer = getActiveLayer();
+    const isInActiveLayer = !!(activeLayer && activeLayer.files[filePath]);
+
     function handleAction(action: string) {
         menu.remove();
-        if (action === 'layer-section') {
-            promptAddSection(ctx, filePath);
+        if (action === 'remove-from-layer') {
+            removeFileFromLayer(ctx, layerState.activeLayerId, filePath);
         } else if (action === 'expand') {
             const state = ctx.snap().context;
             const file = state.commitFiles?.find(f => f.path === filePath) ||
@@ -284,18 +293,15 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
         if (layerId === 'new') {
             const name = prompt('Enter a name for the new layer:');
             if (!name) return;
-            const state = ctx.snap().context;
-            // The logic to add the section works by checking layerState, we need a slight hack: 
-            // createLayer sets it as active, then we can add the section.
             createLayer(ctx, name);
-            // After creating, activeLayerId is the new layer
-            promptAddSection(ctx, filePath, layerState.activeLayerId);
+            // After creating, add the file to it
+            addFileToLayer(ctx, layerState.activeLayerId, filePath);
         } else {
-            promptAddSection(ctx, filePath, layerId);
+            addFileToLayer(ctx, layerId, filePath);
         }
     }
 
-    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} />, menu);
+    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} isInActiveLayer={isInActiveLayer} />, menu);
     document.body.appendChild(menu);
 
     requestAnimationFrame(() => {
