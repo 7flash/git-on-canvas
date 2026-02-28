@@ -90,6 +90,18 @@ export function addFileToLayer(ctx: CanvasContext, layerId: string, path: string
     if (!layer.files[path]) {
         layer.files[path] = { sections: [] };
         saveLayers(ctx);
+        renderLayersUI(ctx);
+        if (layer.id === layerState.activeLayerId) applyLayer(ctx);
+    }
+}
+
+export function removeFileFromLayer(ctx: CanvasContext, layerId: string, path: string) {
+    const layer = layerState.layers.find(l => l.id === layerId);
+    if (!layer || layer.id === 'default') return;
+    if (layer.files[path]) {
+        delete layer.files[path];
+        saveLayers(ctx);
+        renderLayersUI(ctx);
         if (layer.id === layerState.activeLayerId) applyLayer(ctx);
     }
 }
@@ -118,27 +130,16 @@ export function getActiveLayer(): LayerData | null {
 }
 
 export function applyLayer(ctx: CanvasContext) {
-    // Re-render the canvas with the new layer rules
     const state = ctx.snap().context;
     const commitHash = state.currentCommitHash || 'allfiles';
-    import('./repo').then(({ selectCommit, renderAllFilesOnCanvas }) => {
+    import('./repo').then(({ selectCommit, renderAllFilesOnCanvas, populateChangedFilesPanel }) => {
         if (commitHash === 'allfiles' && ctx.allFilesData) {
             renderAllFilesOnCanvas(ctx, ctx.allFilesData);
-            // Also repopulate changed files panel with layer filter
+            // Also repopulate the changed files panel with the new layer filter
             if (ctx.commitFilesData) {
-                import('./repo').then(m => {
-                    // Force panel repopulation via selectCommit's side-effects
-                    // by directly calling the exported populateChangedFilesPanel
-                });
-                // Trigger panel re-render by dispatching an internal call
-                const panel = document.getElementById('changedFilesPanel');
-                if (panel && panel.style.display !== 'none' && ctx.commitFilesData) {
-                    // Re-import and call populateChangedFilesPanel
-                    // It's called from selectCommit, so we simulate it
-                    selectCommit(ctx, state.currentCommitHash || '', true);
-                }
+                populateChangedFilesPanel(ctx.commitFilesData);
             }
-        } else if (commitHash !== 'allfiles') {
+        } else if (commitHash && commitHash !== 'allfiles') {
             selectCommit(ctx, commitHash, true);
         }
     });
@@ -175,45 +176,6 @@ function LayerItem({ layer, activeId, ctx }: { layer: LayerData; activeId: strin
     );
 }
 
-export function autoGenerateLayers(ctx: CanvasContext) {
-    // Assuming ctx.fileCards or something similar has the list of known files.
-    // If not, we can infer from the fileCards map keys.
-    const paths = Array.from(ctx.fileCards.keys());
-    if (paths.length === 0) {
-        alert("No files available to categorize.");
-        return;
-    }
-
-    const rules = [
-        { name: 'UI Components', pattern: /\/?(components|ui|cards|events|layers|chat|page\.client)\.tsx?$/i },
-        { name: 'State & Data', pattern: /\/?(state|context|store|machine|repo)\.tsx?$/i },
-        { name: 'Utilities', pattern: /\/?(lib|utils|helpers|connections|canvas|positions|hidden-files)\.tsx?$/i },
-        { name: 'Styles', pattern: /\.css$/i }
-    ];
-
-    let addedCount = 0;
-    for (const rule of rules) {
-        const matches = paths.filter(p => rule.pattern.test(p));
-        if (matches.length > 0) {
-            let layer = layerState.layers.find(l => l.name === rule.name);
-            if (!layer) {
-                layer = { id: `layer_auto_${Date.now()}_${addedCount}`, name: rule.name, files: {} };
-                layerState.layers.push(layer);
-                addedCount++;
-            }
-            matches.forEach(p => {
-                if (!layer!.files[p]) layer!.files[p] = { sections: [] };
-            });
-        }
-    }
-
-    if (addedCount > 0) {
-        saveLayers(ctx);
-        renderLayersUI(ctx);
-        // alert(`Auto-generated ${addedCount} layers!`);
-    }
-}
-
 export function renderLayersUI(ctx: CanvasContext) {
     const container = document.getElementById('layersBarContainer');
     if (!container) return;
@@ -228,16 +190,6 @@ export function renderLayersUI(ctx: CanvasContext) {
             {layerState.layers.map(l => (
                 <LayerItem key={l.id} layer={l} activeId={layerState.activeLayerId} ctx={ctx} />
             ))}
-            <button
-                className="layers-bar-add autogen"
-                onClick={() => autoGenerateLayers(ctx)}
-                title="Auto-generate Layers"
-            >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <path d="M12 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1 3-6z" />
-                </svg>
-                Auto
-            </button>
             <button
                 className="layers-bar-add"
                 onClick={handleNewLayer}

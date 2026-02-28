@@ -32,6 +32,17 @@ import { toggleCanvasChat } from './chat';
 import { cancelPendingConnection, hasPendingConnection } from './connections';
 import { promptAddSection } from './layers';
 
+// ─── Recent repos helper ────────────────────────────────
+function _addRecentRepo(path: string) {
+    const key = 'gitcanvas:recentRepos';
+    const recent: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+    // Remove if already exists, then prepend
+    const filtered = recent.filter(r => r !== path);
+    filtered.unshift(path);
+    // Keep max 10
+    localStorage.setItem(key, JSON.stringify(filtered.slice(0, 10)));
+}
+
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
     measure('canvas:setupInteraction', () => {
@@ -332,36 +343,52 @@ export function setupEventListeners(ctx: CanvasContext) {
         setupChangedFilesPanel();
         setupConnectionsPanel();
 
-        // Load repo
-        document.getElementById('loadRepo')?.addEventListener('click', () => {
-            const path = (document.getElementById('repoPath') as HTMLInputElement)?.value.trim();
-            if (path) loadRepository(ctx, path);
-        });
+        // Repo dropdown selector
+        const repoSelect = document.getElementById('repoSelect') as HTMLSelectElement;
+        if (repoSelect) {
+            // Populate dropdown from recent repos
+            const recentRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
+            // Clear except first placeholder
+            while (repoSelect.options.length > 1) repoSelect.remove(1);
+            recentRepos.forEach(repo => {
+                const opt = document.createElement('option');
+                opt.value = repo;
+                // Show short name (last folder part) + full path
+                const shortName = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+                opt.textContent = shortName;
+                opt.title = repo;
+                repoSelect.add(opt);
+            });
+            // "Open new repo..." option at the end
+            const newOpt = document.createElement('option');
+            newOpt.value = '__new__';
+            newOpt.textContent = '＋ Open new repo...';
+            repoSelect.add(newOpt);
 
-        document.getElementById('repoPath')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const path = (e.target as HTMLInputElement).value.trim();
-                if (path) loadRepository(ctx, path);
+            // Set initial value from hash
+            const hashPath = decodeURIComponent(location.hash.slice(1));
+            if (hashPath && recentRepos.includes(hashPath)) {
+                repoSelect.value = hashPath;
             }
-        });
 
-        // Browse button — paste path from clipboard
-        document.getElementById('browseRepo')?.addEventListener('click', () => pasteRepoPath(ctx));
-
-        // Browse folder button — browser file input
-        document.getElementById('browseFolder')?.addEventListener('click', () => {
-            document.getElementById('folderPickerInput')?.click();
-        });
-        document.getElementById('folderPickerInput')?.addEventListener('change', (e) => {
-            const files = (e.target as HTMLInputElement).files;
-            if (files && files.length > 0) {
-                const firstPath = files[0].webkitRelativePath;
-                if (firstPath) {
-                    const rootDir = firstPath.split('/')[0];
-                    showToast(`Selected folder: ${rootDir} — type the full path in the input`, 'info');
+            repoSelect.addEventListener('change', () => {
+                const val = repoSelect.value;
+                if (val === '__new__') {
+                    const path = prompt('Enter repository path:');
+                    if (path && path.trim()) {
+                        _addRecentRepo(path.trim());
+                        loadRepository(ctx, path.trim());
+                        // Re-populate dropdown
+                        setupEventListeners(ctx);
+                    } else {
+                        // Reset selection
+                        repoSelect.value = '';
+                    }
+                } else if (val) {
+                    loadRepository(ctx, val);
                 }
-            }
-        });
+            });
+        }
 
         // Zoom slider
         document.getElementById('zoomSlider')?.addEventListener('input', (e) => {

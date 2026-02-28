@@ -83,8 +83,8 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -93,11 +93,15 @@ body {
 
 ::-webkit-scrollbar-thumb {
     background: rgba(124, 58, 237, 0.2);
-    border-radius: 3px;
+    border-radius: 5px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: rgba(124, 58, 237, 0.4);
+    background: rgba(124, 58, 237, 0.45);
+    border: 2px solid transparent;
+    background-clip: padding-box;
 }
 
 /* App Layout */
@@ -143,6 +147,36 @@ body {
 .repo-selector {
     padding: 10px 12px;
     border-bottom: 1px solid var(--border-subtle);
+}
+
+.repo-dropdown {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    padding-right: 28px;
+}
+
+.repo-dropdown:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.repo-dropdown option {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 8px;
 }
 
 .input-group {
@@ -2717,6 +2751,31 @@ body {
     margin: 4px 8px;
 }
 
+/* Nested dropdown submenu */
+.ctx-dropdown {
+    position: relative;
+    cursor: default;
+}
+
+.ctx-dropdown-content {
+    display: none;
+    position: absolute;
+    left: 100%;
+    top: -4px;
+    min-width: 160px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg), 0 0 30px rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(12px);
+    padding: 4px;
+    z-index: 10000;
+}
+
+.ctx-dropdown:hover>.ctx-dropdown-content {
+    display: block;
+}
+
 /* File history panel */
 .file-history-panel {
     position: absolute;
@@ -3608,14 +3667,20 @@ body {
 /* ─── Commit Progress Bar (non-blocking) ──────── */
 .commit-progress-bar {
     display: none;
+    position: absolute;
+    top: 36px;
+    left: 0;
+    right: 0;
+    z-index: 100;
     align-items: center;
     gap: 12px;
     padding: 4px 12px;
     background: rgba(124, 58, 237, 0.08);
+    backdrop-filter: blur(8px);
     border-bottom: 1px solid rgba(124, 58, 237, 0.15);
     min-height: 28px;
-    flex-shrink: 0;
     animation: fadeIn 0.15s ease;
+    pointer-events: none;
 }
 
 .commit-progress-track {

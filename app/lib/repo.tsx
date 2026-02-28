@@ -46,6 +46,15 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             // the entire DOM and invalidate ctx.canvas references.
             history.replaceState(null, '', '#' + encodeURIComponent(repoPath));
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
+            // Save to recent repos list
+            const recentKey = 'gitcanvas:recentRepos';
+            const recent: string[] = JSON.parse(localStorage.getItem(recentKey) || '[]');
+            const filtered = recent.filter(r => r !== repoPath);
+            filtered.unshift(repoPath);
+            localStorage.setItem(recentKey, JSON.stringify(filtered.slice(0, 10)));
+            // Update dropdown if it exists
+            const sel = document.getElementById('repoSelect') as HTMLSelectElement;
+            if (sel) sel.value = repoPath;
 
             updateLoadingProgress(ctx, `Found ${data.commits.length} commits, rendering timeline...`);
             renderCommitTimeline(ctx);
@@ -620,7 +629,7 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
     );
 }
 
-function populateChangedFilesPanel(files: any[]) {
+export function populateChangedFilesPanel(files: any[]) {
     const panel = document.getElementById('changedFilesPanel');
     const listEl = document.getElementById('changedFilesList');
     if (!panel || !listEl) return;
