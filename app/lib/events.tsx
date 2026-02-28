@@ -687,22 +687,16 @@ function openFileSearch(ctx: CanvasContext) {
         return q ? allPaths.filter(p => p.toLowerCase().includes(q)).slice(0, 15) : allPaths.slice(0, 15);
     }
 
-    function handleInput(e: Event) {
-        currentQuery = (e.target as HTMLInputElement).value;
-        selectedIdx = 0;
-        rerender();
-    }
-
     function handleKeydown(e: KeyboardEvent) {
         const matches = getMatches();
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             selectedIdx = Math.min(selectedIdx + 1, matches.length - 1);
-            rerender();
+            rerenderResults();
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             selectedIdx = Math.max(selectedIdx - 1, 0);
-            rerender();
+            rerenderResults();
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (matches[selectedIdx]) navigateToFile(matches[selectedIdx]);
@@ -716,29 +710,6 @@ function openFileSearch(ctx: CanvasContext) {
         if ((e.target as HTMLElement) === overlay || (e.target as HTMLElement).classList.contains('file-search-overlay')) {
             close();
         }
-    }
-
-    function SearchResults() {
-        const matches = getMatches();
-        const q = currentQuery.toLowerCase().trim();
-
-        return (
-            <div className="file-search-results">
-                {matches.length === 0 && q ? (
-                    <div className="file-search-empty">No files matching "{q}"</div>
-                ) : (
-                    matches.map((path, i) => (
-                        <div
-                            key={path}
-                            className={`file-search-item ${i === selectedIdx ? 'selected' : ''}`}
-                            onClick={() => navigateToFile(path)}
-                        >
-                            <span className="search-file-name" dangerouslySetInnerHTML={{ __html: highlightMatch(path, q) }} />
-                        </div>
-                    ))
-                )}
-            </div>
-        );
     }
 
     // Build the container with a stable input + a results div that gets re-rendered
@@ -759,11 +730,26 @@ function openFileSearch(ctx: CanvasContext) {
     container.appendChild(input);
 
     const resultsContainer = document.createElement('div');
+    resultsContainer.className = 'file-search-results';
     container.appendChild(resultsContainer);
     overlay.appendChild(container);
 
     function rerenderResults() {
-        render(<SearchResults />, resultsContainer);
+        const matches = getMatches();
+        const q = currentQuery.toLowerCase().trim();
+        if (matches.length === 0 && q) {
+            resultsContainer.innerHTML = `<div class="file-search-empty">No files matching "${escapeHtml(q)}"</div>`;
+        } else {
+            resultsContainer.innerHTML = matches.map((path, i) =>
+                `<div class="file-search-item ${i === selectedIdx ? 'selected' : ''}" data-path="${escapeHtml(path)}">
+                    <span class="search-file-name">${highlightMatch(path, q)}</span>
+                </div>`
+            ).join('');
+            // Attach click handlers
+            resultsContainer.querySelectorAll('.file-search-item').forEach(el => {
+                el.addEventListener('click', () => navigateToFile((el as HTMLElement).dataset.path!));
+            });
+        }
     }
 
     function rerender() {
