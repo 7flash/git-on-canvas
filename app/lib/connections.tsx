@@ -345,10 +345,9 @@ export function renderConnections(ctx: CanvasContext) {
         path.setAttribute('stroke-width', '2.5');
         path.setAttribute('stroke-linejoin', 'round');
         path.setAttribute('fill', 'none');
-        path.setAttribute('opacity', '0.35'); // Reduced opacity to prevent visual obstruction
+        path.setAttribute('opacity', '0.25');
         path.classList.add('conn-main-path');
-        path.style.cursor = 'pointer';
-        path.style.pointerEvents = 'stroke';
+        path.style.pointerEvents = 'none';
 
         // Animated dash
         const pathLength = _estimatePathLength(startPt, endPt);
@@ -381,32 +380,23 @@ export function renderConnections(ctx: CanvasContext) {
             deleteConnection(ctx, conn.id);
         });
 
-        // Hover: brighten
-        group.addEventListener('mouseenter', () => {
-            path.setAttribute('stroke-width', '4');
-            path.setAttribute('opacity', '1');
-            glowPath.setAttribute('opacity', '0.15');
-            srcCircle.setAttribute('r', '7');
-            tgtCircle.setAttribute('r', '7');
-            labelGroup.style.opacity = '1';
+        // Navigate on circle click
+        srcCircle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            navigateToConnection(ctx, conn, 'source');
         });
-        group.addEventListener('mouseleave', () => {
-            path.setAttribute('stroke-width', '2.5');
-            path.setAttribute('opacity', '0.35');
-            glowPath.setAttribute('opacity', '0');
-            srcCircle.setAttribute('r', '5');
-            tgtCircle.setAttribute('r', '5');
-            labelGroup.style.opacity = '0.85';
-        });
-
-        // Click → navigate
-        group.addEventListener('click', (e) => {
+        tgtCircle.addEventListener('click', (e) => {
             e.stopPropagation();
             navigateToConnection(ctx, conn, 'target');
         });
 
-        // Right-click → delete
-        group.addEventListener('contextmenu', (e) => {
+        // Right-click circles → delete
+        srcCircle.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            deleteConnection(ctx, conn.id);
+        });
+        tgtCircle.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
             deleteConnection(ctx, conn.id);
@@ -425,6 +415,8 @@ function _makeEndpoint(x: number, y: number, color: string): SVGCircleElement {
     circle.setAttribute('stroke', 'rgba(0,0,0,0.5)');
     circle.setAttribute('stroke-width', '1');
     circle.style.transition = 'r 0.15s ease';
+    circle.style.cursor = 'pointer';
+    circle.style.pointerEvents = 'auto';
     return circle;
 }
 

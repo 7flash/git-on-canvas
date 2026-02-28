@@ -718,47 +718,58 @@ function openFileSearch(ctx: CanvasContext) {
         }
     }
 
-    function SearchOverlay() {
+    function SearchResults() {
         const matches = getMatches();
         const q = currentQuery.toLowerCase().trim();
 
         return (
-            <div className="file-search-container">
-                <input
-                    type="text"
-                    className="file-search-input"
-                    placeholder="Search files on canvas..."
-                    autocomplete="off"
-                    value={currentQuery}
-                    onInput={handleInput}
-                    onKeydown={handleKeydown}
-                />
-                <div className="file-search-results">
-                    {matches.length === 0 && q ? (
-                        <div className="file-search-empty">No files matching "{q}"</div>
-                    ) : (
-                        matches.map((path, i) => (
-                            <div
-                                key={path}
-                                className={`file-search-item ${i === selectedIdx ? 'selected' : ''}`}
-                                onClick={() => navigateToFile(path)}
-                            >
-                                <span className="search-file-name" dangerouslySetInnerHTML={{ __html: highlightMatch(path, q) }} />
-                            </div>
-                        ))
-                    )}
-                </div>
+            <div className="file-search-results">
+                {matches.length === 0 && q ? (
+                    <div className="file-search-empty">No files matching "{q}"</div>
+                ) : (
+                    matches.map((path, i) => (
+                        <div
+                            key={path}
+                            className={`file-search-item ${i === selectedIdx ? 'selected' : ''}`}
+                            onClick={() => navigateToFile(path)}
+                        >
+                            <span className="search-file-name" dangerouslySetInnerHTML={{ __html: highlightMatch(path, q) }} />
+                        </div>
+                    ))
+                )}
             </div>
         );
     }
 
+    // Build the container with a stable input + a results div that gets re-rendered
+    const container = document.createElement('div');
+    container.className = 'file-search-container';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'file-search-input';
+    input.placeholder = 'Search files on canvas...';
+    input.autocomplete = 'off';
+    input.addEventListener('input', (e) => {
+        currentQuery = (e.target as HTMLInputElement).value;
+        selectedIdx = 0;
+        rerenderResults();
+    });
+    input.addEventListener('keydown', handleKeydown);
+    container.appendChild(input);
+
+    const resultsContainer = document.createElement('div');
+    container.appendChild(resultsContainer);
+    overlay.appendChild(container);
+
+    function rerenderResults() {
+        render(<SearchResults />, resultsContainer);
+    }
+
     function rerender() {
-        render(<SearchOverlay />, overlay);
-        // Re-focus input after re-render
-        const input = overlay.querySelector('.file-search-input') as HTMLInputElement;
-        if (input && document.activeElement !== input) {
+        rerenderResults();
+        if (document.activeElement !== input) {
             input.focus();
-            input.setSelectionRange(input.value.length, input.value.length);
         }
     }
 

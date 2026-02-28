@@ -180,30 +180,30 @@ export function renderLayersUI(ctx: CanvasContext) {
     const container = document.getElementById('layersBarContainer');
     if (!container) return;
 
-    function handleNewLayer() {
-        const name = prompt('Enter a name for the new layer:');
-        if (name) createLayer(ctx, name);
-    }
-
     render(
         <div className="layers-bar">
             {layerState.layers.map(l => (
-                <LayerItem key={l.id} layer={l} activeId={layerState.activeLayerId} ctx={ctx} />
+                <LayerItem key={`${l.id}_${Object.keys(l.files).length}`} layer={l} activeId={layerState.activeLayerId} ctx={ctx} />
             ))}
             <button
                 className="layers-bar-add"
-                onClick={handleNewLayer}
+                id="newLayerBtn"
                 title="Create a new Layer"
             >
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                New Layer
+                + New Layer
             </button>
         </div>,
         container
     );
+
+    // Attach click handler via DOM (Melina onClick doesn't reliably bind here)
+    const btn = document.getElementById('newLayerBtn');
+    if (btn) {
+        btn.onclick = () => {
+            const name = prompt('Enter a name for the new layer:');
+            if (name) createLayer(ctx, name);
+        };
+    }
 }
 
 // UI to configure section extraction
