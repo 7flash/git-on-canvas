@@ -391,18 +391,37 @@ export function setupEventListeners(ctx: CanvasContext) {
                 repoSelect.value = '';  // Keep "Select a repository..." shown
             }
 
-            repoSelect.addEventListener('change', () => {
+            repoSelect.addEventListener('change', async () => {
                 const val = repoSelect.value;
                 if (val === '__new__') {
-                    // Use prompt as fallback (folder picker doesn't work in all contexts)
-                    const path = prompt('Enter repository path (e.g. C:\\Code\\my-project):');
-                    if (path && path.trim()) {
-                        _addRecentRepo(path.trim());
-                        loadRepository(ctx, path.trim());
-                        // Re-populate dropdown
-                        setupEventListeners(ctx);
-                    } else {
-                        // Reset selection
+                    // Use native Windows folder browser
+                    try {
+                        const res = await fetch('/api/repo/browse', { method: 'POST' });
+                        const data = await res.json();
+                        if (data.path && !data.cancelled) {
+                            _addRecentRepo(data.path);
+                            loadRepository(ctx, data.path);
+                            // Re-populate dropdown options (without re-adding all listeners)
+                            const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
+                            while (repoSelect.options.length > 1) repoSelect.remove(1);
+                            updatedRepos.forEach(repo => {
+                                const opt = document.createElement('option');
+                                opt.value = repo;
+                                opt.textContent = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+                                opt.title = repo;
+                                repoSelect.add(opt);
+                            });
+                            const newOptRefresh = document.createElement('option');
+                            newOptRefresh.value = '__new__';
+                            newOptRefresh.textContent = '＋ Open new repo...';
+                            repoSelect.add(newOptRefresh);
+                            repoSelect.value = data.path;
+                        } else {
+                            // Reset selection
+                            repoSelect.value = '';
+                        }
+                    } catch (err) {
+                        console.error('Failed to open folder browser:', err);
                         repoSelect.value = '';
                     }
                 } else if (val) {
