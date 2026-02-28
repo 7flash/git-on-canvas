@@ -65,6 +65,25 @@ export function createLayer(ctx: CanvasContext, name: string) {
     applyLayer(ctx);
 }
 
+export function renameLayer(ctx: CanvasContext, id: string, newName: string) {
+    const layer = layerState.layers.find(l => l.id === id);
+    if (!layer || layer.id === 'default') return;
+    layer.name = newName;
+    saveLayers(ctx);
+    renderLayersUI(ctx);
+}
+
+export function deleteLayer(ctx: CanvasContext, id: string) {
+    if (id === 'default') return;
+    layerState.layers = layerState.layers.filter(l => l.id !== id);
+    if (layerState.activeLayerId === id) {
+        setActiveLayer(ctx, 'default');
+    } else {
+        saveLayers(ctx);
+        renderLayersUI(ctx);
+    }
+}
+
 export function addFileToLayer(ctx: CanvasContext, layerId: string, path: string) {
     const layer = layerState.layers.find(l => l.id === layerId);
     if (!layer || layer.id === 'default') return;
@@ -101,24 +120,52 @@ export function getActiveLayer(): LayerData | null {
 export function applyLayer(ctx: CanvasContext) {
     // Re-render the canvas with the new layer rules
     const state = ctx.snap().context;
-    // We can simulate an update by replacing cards based on the layer
-    // For simplicity, we can just trigger a re-render of current view (all-files or diff)
     const commitHash = state.currentCommitHash || 'allfiles';
     import('./repo').then(({ selectCommit, renderAllFilesOnCanvas }) => {
         if (commitHash === 'allfiles' && ctx.allFilesData) {
             renderAllFilesOnCanvas(ctx, ctx.allFilesData);
+            // Also repopulate changed files panel with layer filter
+            if (ctx.commitFilesData) {
+                import('./repo').then(m => {
+                    // Force panel repopulation via selectCommit's side-effects
+                    // by directly calling the exported populateChangedFilesPanel
+                });
+                // Trigger panel re-render by dispatching an internal call
+                const panel = document.getElementById('changedFilesPanel');
+                if (panel && panel.style.display !== 'none' && ctx.commitFilesData) {
+                    // Re-import and call populateChangedFilesPanel
+                    // It's called from selectCommit, so we simulate it
+                    selectCommit(ctx, state.currentCommitHash || '', true);
+                }
+            }
         } else if (commitHash !== 'allfiles') {
-            selectCommit(ctx, commitHash, true); // add true flag to bypass cache if needed, or clear UI first
+            selectCommit(ctx, commitHash, true);
         }
     });
 }
 
-function LayerItem({ layer, activeId, onSelect }: { layer: LayerData; activeId: string; onSelect: (id: string) => void }) {
+function LayerItem({ layer, activeId, ctx }: { layer: LayerData; activeId: string; ctx: CanvasContext }) {
     const isActive = layer.id === activeId;
     return (
         <div
             className={`layers-bar-item ${isActive ? 'active' : ''}`}
-            onClick={() => onSelect(layer.id)}
+            onClick={() => setActiveLayer(ctx, layer.id)}
+            onContextMenu={(e) => {
+                e.preventDefault();
+                if (layer.id === 'default') return;
+                if (confirm(`Delete layer "${layer.name}"?`)) {
+                    deleteLayer(ctx, layer.id);
+                }
+            }}
+            onDoubleClick={(e) => {
+                e.preventDefault();
+                if (layer.id === 'default') return;
+                const newName = prompt('Rename layer:', layer.name);
+                if (newName) {
+                    renameLayer(ctx, layer.id, newName);
+                }
+            }}
+            title={layer.id === 'default' ? 'Default Layer' : 'Double-click to rename, Right-click to delete'}
         >
             <span className="layer-name">{layer.name}</span>
             {layer.id !== 'default' && (
@@ -128,21 +175,72 @@ function LayerItem({ layer, activeId, onSelect }: { layer: LayerData; activeId: 
     );
 }
 
+export function autoGenerateLayers(ctx: CanvasContext) {
+    // Assuming ctx.fileCards or something similar has the list of known files.
+    // If not, we can infer from the fileCards map keys.
+    const paths = Array.from(ctx.fileCards.keys());
+    if (paths.length === 0) {
+        alert("No files available to categorize.");
+        return;
+    }
+
+    const rules = [
+        { name: 'UI Components', pattern: /\/?(components|ui|cards|events|layers|chat|page\.client)\.tsx?$/i },
+        { name: 'State & Data', pattern: /\/?(state|context|store|machine|repo)\.tsx?$/i },
+        { name: 'Utilities', pattern: /\/?(lib|utils|helpers|connections|canvas|positions|hidden-files)\.tsx?$/i },
+        { name: 'Styles', pattern: /\.css$/i }
+    ];
+
+    let addedCount = 0;
+    for (const rule of rules) {
+        const matches = paths.filter(p => rule.pattern.test(p));
+        if (matches.length > 0) {
+            let layer = layerState.layers.find(l => l.name === rule.name);
+            if (!layer) {
+                layer = { id: `layer_auto_${Date.now()}_${addedCount}`, name: rule.name, files: {} };
+                layerState.layers.push(layer);
+                addedCount++;
+            }
+            matches.forEach(p => {
+                if (!layer!.files[p]) layer!.files[p] = { sections: [] };
+            });
+        }
+    }
+
+    if (addedCount > 0) {
+        saveLayers(ctx);
+        renderLayersUI(ctx);
+        // alert(`Auto-generated ${addedCount} layers!`);
+    }
+}
+
 export function renderLayersUI(ctx: CanvasContext) {
     const container = document.getElementById('layersBarContainer');
     if (!container) return;
 
+    function handleNewLayer() {
+        const name = prompt('Enter a name for the new layer:');
+        if (name) createLayer(ctx, name);
+    }
+
     render(
         <div className="layers-bar">
             {layerState.layers.map(l => (
-                <LayerItem key={l.id} layer={l} activeId={layerState.activeLayerId} onSelect={(id) => setActiveLayer(ctx, id)} />
+                <LayerItem key={l.id} layer={l} activeId={layerState.activeLayerId} ctx={ctx} />
             ))}
             <button
+                className="layers-bar-add autogen"
+                onClick={() => autoGenerateLayers(ctx)}
+                title="Auto-generate Layers"
+            >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <path d="M12 2l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1 3-6z" />
+                </svg>
+                Auto
+            </button>
+            <button
                 className="layers-bar-add"
-                onClick={() => {
-                    const name = prompt('Enter a name for the new auto-layer:');
-                    if (name) createLayer(ctx, name);
-                }}
+                onClick={handleNewLayer}
                 title="Create a new Layer"
             >
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">

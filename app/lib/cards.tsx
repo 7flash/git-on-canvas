@@ -659,11 +659,6 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
                 <span className="file-name">{file.name}</span>
                 <span className="file-status" style={`background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;`}>{statusLabel}</span>
                 <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">{metaInfo}</span>
-                <button className="connect-btn" title="Drag to connect to another file" data-path={file.path}>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="5" cy="12" r="2" /><circle cx="19" cy="12" r="2" /><path d="M7 12h10" stroke-dasharray="3,2" />
-                    </svg>
-                </button>
                 <button className="connect-btn expand-btn" title="Expand file (selectable text)" data-path={file.path}>
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
@@ -697,17 +692,13 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
         });
     }
 
-    // Scroll listener for connections
+    // Scroll listener
     const body = card.querySelector('.file-card-body');
     if (body) {
         body.addEventListener('scroll', () => {
             renderConnections(ctx);
-            _updateHiddenLinesIndicator(card, file.lines || 0);
         });
     }
-
-    // Hidden lines indicator (delay to ensure layout is settled)
-    setTimeout(() => _updateHiddenLinesIndicator(card, file.lines || 0), 100);
 
     // Listen for resize from indicator drag
     card.addEventListener('card-resized', ((e: CustomEvent) => {
@@ -787,11 +778,6 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             </div>
             <span class="file-name">${escapeHtml(file.name)}</span>
             ${metaInfo}
-            <button class="connect-btn" title="Drag to connect to another file" data-path="${escapeHtml(file.path)}">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="5" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><path d="M7 12h10" stroke-dasharray="3,2"/>
-                </svg>
-            </button>
             <button class="connect-btn expand-btn" title="Expand file (selectable text)" data-path="${escapeHtml(file.path)}">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
@@ -820,7 +806,6 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
         body.addEventListener('scroll', () => {
             debounceSaveScroll(ctx, file.path, body.scrollTop);
             renderConnections(ctx);
-            _updateHiddenLinesIndicator(card, file.lines || 0);
         });
     }
 
@@ -834,9 +819,6 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     if (deletedBeforeLine.size > 0) {
         _setupDeletedLinesOverlay(card);
     }
-
-    // Hidden lines indicator (delay to ensure layout is settled)
-    setTimeout(() => _updateHiddenLinesIndicator(card, file.lines || 0), 100);
 
     // Listen for resize from indicator drag
     card.addEventListener('card-resized', ((e: CustomEvent) => {
