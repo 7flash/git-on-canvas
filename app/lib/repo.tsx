@@ -41,6 +41,10 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             const data = await response.json();
             ctx.actor.send({ type: 'REPO_LOADED', commits: data.commits });
 
+            // Hide landing overlay
+            const landing = document.getElementById('landingOverlay');
+            if (landing) landing.style.display = 'none';
+
             // Use replaceState instead of location.hash to avoid triggering
             // Melina's navigation interceptor (popstate) which would replace
             // the entire DOM and invalidate ctx.canvas references.
