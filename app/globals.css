@@ -3691,12 +3691,12 @@ body {
     display: none;
     position: absolute;
     top: 36px;
-    right: 12px;
-    left: auto;
-    width: auto;
-    max-width: 320px;
+    left: 0;
+    right: 0;
+    width: 100%;
     z-index: 100;
     align-items: center;
+    justify-content: flex-end;
     gap: 12px;
     padding: 4px 14px;
     background: rgba(124, 58, 237, 0.12);
@@ -3710,7 +3710,7 @@ body {
 
 .commit-progress-track {
     flex: 1;
-    max-width: 200px;
+    max-width: 400px;
     height: 3px;
     background: rgba(124, 58, 237, 0.15);
     border-radius: 2px;

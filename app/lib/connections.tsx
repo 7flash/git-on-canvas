@@ -522,8 +522,7 @@ function _makeEndpoint(x: number, y: number, color: string): SVGCircleElement {
     circle.setAttribute('stroke', 'rgba(0,0,0,0.5)');
     circle.setAttribute('stroke-width', '1');
     circle.style.transition = 'r 0.15s ease';
-    circle.style.cursor = 'pointer';
-    circle.style.pointerEvents = 'auto';
+    circle.style.pointerEvents = 'none';
     return circle;
 }
 
@@ -531,8 +530,7 @@ function _makeLabel(x: number, y: number, text: string): { group: SVGGElement, d
     const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     group.style.opacity = '0.85';
     group.style.transition = 'opacity 0.15s ease';
-    group.style.pointerEvents = 'all';
-    group.style.cursor = 'pointer';
+    group.style.pointerEvents = 'none';
 
     const textEl = document.createElementNS('http://www.w3.org/2000/svg', 'text');
     textEl.setAttribute('x', String(x));

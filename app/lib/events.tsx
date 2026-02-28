@@ -383,16 +383,19 @@ export function setupEventListeners(ctx: CanvasContext) {
             newOpt.textContent = '＋ Open new repo...';
             repoSelect.add(newOpt);
 
-            // Set initial value from hash
+            // Set initial value from hash — otherwise keep placeholder
             const hashPath = decodeURIComponent(location.hash.slice(1));
             if (hashPath && recentRepos.includes(hashPath)) {
                 repoSelect.value = hashPath;
+            } else if (!hashPath) {
+                repoSelect.value = '';  // Keep "Select a repository..." shown
             }
 
             repoSelect.addEventListener('change', () => {
                 const val = repoSelect.value;
                 if (val === '__new__') {
-                    const path = prompt('Enter repository path:');
+                    // Use prompt as fallback (folder picker doesn't work in all contexts)
+                    const path = prompt('Enter repository path (e.g. C:\\Code\\my-project):');
                     if (path && path.trim()) {
                         _addRecentRepo(path.trim());
                         loadRepository(ctx, path.trim());
