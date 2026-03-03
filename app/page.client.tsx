@@ -49,7 +49,7 @@ export default function mount(): () => void {
             actor.start();
             setupCanvasInteraction(ctx);
             setupEventListeners(ctx);
-            await loadSavedPositions(ctx);
+            await loadSavedPositions(ctx); // initial load (may be empty if no repo yet)
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);
             updateHiddenUI(ctx);
@@ -69,6 +69,8 @@ export default function mount(): () => void {
                 // Init layers based on repo
                 ctx.actor.send({ type: 'LOAD_REPO', path: hashRepo }); // Hack to set repoPath in context early
                 ctx.snap().context.repoPath = hashRepo;
+                await loadSavedPositions(ctx); // reload positions for this repo
+                if (disposed) return;
                 initLayers(ctx);
                 renderLayersUI(ctx);
                 restoreViewport(ctx);
@@ -84,6 +86,8 @@ export default function mount(): () => void {
 
                     ctx.actor.send({ type: 'LOAD_REPO', path: saved });
                     ctx.snap().context.repoPath = saved;
+                    await loadSavedPositions(ctx); // reload positions for this repo
+                    if (disposed) return;
                     initLayers(ctx);
                     renderLayersUI(ctx);
                     restoreViewport(ctx);

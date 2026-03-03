@@ -179,6 +179,118 @@ body {
     padding: 8px;
 }
 
+/* Clone URL row */
+.clone-url-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.clone-url-input {
+    flex: 1;
+    padding: 6px 8px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    transition: all var(--transition-fast);
+    min-width: 0;
+}
+
+.clone-url-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.clone-url-input::placeholder {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+}
+
+.clone-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    background: linear-gradient(135deg, var(--accent-primary), #6d28d9);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.clone-btn:hover {
+    background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
+    box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.clone-btn:active {
+    transform: scale(0.96);
+}
+
+.clone-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.clone-status {
+    margin-top: 6px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    font-size: 0.68rem;
+    font-family: var(--font-mono);
+    animation: fadeIn 150ms ease;
+}
+
+.clone-status.cloning {
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    color: var(--accent-tertiary);
+}
+
+.clone-status.success {
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.clone-status.error {
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: var(--error);
+}
+
+.clone-progress-text {
+    font-size: 0.66rem;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.clone-progress-bar {
+    height: 4px;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.clone-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 2px;
+    transition: width 300ms ease;
+    box-shadow: 0 0 8px var(--accent-glow);
+}
+
 .input-group {
     display: flex;
     gap: 4px;
