@@ -379,6 +379,24 @@ export function setupEventListeners(ctx: CanvasContext) {
             });
         }
 
+        // Auto-detect imports button
+        const autoImportsBtn = document.getElementById('autoDetectImports');
+        if (autoImportsBtn) {
+            autoImportsBtn.addEventListener('click', () => {
+                import('./connections').then(m => m.autoDetectImports(ctx));
+            });
+            // Show button when repo is loaded (observer or direct check)
+            const showIfRepo = () => {
+                const state = ctx.snap().context;
+                if (state.repoPath) autoImportsBtn.style.display = '';
+            };
+            // Check periodically until repo loads
+            const checkInterval = setInterval(() => {
+                showIfRepo();
+                if (ctx.snap().context.repoPath) clearInterval(checkInterval);
+            }, 2000);
+        }
+
         // Repo dropdown selector
         const repoSelect = document.getElementById('repoSelect') as HTMLSelectElement;
         if (repoSelect) {
