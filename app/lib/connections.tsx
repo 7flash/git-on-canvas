@@ -876,3 +876,89 @@ export function setupConnectionDrag(ctx: CanvasContext, card: HTMLElement, fileP
     // Replaced by setupLineClickConnection
     setupLineClickConnection(ctx, card, filePath);
 }
+
+// ─── Auto-detect import connections ─────────────────────
+export async function autoDetectImports(ctx: CanvasContext) {
+    return measure('connections:autoDetect', async () => {
+        const state = ctx.snap().context;
+        const repoPath = state.repoPath;
+        const commit = state.selectedCommit || 'HEAD';
+
+        if (!repoPath) {
+            _showStatus('No repo loaded');
+            setTimeout(_hideStatus, 2000);
+            return;
+        }
+
+        _showStatus('🔍 Scanning imports...');
+
+        try {
+            const res = await fetch('/api/repo/imports', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: repoPath, commit }),
+            });
+
+            if (!res.ok) {
+                _showStatus('❌ Import scan failed');
+                setTimeout(_hideStatus, 2000);
+                return;
+            }
+
+            const data = await res.json();
+            const edges = data.edges || [];
+
+            if (edges.length === 0) {
+                _showStatus('No imports found');
+                setTimeout(_hideStatus, 2000);
+                return;
+            }
+
+            // Filter to edges where BOTH files are on the canvas
+            const canvasFiles = new Set(ctx.fileCards.keys());
+            const existingConnections = state.connections || [];
+            const existingKeys = new Set(
+                existingConnections.map(c => `${c.sourceFile}→${c.targetFile}`)
+            );
+
+            let added = 0;
+            for (const edge of edges) {
+                if (!canvasFiles.has(edge.source) || !canvasFiles.has(edge.target)) continue;
+                if (existingKeys.has(`${edge.source}→${edge.target}`)) continue;
+
+                const srcName = edge.source.split('/').pop();
+                const tgtName = edge.target.split('/').pop();
+
+                ctx.actor.send({
+                    type: 'START_CONNECTION',
+                    sourceFile: edge.source,
+                    lineStart: edge.line,
+                    lineEnd: edge.line,
+                });
+                ctx.actor.send({
+                    type: 'COMPLETE_CONNECTION',
+                    targetFile: edge.target,
+                    lineStart: 1,
+                    lineEnd: 1,
+                    comment: `${srcName} → ${tgtName}`,
+                });
+
+                added++;
+            }
+
+            if (added > 0) {
+                renderConnections(ctx);
+                buildConnectionMarkers(ctx);
+                saveConnections(ctx);
+                _showStatus(`✅ ${added} import connections added`);
+            } else {
+                _showStatus('All imports already connected');
+            }
+
+            setTimeout(_hideStatus, 3000);
+        } catch (err) {
+            _showStatus('❌ Import scan error');
+            setTimeout(_hideStatus, 2000);
+        }
+    });
+}

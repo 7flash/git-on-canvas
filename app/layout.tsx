@@ -126,6 +126,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>⌃-</kbd> <span>Zoom text out</span></div>
                                 <div className="hotkey-row"><kbd>Dbl-click</kbd> <span>Zoom to card</span></div>
                                 <div className="hotkey-row"><kbd>Alt+Click</kbd> <span>Connect lines</span></div>
+                                <div className="hotkey-row"><kbd>🔗 Button</kbd> <span>Auto-detect imports</span></div>
                             </div>
                         </div>
                     </nav>
@@ -182,6 +183,12 @@ export default function RootLayout({ children }: { children: any }) {
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                    </svg>
+                                </button>
+                                <button id="autoDetectImports" className="btn-ghost btn-sm" title="Auto-detect import connections" style={{ display: 'none' }}>
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4" />
+                                        <path d="M14 9l2 2-2 2" />
                                     </svg>
                                 </button>
                                 <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat (I)">

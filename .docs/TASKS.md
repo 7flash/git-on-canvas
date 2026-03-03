@@ -7,7 +7,7 @@
 
 ## 🟡 Improve
 - [x] ~~🟡 **Position persistence per user**~~ — ✅ DONE. Migrated from server SQLite to localStorage keyed by `gitcanvas:positions:{repoPath}`. Debounced 300ms saves.
-- [ ] 🟡 **Clone progress streaming** — Stream clone progress via SSE instead of blocking response
+- [x] ~~🟡 **Clone progress streaming**~~ — ✅ DONE. `/api/repo/clone-stream` SSE endpoint spawns `git clone --progress` and streams phase-aware progress (Counting→Compressing→Receiving→Resolving) with percentage. Client shows animated progress bar with accent gradient glow. Falls back to JSON for cached repos.
 
 ## 🟢 Feature
 - [ ] 🟢 **User accounts** — Auth for storing favorites, filters, portfolio positions
