@@ -43,6 +43,24 @@ function _addRecentRepo(path: string) {
     localStorage.setItem(key, JSON.stringify(filtered.slice(0, 10)));
 }
 
+function _refreshRepoDropdown() {
+    const repoSel = document.getElementById('repoSelect') as HTMLSelectElement;
+    if (!repoSel) return;
+    const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
+    while (repoSel.options.length > 1) repoSel.remove(1);
+    updatedRepos.forEach(repo => {
+        const opt = document.createElement('option');
+        opt.value = repo;
+        opt.textContent = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+        opt.title = repo;
+        repoSel.add(opt);
+    });
+    const newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '＋ Open new repo...';
+    repoSel.add(newOpt);
+}
+
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
     measure('canvas:setupInteraction', () => {
@@ -394,39 +412,163 @@ export function setupEventListeners(ctx: CanvasContext) {
             repoSelect.addEventListener('change', async () => {
                 const val = repoSelect.value;
                 if (val === '__new__') {
-                    // Use native Windows folder browser
-                    try {
-                        const res = await fetch('/api/repo/browse', { method: 'POST' });
-                        const data = await res.json();
-                        if (data.path && !data.cancelled) {
-                            _addRecentRepo(data.path);
-                            loadRepository(ctx, data.path);
-                            // Re-populate dropdown options (without re-adding all listeners)
-                            const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
-                            while (repoSelect.options.length > 1) repoSelect.remove(1);
-                            updatedRepos.forEach(repo => {
-                                const opt = document.createElement('option');
-                                opt.value = repo;
-                                opt.textContent = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
-                                opt.title = repo;
-                                repoSelect.add(opt);
-                            });
-                            const newOptRefresh = document.createElement('option');
-                            newOptRefresh.value = '__new__';
-                            newOptRefresh.textContent = '＋ Open new repo...';
-                            repoSelect.add(newOptRefresh);
-                            repoSelect.value = data.path;
-                        } else {
-                            // Reset selection
-                            repoSelect.value = '';
-                        }
-                    } catch (err) {
-                        console.error('Failed to open folder browser:', err);
+                    // Ask the user via native browser prompt instead of buggy OS-level popup
+                    const path = window.prompt('Enter the absolute path to your Git repository\n\nExample: C:\\Code\\my-project', '');
+                    if (path && path.trim()) {
+                        const cleanPath = path.trim();
+                        _addRecentRepo(cleanPath);
+                        loadRepository(ctx, cleanPath);
+                        // Re-populate dropdown options
+                        const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
+                        while (repoSelect.options.length > 1) repoSelect.remove(1);
+                        updatedRepos.forEach(repo => {
+                            const opt = document.createElement('option');
+                            opt.value = repo;
+                            opt.textContent = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+                            opt.title = repo;
+                            repoSelect.add(opt);
+                        });
+                        const newOptRefresh = document.createElement('option');
+                        newOptRefresh.value = '__new__';
+                        newOptRefresh.textContent = '＋ Open new repo...';
+                        newOptRefresh.id = 'optNewLocal';
+                        repoSelect.add(newOptRefresh);
+                        repoSelect.value = cleanPath;
+                    } else {
+                        // Reset selection
                         repoSelect.value = '';
                     }
                 } else if (val) {
                     loadRepository(ctx, val);
                 }
+            });
+
+            // ── Mode detection: hide local-only options in SaaS mode ──
+            fetch('/api/repo/mode').then(r => r.json()).then((modeData: any) => {
+                if (modeData.mode === 'saas') {
+                    // Hide the "Open new repo..." local path option
+                    const localOpt = repoSelect.querySelector('option[value="__new__"]');
+                    if (localOpt) (localOpt as HTMLElement).style.display = 'none';
+                }
+            }).catch(() => { });
+        }
+
+        // ── Clone URL handler ──
+        const cloneBtn = document.getElementById('cloneBtn');
+        const cloneInput = document.getElementById('cloneUrlInput') as HTMLInputElement;
+        const cloneStatus = document.getElementById('cloneStatus');
+
+        if (cloneBtn && cloneInput && cloneStatus) {
+            const doClone = async () => {
+                const url = cloneInput.value.trim();
+                if (!url) { cloneInput.focus(); return; }
+
+                cloneBtn.setAttribute('disabled', '');
+                cloneStatus.style.display = 'block';
+                cloneStatus.className = 'clone-status cloning';
+                cloneStatus.innerHTML = `
+                    <div class="clone-progress-text">⏳ Starting clone...</div>
+                    <div class="clone-progress-bar"><div class="clone-progress-fill" style="width: 0%"></div></div>
+                `;
+
+                const progressText = cloneStatus.querySelector('.clone-progress-text') as HTMLElement;
+                const progressFill = cloneStatus.querySelector('.clone-progress-fill') as HTMLElement;
+
+                try {
+                    const res = await fetch('/api/repo/clone-stream', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+
+                    // Non-SSE response = cached repo or validation error
+                    const contentType = res.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        const data = await res.json();
+                        if (!res.ok || data.error) {
+                            cloneStatus.className = 'clone-status error';
+                            cloneStatus.textContent = '❌ ' + (data.error || 'Clone failed');
+                            setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
+                            cloneBtn.removeAttribute('disabled');
+                            return;
+                        }
+                        // Cached — already cloned
+                        cloneStatus.className = 'clone-status success';
+                        cloneStatus.textContent = '✅ Updated — loading...';
+                        _addRecentRepo(data.path);
+                        cloneInput.value = '';
+                        _refreshRepoDropdown();
+                        const repoSel2 = document.getElementById('repoSelect') as HTMLSelectElement;
+                        if (repoSel2) repoSel2.value = data.path;
+                        loadRepository(ctx, data.path);
+                        setTimeout(() => { cloneStatus.style.display = 'none'; }, 3000);
+                        cloneBtn.removeAttribute('disabled');
+                        return;
+                    }
+
+                    // SSE stream — read progress events
+                    const reader = res.body!.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        buffer += decoder.decode(value, { stream: true });
+
+                        // Parse SSE events from buffer
+                        const events = buffer.split('\n\n');
+                        buffer = events.pop() || ''; // Keep incomplete event in buffer
+
+                        for (const raw of events) {
+                            if (!raw.trim()) continue;
+                            let eventType = 'message';
+                            let eventData = '';
+                            for (const line of raw.split('\n')) {
+                                if (line.startsWith('event: ')) eventType = line.slice(7).trim();
+                                else if (line.startsWith('data: ')) eventData = line.slice(6);
+                            }
+                            if (!eventData) continue;
+
+                            try {
+                                const parsed = JSON.parse(eventData);
+
+                                if (eventType === 'progress') {
+                                    const shortMsg = parsed.message.length > 60
+                                        ? parsed.message.slice(0, 57) + '...'
+                                        : parsed.message;
+                                    progressText.textContent = `⏳ ${shortMsg}`;
+                                    progressFill.style.width = `${parsed.percent || 0}%`;
+                                } else if (eventType === 'done') {
+                                    cloneStatus.className = 'clone-status success';
+                                    cloneStatus.textContent = '✅ Cloned — loading...';
+                                    _addRecentRepo(parsed.path);
+                                    cloneInput.value = '';
+                                    _refreshRepoDropdown();
+                                    const repoSel3 = document.getElementById('repoSelect') as HTMLSelectElement;
+                                    if (repoSel3) repoSel3.value = parsed.path;
+                                    loadRepository(ctx, parsed.path);
+                                    setTimeout(() => { cloneStatus.style.display = 'none'; }, 3000);
+                                } else if (eventType === 'error') {
+                                    cloneStatus.className = 'clone-status error';
+                                    cloneStatus.textContent = '❌ ' + (parsed.error || 'Clone failed');
+                                    setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
+                                }
+                            } catch { /* ignore parse errors */ }
+                        }
+                    }
+                } catch (err: any) {
+                    cloneStatus.className = 'clone-status error';
+                    cloneStatus.textContent = '❌ ' + (err.message || 'Network error');
+                    setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
+                } finally {
+                    cloneBtn.removeAttribute('disabled');
+                }
+            };
+
+            cloneBtn.addEventListener('click', doClone);
+            cloneInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') { e.preventDefault(); doClone(); }
             });
         }
 

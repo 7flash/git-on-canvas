@@ -17,7 +17,7 @@
   "description": "Visual Git Repository Explorer with interactive canvas",
   "dependencies": {
     "jsx-ai": "^0.1.0",
-    "measure-fn": "^3.6.0",
+    "measure-fn": "^3.8.1",
     "melina": "^2.3.1",
     "simple-git": "^3.30.0",
     "sqlite-zod-orm": "^3.26.0",
