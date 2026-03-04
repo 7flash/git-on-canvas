@@ -63,6 +63,13 @@ export default function RootLayout({ children }: { children: any }) {
                                 </button>
                             </div>
                             <div className="clone-status" id="cloneStatus" style={{ display: 'none' }}></div>
+
+                            <button id="githubImportBtn" className="github-import-btn" title="Import from GitHub">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                                </svg>
+                                Import from GitHub
+                            </button>
                         </div>
 
 
@@ -127,6 +134,38 @@ export default function RootLayout({ children }: { children: any }) {
                                 <div className="hotkey-row"><kbd>Dbl-click</kbd> <span>Zoom to card</span></div>
                                 <div className="hotkey-row"><kbd>Alt+Click</kbd> <span>Connect lines</span></div>
                                 <div className="hotkey-row"><kbd>🔗 Button</kbd> <span>Auto-detect imports</span></div>
+                            </div>
+
+                            {/* User Account */}
+                            <div className="user-account" id="userAccount">
+                                <div className="user-logged-out" id="userLoggedOut">
+                                    <a href="/api/auth/github" className="btn-github-login" id="loginBtn">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                                        </svg>
+                                        <span>Sign in with GitHub</span>
+                                    </a>
+                                </div>
+                                <div className="user-logged-in" id="userLoggedIn" style={{ display: 'none' }}>
+                                    <img className="user-avatar" id="userAvatar" src="" alt="" />
+                                    <div className="user-info">
+                                        <span className="user-name" id="userName"></span>
+                                        <div className="user-actions">
+                                            <button className="btn-fav-toggle" id="favToggle" title="Toggle favorite">
+                                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                                </svg>
+                                            </button>
+                                            <button className="btn-ghost btn-logout" id="logoutBtn" title="Sign out">
+                                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                                                    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                                                    <polyline points="16 17 21 12 16 7" />
+                                                    <line x1="21" y1="12" x2="9" y2="12" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </nav>
@@ -276,6 +315,58 @@ export default function RootLayout({ children }: { children: any }) {
                         </div>
                         <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
                         <div className="modal-chat-container" id="modalChatContainer" style={{ display: 'none' }}></div>
+                    </div>
+                </div>
+
+                {/* GitHub Import Modal */}
+                <div className="github-modal" id="githubModal">
+                    <div className="github-modal-backdrop"></div>
+                    <div className="github-modal-content">
+                        <div className="github-modal-header">
+                            <div className="github-modal-title">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style={{ opacity: 0.7 }}>
+                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                                </svg>
+                                <span>Import from GitHub</span>
+                            </div>
+                            <button className="github-modal-close" id="githubModalClose">&times;</button>
+                        </div>
+                        <div className="github-search-row">
+                            <input
+                                type="text"
+                                id="githubUserInput"
+                                className="github-user-input"
+                                placeholder="GitHub username or organization..."
+                                spellCheck={false}
+                                autoComplete="off"
+                            />
+                            <select id="githubSortSelect" className="github-sort-select">
+                                <option value="updated">Recently Updated</option>
+                                <option value="stars">Most Stars</option>
+                                <option value="name">Name A→Z</option>
+                            </select>
+                            <button id="githubSearchBtn" className="github-search-btn">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <circle cx="11" cy="11" r="8" />
+                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                </svg>
+                                Search
+                            </button>
+                        </div>
+                        <div className="github-profile" id="githubProfile" style={{ display: 'none' }}></div>
+                        <div className="github-repos-grid" id="githubReposGrid">
+                            <div className="github-empty-state">
+                                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.2">
+                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                                </svg>
+                                <p>Enter a GitHub username to browse their repositories</p>
+                            </div>
+                        </div>
+                        <div className="github-pagination" id="githubPagination" style={{ display: 'none' }}>
+                            <button id="githubPrevPage" className="github-page-btn" disabled>← Previous</button>
+                            <span id="githubPageInfo" className="github-page-info">Page 1</span>
+                            <button id="githubNextPage" className="github-page-btn">Next →</button>
+                        </div>
                     </div>
                 </div>
             </body >
