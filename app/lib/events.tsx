@@ -334,7 +334,7 @@ function setupChangedFilesPanel() {
     });
 }
 
-function setupConnectionsPanel() {
+function setupConnectionsPanel(ctx: CanvasContext) {
     measure('panel:setupConnections', () => {
         const toggleBtn = document.getElementById('toggleConnectionsPanel');
         const panel = document.getElementById('connectionsPanel');
@@ -359,7 +359,7 @@ function setupConnectionsPanel() {
 export function setupEventListeners(ctx: CanvasContext) {
     measure('events:setup', () => {
         setupChangedFilesPanel();
-        setupConnectionsPanel();
+        setupConnectionsPanel(ctx);
 
         // Connections visibility toggle
         const connToggle = document.getElementById('toggleConnections');
@@ -793,6 +793,9 @@ export function setupEventListeners(ctx: CanvasContext) {
             }
         });
 
+        // ── GitHub Import Modal ──
+        setupGithubImport(ctx);
+
         // Minimap click navigation
         setupMinimapClick(ctx);
     });
@@ -967,3 +970,201 @@ function openFileSearch(ctx: CanvasContext) {
     });
 }
 
+// ─── Language color map ─────────────────────────────────
+const LANG_COLORS: Record<string, string> = {
+    TypeScript: '#3178c6', JavaScript: '#f1e05a', Python: '#3572A5',
+    Rust: '#dea584', Go: '#00ADD8', Java: '#b07219', C: '#555555',
+    'C++': '#f34b7d', 'C#': '#178600', Ruby: '#701516', PHP: '#4F5D95',
+    Swift: '#F05138', Kotlin: '#A97BFF', Dart: '#00B4AB', Lua: '#000080',
+    Shell: '#89e051', HTML: '#e34c26', CSS: '#563d7c', Vue: '#41b883',
+    Svelte: '#ff3e00', Zig: '#ec915c', Elixir: '#6e4a7e', Haskell: '#5e5086',
+    Scala: '#c22d40', OCaml: '#3be133', Nix: '#7e7eff',
+};
+
+// ─── GitHub Import Modal Handler ────────────────────────
+function setupGithubImport(ctx: CanvasContext) {
+    const modal = document.getElementById('githubModal');
+    const openBtn = document.getElementById('githubImportBtn');
+    const closeBtn = document.getElementById('githubModalClose');
+    const backdrop = modal?.querySelector('.github-modal-backdrop');
+    const searchBtn = document.getElementById('githubSearchBtn');
+    const userInput = document.getElementById('githubUserInput') as HTMLInputElement;
+    const sortSelect = document.getElementById('githubSortSelect') as HTMLSelectElement;
+    const grid = document.getElementById('githubReposGrid');
+    const profileDiv = document.getElementById('githubProfile');
+    const pagination = document.getElementById('githubPagination');
+    const prevBtn = document.getElementById('githubPrevPage') as HTMLButtonElement;
+    const nextBtn = document.getElementById('githubNextPage') as HTMLButtonElement;
+    const pageInfo = document.getElementById('githubPageInfo');
+
+    if (!modal || !openBtn || !grid) return;
+
+    let currentPage = 1;
+    let currentUser = '';
+    let isLoading = false;
+
+    function openModal() {
+        modal!.classList.add('active');
+        requestAnimationFrame(() => userInput?.focus());
+    }
+
+    function closeModal() {
+        modal!.classList.remove('active');
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+    backdrop?.addEventListener('click', closeModal);
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal!.classList.contains('active')) closeModal();
+    });
+
+    async function searchRepos(page = 1) {
+        const user = userInput?.value.trim();
+        if (!user || isLoading) return;
+
+        isLoading = true;
+        currentUser = user;
+        currentPage = page;
+        const sort = sortSelect?.value || 'updated';
+
+        // Save last searched user
+        localStorage.setItem('gitcanvas:lastGithubUser', user);
+
+        grid!.innerHTML = `
+            <div class="github-loading">
+                <div class="github-spinner"></div>
+                <p>Fetching repos for <strong>${escapeHtml(user)}</strong>...</p>
+            </div>
+        `;
+        if (pagination) pagination.style.display = 'none';
+
+        try {
+            const res = await fetch(`/api/github/repos?user=${encodeURIComponent(user)}&page=${page}&sort=${sort}`);
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                grid!.innerHTML = `<div class="github-error">${escapeHtml(data.error || 'Failed to fetch')}</div>`;
+                isLoading = false;
+                return;
+            }
+
+            // Render profile
+            if (data.profile && profileDiv) {
+                profileDiv.style.display = 'flex';
+                profileDiv.innerHTML = `
+                    <img class="github-avatar" src="${data.profile.avatar_url}" alt="${escapeHtml(data.profile.login)}" />
+                    <div class="github-profile-info">
+                        <strong>${escapeHtml(data.profile.name || data.profile.login)}</strong>
+                        <span class="github-profile-meta">
+                            @${escapeHtml(data.profile.login)} &middot; ${data.profile.public_repos} repos
+                            ${data.profile.type === 'Organization' ? ' &middot; Organization' : ''}
+                        </span>
+                        ${data.profile.bio ? `<span class="github-profile-bio">${escapeHtml(data.profile.bio)}</span>` : ''}
+                    </div>
+                `;
+            }
+
+            // Render repos
+            if (data.repos.length === 0) {
+                grid!.innerHTML = `<div class="github-empty-state"><p>No repositories found for "${escapeHtml(user)}"</p></div>`;
+            } else {
+                grid!.innerHTML = data.repos.map((repo: any) => {
+                    const langColor = LANG_COLORS[repo.language] || '#8b8b8b';
+                    const sizeStr = repo.size > 1024 ? `${(repo.size / 1024).toFixed(1)} MB` : `${repo.size} KB`;
+                    const updatedDate = new Date(repo.updated_at);
+                    const timeAgo = _timeAgo(updatedDate);
+
+                    return `
+                        <div class="github-repo-card" data-clone-url="${escapeHtml(repo.clone_url)}" data-name="${escapeHtml(repo.name)}">
+                            <div class="github-repo-header">
+                                <span class="github-repo-name">${escapeHtml(repo.name)}</span>
+                                ${repo.stars > 0 ? `<span class="github-repo-stars">\u2b50 ${repo.stars}</span>` : ''}
+                            </div>
+                            ${repo.description ? `<p class="github-repo-desc">${escapeHtml(repo.description.length > 120 ? repo.description.slice(0, 117) + '...' : repo.description)}</p>` : '<p class="github-repo-desc" style="opacity:0.3">No description</p>'}
+                            <div class="github-repo-meta">
+                                ${repo.language ? `<span class="github-repo-lang"><span class="lang-dot" style="background:${langColor}"></span>${escapeHtml(repo.language)}</span>` : ''}
+                                <span class="github-repo-size">${sizeStr}</span>
+                                <span class="github-repo-updated">${timeAgo}</span>
+                            </div>
+                            <button class="github-clone-btn" data-url="${escapeHtml(repo.clone_url)}">Clone &amp; Open</button>
+                        </div>
+                    `;
+                }).join('');
+
+                // Attach clone handlers
+                grid!.querySelectorAll('.github-clone-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const url = (btn as HTMLElement).dataset.url!;
+                        closeModal();
+                        _triggerClone(ctx, url);
+                    });
+                });
+
+                // Click on card opens GitHub page
+                grid!.querySelectorAll('.github-repo-card').forEach(card => {
+                    card.addEventListener('click', (e) => {
+                        if ((e.target as HTMLElement).closest('.github-clone-btn')) return;
+                        const name = (card as HTMLElement).dataset.name;
+                        window.open(`https://github.com/${currentUser}/${name}`, '_blank');
+                    });
+                });
+            }
+
+            // Pagination
+            if (data.hasNext || data.hasPrev) {
+                if (pagination) pagination.style.display = 'flex';
+                if (prevBtn) prevBtn.disabled = !data.hasPrev;
+                if (nextBtn) nextBtn.disabled = !data.hasNext;
+                if (pageInfo) pageInfo.textContent = `Page ${data.page}`;
+            } else {
+                if (pagination) pagination.style.display = 'none';
+            }
+
+        } catch (err: any) {
+            grid!.innerHTML = `<div class="github-error">Network error: ${escapeHtml(err.message)}</div>`;
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    searchBtn?.addEventListener('click', () => searchRepos(1));
+    userInput?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); searchRepos(1); }
+    });
+    sortSelect?.addEventListener('change', () => {
+        if (currentUser) searchRepos(1);
+    });
+    prevBtn?.addEventListener('click', () => searchRepos(currentPage - 1));
+    nextBtn?.addEventListener('click', () => searchRepos(currentPage + 1));
+
+    // Load last searched user from localStorage
+    const lastUser = localStorage.getItem('gitcanvas:lastGithubUser');
+    if (lastUser && userInput) userInput.value = lastUser;
+}
+
+// ─── Trigger clone from GitHub modal ────────────────────
+function _triggerClone(ctx: CanvasContext, url: string) {
+    const cloneInput = document.getElementById('cloneUrlInput') as HTMLInputElement;
+    const cloneBtn = document.getElementById('cloneBtn') as HTMLButtonElement;
+    if (cloneInput && cloneBtn) {
+        cloneInput.value = url;
+        cloneBtn.click();
+    }
+}
+
+// ─── Time ago helper ────────────────────────────────────
+function _timeAgo(date: Date): string {
+    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    return `${Math.floor(months / 12)}y ago`;
+}

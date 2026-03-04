@@ -17,6 +17,15 @@ import { openFileChatInModal } from './chat';
 // ─── Constants ──────────────────────────────────────────
 const CORNER_CURSORS = { tl: 'nwse-resize', tr: 'nesw-resize', bl: 'nesw-resize', br: 'nwse-resize' };
 
+// Max lines rendered in DOM for collapsed (folded) cards.
+// Files with more lines than this will show a truncated view until expanded with F.
+// This is the #1 performance optimization — a 10K-line file produces 10K <span> elements
+// which all participate in layout during pan/zoom, crushing frame rate.
+const VISIBLE_LINE_LIMIT = 120;
+
+// Store file data on cards for re-rendering when expanding/collapsing
+const cardFileData = new WeakMap<HTMLElement, any>();
+
 // ─── Selection highlights ───────────────────────────────
 export function updateSelectionHighlights(ctx: CanvasContext) {
     const selected = ctx.snap().context.selectedCards;
@@ -720,6 +729,51 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
 }
 
 
+// ─── Build file content HTML with optional line limiting ─
+// When isExpanded=false, only render VISIBLE_LINE_LIMIT lines to keep DOM small.
+// When isExpanded=true (F key), render all lines for full scrolling.
+function _buildFileContentHTML(
+    content: string,
+    layerSections: any,
+    addedLines: Set<number>,
+    deletedBeforeLine: Map<number, string[]>,
+    isAllAdded: boolean,
+    isAllDeleted: boolean,
+    isExpanded: boolean,
+    totalFileLines: number
+): string {
+    const { filteredContent, visibleLineIndices } = filterFileContentByLayer(content, layerSections);
+    const lines = content.split('\n');
+    const totalVisible = Array.from(visibleLineIndices).length;
+    const limit = isExpanded ? Infinity : VISIBLE_LINE_LIMIT;
+    let code = '';
+    let renderedCount = 0;
+
+    for (let i = 0; i < lines.length; i++) {
+        if (!visibleLineIndices.has(i)) continue;
+        if (renderedCount >= limit) break;
+
+        const line = lines[i];
+        const lineNum = i + 1;
+        const lineClass = isAllAdded ? 'diff-add'
+            : isAllDeleted ? 'diff-del'
+                : addedLines.has(lineNum) ? 'diff-add'
+                    : 'diff-ctx';
+        const hasDel = deletedBeforeLine.has(lineNum);
+        const delCount = hasDel ? deletedBeforeLine.get(lineNum)!.length : 0;
+        const delAttr = hasDel ? ` data-del-count="${delCount}"` : '';
+        const delLines = hasDel ? ` data-del-lines="${encodeURIComponent(JSON.stringify(deletedBeforeLine.get(lineNum)))}"` : '';
+        code += `<span class="diff-line ${lineClass}${hasDel ? ' has-deleted' : ''}" data-line="${lineNum}"${delAttr}${delLines}><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>\n`;
+        renderedCount++;
+    }
+
+    const hiddenCount = totalVisible - renderedCount;
+    const truncNote = hiddenCount > 0
+        ? `<span class="more-lines">${hiddenCount.toLocaleString()} more lines · press F to expand</span>`
+        : '';
+    return `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
+}
+
 // ─── Create all-file card (working tree) ────────────────
 export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: number, savedSize: any): HTMLElement {
     const card = document.createElement('div');
@@ -746,24 +800,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     if (file.isBinary) {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
     } else if (file.content) {
-        const { filteredContent, visibleLineIndices } = filterFileContentByLayer(file.content, file.layerSections);
-        const lines = file.content.split('\n');
-        let code = '';
-        lines.forEach((line, i) => {
-            if (!visibleLineIndices.has(i)) return;
-            const lineNum = i + 1;
-            const lineClass = isAllAdded ? 'diff-add'
-                : isAllDeleted ? 'diff-del'
-                    : addedLines.has(lineNum) ? 'diff-add'
-                        : 'diff-ctx';
-            const hasDel = deletedBeforeLine.has(lineNum);
-            const delCount = hasDel ? deletedBeforeLine.get(lineNum)!.length : 0;
-            const delAttr = hasDel ? ` data-del-count="${delCount}"` : '';
-            const delLines = hasDel ? ` data-del-lines="${encodeURIComponent(JSON.stringify(deletedBeforeLine.get(lineNum)))}"` : '';
-            code += `<span class="diff-line ${lineClass}${hasDel ? ' has-deleted' : ''}" data-line="${lineNum}"${delAttr}${delLines}><span class="line-num">${String(lineNum).padStart(4, ' ')}</span>${escapeHtml(line)}</span>\n`;
-        });
-        const truncNote = file.lines > 10000 ? `<span class="more-lines">File too large (${file.lines.toLocaleString()} lines) — showing first 10,000</span>` : '';
-        contentHTML = `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
+        contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, false, file.lines);
     } else {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Could not read file</span></code></pre></div>`;
     }
@@ -795,6 +832,9 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             ${contentHTML}
         </div>
     `;
+
+    // Store file data for re-rendering on expand/collapse
+    cardFileData.set(card, file);
 
     setupConnectionDrag(ctx, card, file.path);
     setupCardInteraction(ctx, card, 'allfiles');
@@ -1359,6 +1399,23 @@ export function toggleCardExpand(ctx: CanvasContext) {
                 card.style.height = `${expandHeight}px`;
                 card.style.maxHeight = 'none';
                 card.dataset.expanded = 'true';
+            }
+
+            // Re-render content: expanded shows ALL lines, collapsed shows VISIBLE_LINE_LIMIT
+            const file = cardFileData.get(card);
+            if (file && file.content && !file.isBinary) {
+                const addedLines: Set<number> = file.addedLines || new Set();
+                const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
+                const isAllAdded = file.status === 'added';
+                const isAllDeleted = file.status === 'deleted';
+                const preview = body.querySelector('.file-content-preview');
+                if (preview) {
+                    const newHTML = _buildFileContentHTML(
+                        file.content, file.layerSections, addedLines, deletedBeforeLine,
+                        isAllAdded, isAllDeleted, willExpand, file.lines
+                    );
+                    preview.outerHTML = newHTML;
+                }
             }
 
             const state = ctx.snap().context;

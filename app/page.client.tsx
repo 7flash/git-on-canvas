@@ -19,6 +19,7 @@ import { loadConnections } from './lib/connections';
 import { clearCanvas, updateCanvasTransform, updateZoomUI, restoreViewport } from './lib/canvas';
 import { loadRepository } from './lib/repo';
 import { initLayers, renderLayersUI } from './lib/layers';
+import { setupAuth, updateFavoriteStar } from './lib/user';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -56,6 +57,9 @@ export default function mount(): () => void {
             await loadConnections(ctx);
             if (disposed) return; // bail if cleaned up during await
 
+            // Init auth UI
+            setupAuth();
+
             // Check URL hash for repo path
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
             if (hashRepo) {
@@ -77,7 +81,10 @@ export default function mount(): () => void {
                 updateCanvasTransform(ctx);
                 updateZoomUI(ctx);
 
-                if (!disposed) loadRepository(ctx, hashRepo);
+                if (!disposed) {
+                    loadRepository(ctx, hashRepo);
+                    updateFavoriteStar(hashRepo);
+                }
             } else {
                 const saved = localStorage.getItem('gitcanvas:lastRepo');
                 if (saved) {
@@ -104,6 +111,7 @@ export default function mount(): () => void {
                     const sel3 = document.getElementById('repoSelect') as HTMLSelectElement;
                     if (sel3) sel3.value = path;
                     loadRepository(ctx, path);
+                    updateFavoriteStar(path);
                 }
             });
         });

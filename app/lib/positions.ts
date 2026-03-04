@@ -1,13 +1,14 @@
 // @ts-nocheck
 /**
- * Positions — load/save card positions to localStorage (per-repo).
+ * Positions — load/save card positions with dual storage:
+ *   - Server-side (SQLite via /api/auth/positions) when logged in
+ *   - localStorage fallback when not authenticated
  *
- * Previously used server SQLite via /api/positions.
- * Now uses localStorage keyed by repoPath for instant,
- * per-user persistence without server roundtrips.
+ * Enables shared repositories: each user has their own card layout.
  */
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
+import { getUser } from './user';
 
 const STORAGE_PREFIX = 'gitcanvas:positions:';
 
@@ -22,15 +23,33 @@ function getStorageKey(ctx: CanvasContext): string | null {
     return `${STORAGE_PREFIX}${repoPath}`;
 }
 
-// ─── Load all saved positions from localStorage ──────────
+function getRepoPath(ctx: CanvasContext): string | null {
+    return ctx.snap?.()?.context?.repoPath || null;
+}
+
+// ─── Load all saved positions ────────────────────────────
 export async function loadSavedPositions(ctx: CanvasContext) {
     return measure('positions:load', async () => {
         try {
-            const key = getStorageKey(ctx);
-            if (!key) {
-                // No repo loaded yet — will be called again after repo is set
-                return;
+            const repoPath = getRepoPath(ctx);
+            if (!repoPath) return;
+
+            // Try server-side first (if logged in)
+            const user = getUser();
+            if (user) {
+                try {
+                    const res = await fetch(`/api/auth/positions?repo=${encodeURIComponent(repoPath)}`);
+                    const data = await res.json();
+                    if (data.positions) {
+                        ctx.positions = new Map(Object.entries(data.positions));
+                        return;
+                    }
+                } catch { /* fall through to localStorage */ }
             }
+
+            // Fallback: localStorage
+            const key = getStorageKey(ctx);
+            if (!key) return;
             const raw = localStorage.getItem(key);
             if (raw) {
                 const data = JSON.parse(raw);
@@ -42,23 +61,34 @@ export async function loadSavedPositions(ctx: CanvasContext) {
     });
 }
 
-// ─── Persist all positions to localStorage (debounced) ───
+// ─── Persist all positions (debounced) ───────────────────
 function flushPositions(ctx: CanvasContext) {
-    const key = getStorageKey(ctx);
-    if (!key) return;
+    const repoPath = getRepoPath(ctx);
+    if (!repoPath) return;
+
+    const obj: Record<string, any> = {};
+    for (const [k, v] of ctx.positions) {
+        obj[k] = v;
+    }
+
+    // Always save to localStorage (instant)
     try {
-        const obj: Record<string, any> = {};
-        for (const [k, v] of ctx.positions) {
-            obj[k] = v;
-        }
-        localStorage.setItem(key, JSON.stringify(obj));
-    } catch (e) {
-        // localStorage full or unavailable — degrade silently
-        measure('positions:flushError', () => e);
+        const key = getStorageKey(ctx);
+        if (key) localStorage.setItem(key, JSON.stringify(obj));
+    } catch { }
+
+    // Also sync to server if logged in (async, fire-and-forget)
+    const user = getUser();
+    if (user) {
+        fetch('/api/auth/positions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repoUrl: repoPath, positions: obj }),
+        }).catch(() => { /* silent — localStorage is the safety net */ });
     }
 }
 
-// ─── Save a single card position (debounced localStorage) ─
+// ─── Save a single card position (debounced) ─────────────
 export async function savePosition(ctx: CanvasContext, commitHash: string, filePath: string, x?: number, y?: number, width?: number, height?: number) {
     return measure('positions:save', async () => {
         try {
@@ -72,7 +102,7 @@ export async function savePosition(ctx: CanvasContext, commitHash: string, fileP
             };
             ctx.positions.set(posKey, newPos);
 
-            // Debounced persist — avoid hammering localStorage on every drag frame
+            // Debounced persist — avoid hammering storage on every drag frame
             if (_saveTimer) clearTimeout(_saveTimer);
             _saveTimer = setTimeout(() => flushPositions(ctx), SAVE_DEBOUNCE_MS);
         } catch (e) {
