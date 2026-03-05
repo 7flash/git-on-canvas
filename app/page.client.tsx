@@ -20,6 +20,7 @@ import { clearCanvas, updateCanvasTransform, updateZoomUI, restoreViewport } fro
 import { loadRepository } from './lib/repo';
 import { initLayers, renderLayersUI } from './lib/layers';
 import { setupAuth, updateFavoriteStar } from './lib/user';
+import { setupPerfOverlay } from './lib/perf-overlay';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -50,6 +51,7 @@ export default function mount(): () => void {
             actor.start();
             setupCanvasInteraction(ctx);
             setupEventListeners(ctx);
+            setupPerfOverlay(ctx);
             await loadSavedPositions(ctx); // initial load (may be empty if no repo yet)
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);
