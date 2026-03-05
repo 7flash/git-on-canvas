@@ -7,7 +7,7 @@ import { measure } from 'measure-fn';
 import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass } from './utils';
-import { savePosition, getPositionKey } from './positions';
+import { savePosition, getPositionKey, isPathExpandedInPositions, setPathExpandedInPositions } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
 import { renderConnections, scheduleRenderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
@@ -27,46 +27,45 @@ const VISIBLE_LINE_LIMIT = 120;
 const cardFileData = new WeakMap<HTMLElement, any>();
 
 // ─── Expanded state persistence ─────────────────────────
+// NOTE: Expanded state is now stored in the positions system (positions.ts)
+// so it automatically syncs to the server for logged-in users.
+// The old localStorage-only functions below are kept as thin wrappers
+// for backward compatibility but should not be used directly.
+// Use isPathExpandedInPositions / setPathExpandedInPositions from positions.ts.
+
+/** @deprecated Use isPathExpandedInPositions(ctx, filePath) instead */
+export function isPathExpanded(filePath: string): boolean {
+    // Legacy fallback: check localStorage for old data
+    // New code should use isPathExpandedInPositions which checks ctx.positions
+    const key = _getExpandedStorageKey();
+    if (!key) return false;
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw) return new Set(JSON.parse(raw)).has(filePath);
+    } catch { }
+    return false;
+}
+
+/** @deprecated Use setPathExpandedInPositions(ctx, filePath, expanded) instead */
+export function setPathExpanded(filePath: string, expanded: boolean) {
+    // Legacy: only used if ctx is not available
+    const key = _getExpandedStorageKey();
+    if (!key) return;
+    try {
+        const raw = localStorage.getItem(key);
+        const paths = raw ? new Set(JSON.parse(raw)) : new Set();
+        if (expanded) paths.add(filePath);
+        else paths.delete(filePath);
+        if (paths.size === 0) localStorage.removeItem(key);
+        else localStorage.setItem(key, JSON.stringify(Array.from(paths)));
+    } catch { }
+}
+
 function _getExpandedStorageKey(): string | null {
     const hash = decodeURIComponent(window.location.hash.replace('#', ''));
     const repo = hash || localStorage.getItem('gitcanvas:lastRepo');
     if (!repo) return null;
     return `gitcanvas:expanded:${repo}`;
-}
-
-function _loadExpandedPaths(): Set<string> {
-    const key = _getExpandedStorageKey();
-    if (!key) return new Set();
-    try {
-        const raw = localStorage.getItem(key);
-        if (raw) return new Set(JSON.parse(raw));
-    } catch { }
-    return new Set();
-}
-
-function _saveExpandedPaths(paths: Set<string>) {
-    const key = _getExpandedStorageKey();
-    if (!key) return;
-    try {
-        if (paths.size === 0) {
-            localStorage.removeItem(key);
-        } else {
-            localStorage.setItem(key, JSON.stringify(Array.from(paths)));
-        }
-    } catch { }
-}
-
-/** Check if a file path is saved as expanded */
-export function isPathExpanded(filePath: string): boolean {
-    return _loadExpandedPaths().has(filePath);
-}
-
-/** Mark a file path as expanded or collapsed in storage */
-export function setPathExpanded(filePath: string, expanded: boolean) {
-    const paths = _loadExpandedPaths();
-    if (expanded) paths.add(filePath);
-    else paths.delete(filePath);
-    _saveExpandedPaths(paths);
 }
 
 // ─── Selection highlights ───────────────────────────────
@@ -840,7 +839,8 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
 
     // Check if this file was previously expanded (persisted across refreshes)
-    const wasExpanded = isPathExpanded(file.path);
+    // Uses positions-based system for server sync, falls back to legacy localStorage
+    const wasExpanded = isPathExpandedInPositions(ctx, file.path) || isPathExpanded(file.path);
 
     let contentHTML = '';
     if (file.isBinary) {
@@ -1449,13 +1449,13 @@ export function toggleCardExpand(ctx: CanvasContext) {
                 card.style.height = `${DEFAULT_CARD_HEIGHT}px`;
                 card.style.maxHeight = `${DEFAULT_CARD_HEIGHT}px`;
                 card.dataset.expanded = 'false';
-                setPathExpanded(path, false);
+                setPathExpandedInPositions(ctx, path, false);
             } else {
                 // Expand to uniform height
                 card.style.height = `${expandHeight}px`;
                 card.style.maxHeight = 'none';
                 card.dataset.expanded = 'true';
-                setPathExpanded(path, true);
+                setPathExpandedInPositions(ctx, path, true);
             }
 
             // Re-render content: expanded shows ALL lines, collapsed shows VISIBLE_LINE_LIMIT
@@ -1504,7 +1504,7 @@ export function expandCardByPath(ctx: CanvasContext, path: string) {
     card.style.height = `${expandHeight}px`;
     card.style.maxHeight = 'none';
     card.dataset.expanded = 'true';
-    setPathExpanded(path, true);
+    setPathExpandedInPositions(ctx, path, true);
 
     const file = cardFileData.get(card);
     if (file && file.content && !file.isBinary) {
