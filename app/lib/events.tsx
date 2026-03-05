@@ -588,6 +588,17 @@ export function setupEventListeners(ctx: CanvasContext) {
             cloneInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') { e.preventDefault(); doClone(); }
             });
+
+            // ── Featured repo cards on landing page ──
+            document.querySelectorAll('.repo-card-btn[data-repo]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const repoUrl = (btn as HTMLElement).dataset.repo;
+                    if (repoUrl && cloneInput) {
+                        cloneInput.value = repoUrl;
+                        doClone();
+                    }
+                });
+            });
         }
 
         // Zoom slider
