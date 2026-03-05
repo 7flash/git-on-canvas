@@ -5,20 +5,60 @@
  * Client interactivity is mounted by page.client.tsx.
  */
 
-export default function Page() {
-    const featuredRepos = [
-        { name: 'facebook/react', desc: 'UI Library', lang: 'JavaScript', stars: '230k' },
-        { name: 'denoland/deno', desc: 'JS Runtime', lang: 'TypeScript', stars: '100k' },
-        { name: 'sveltejs/svelte', desc: 'Compiler Framework', lang: 'TypeScript', stars: '80k' },
-        { name: 'oven-sh/bun', desc: 'JS Toolkit', lang: 'Zig', stars: '75k' },
-        { name: 'vercel/next.js', desc: 'React Framework', lang: 'TypeScript', stars: '127k' },
-        { name: 'tailwindlabs/tailwindcss', desc: 'CSS Framework', lang: 'TypeScript', stars: '85k' },
-    ];
+const FEATURED_REPOS_FALLBACK = [
+    { name: 'facebook/react', desc: 'UI Library', lang: 'JavaScript', stars: '230k' },
+    { name: 'denoland/deno', desc: 'JS Runtime', lang: 'TypeScript', stars: '100k' },
+    { name: 'sveltejs/svelte', desc: 'Compiler Framework', lang: 'TypeScript', stars: '80k' },
+    { name: 'oven-sh/bun', desc: 'JS Toolkit', lang: 'Zig', stars: '75k' },
+    { name: 'vercel/next.js', desc: 'React Framework', lang: 'TypeScript', stars: '127k' },
+    { name: 'tailwindlabs/tailwindcss', desc: 'CSS Framework', lang: 'TypeScript', stars: '85k' },
+];
+
+// Cache GitHub stats for 5 minutes
+let _cachedRepos: typeof FEATURED_REPOS_FALLBACK | null = null;
+let _cacheTime = 0;
+const CACHE_TTL = 5 * 60 * 1000;
+
+function formatStars(n: number): string {
+    return n >= 1000 ? `${Math.round(n / 1000)}k` : String(n);
+}
+
+async function getFeaturedRepos() {
+    if (_cachedRepos && Date.now() - _cacheTime < CACHE_TTL) return _cachedRepos;
+    try {
+        const results = await Promise.all(
+            FEATURED_REPOS_FALLBACK.map(async (r) => {
+                const resp = await fetch(`https://api.github.com/repos/${r.name}`, {
+                    headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'GitMaps' },
+                    signal: AbortSignal.timeout(3000),
+                });
+                if (!resp.ok) return r;
+                const data = await resp.json();
+                return {
+                    name: r.name,
+                    desc: r.desc,
+                    lang: data.language || r.lang,
+                    stars: formatStars(data.stargazers_count || 0),
+                };
+            })
+        );
+        _cachedRepos = results;
+        _cacheTime = Date.now();
+        return results;
+    } catch {
+        return _cachedRepos || FEATURED_REPOS_FALLBACK;
+    }
+}
+
+export default async function Page() {
+    const featuredRepos = await getFeaturedRepos();
 
     const langColors: Record<string, string> = {
         JavaScript: '#f1e05a',
         TypeScript: '#3178c6',
         Zig: '#ec915c',
+        Rust: '#dea584',
+        Go: '#00ADD8',
     };
 
     return (
