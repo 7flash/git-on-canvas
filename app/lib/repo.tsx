@@ -7,10 +7,11 @@ import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, formatDate, showToast } from './utils';
 import { clearCanvas, getAutoColumnCount, updateCanvasTransform, updateZoomUI, updateMinimap, forceMinimapRebuild } from './canvas';
-import { getPositionKey } from './positions';
+import { performViewportCulling } from './viewport-culling';
+import { getPositionKey, loadSavedPositions } from './positions';
 import { updateHiddenUI } from './hidden-files';
 import { showLoadingProgress, updateLoadingProgress, hideLoadingProgress } from './loading';
-import { createFileCard, createAllFileCard, debounceSaveScroll } from './cards';
+import { createFileCard, createAllFileCard, debounceSaveScroll, expandCardByPath } from './cards';
 import { getActiveLayer } from './layers';
 import { renderConnections, buildConnectionMarkers } from './connections';
 
@@ -62,6 +63,11 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
 
             updateLoadingProgress(ctx, `Found ${data.commits.length} commits, rendering timeline...`);
             renderCommitTimeline(ctx);
+
+            // Reload positions for the new repo BEFORE rendering files
+            // so cards get placed at their correct saved locations
+            ctx.snap().context.repoPath = repoPath;
+            await loadSavedPositions(ctx);
 
             const viewState = ctx.snap().value?.view;
             // Always load all files first
@@ -310,6 +316,8 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
         renderConnections(ctx);
         buildConnectionMarkers(ctx);
         forceMinimapRebuild(ctx);
+        // Cull off-screen cards after browser layout (needs rAF for valid dimensions)
+        requestAnimationFrame(() => performViewportCulling(ctx));
     });
 }
 
@@ -451,6 +459,8 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         renderConnections(ctx);
         buildConnectionMarkers(ctx);
         forceMinimapRebuild(ctx);
+        // Cull off-screen cards after browser layout (needs rAF for valid dimensions)
+        requestAnimationFrame(() => performViewportCulling(ctx));
     });
 }
 
@@ -605,6 +615,8 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
                             if (!_panelCtx) return;
                             const card = _panelCtx.fileCards.get(f.path);
                             if (card) {
+                                // Auto-expand the card to show full diff
+                                expandCardByPath(_panelCtx, f.path);
                                 const vpRect = _panelCtx.canvasViewport.getBoundingClientRect();
                                 const state = _panelCtx.snap().context;
                                 const cardX = parseFloat(card.style.left) || 0;

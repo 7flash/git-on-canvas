@@ -1,0 +1,17 @@
+{
+    "name": "gx-canvas-core",
+    "version": "0.1.0",
+    "description": "Framework-agnostic infinite canvas with minimap, viewport culling, and container management",
+    "main": "src/index.ts",
+    "types": "src/index.ts",
+    "scripts": {
+        "build": "bun build src/index.ts --outdir dist --target browser"
+    },
+    "keywords": [
+        "canvas",
+        "infinite-canvas",
+        "minimap",
+        "viewport-culling"
+    ],
+    "license": "MIT"
+}

@@ -34,6 +34,10 @@ export async function loadSavedPositions(ctx: CanvasContext) {
             const repoPath = getRepoPath(ctx);
             if (!repoPath) return;
 
+            // Clear old positions first to prevent stale data from
+            // a previously loaded repo bleeding into the new one
+            ctx.positions = new Map();
+
             // Try server-side first (if logged in)
             const user = getUser();
             if (user) {

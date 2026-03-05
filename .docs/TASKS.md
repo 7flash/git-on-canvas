@@ -16,7 +16,7 @@
 
 ## 🔴 Priority: Performance
 - [ ] **Canvas/WebGL text rendering** — Explore rendering file card text content via `<canvas>` or WebGL instead of DOM spans. Current fix (v3: VISIBLE_LINE_LIMIT=120 for collapsed cards) gives ~99% DOM reduction, but expanded cards with 10K+ lines still create massive DOM trees. Canvas rendering would eliminate DOM nodes entirely. Needs benchmarking to compare approaches.
-- [ ] **Viewport culling** — Only render file cards that are visible in the current viewport. Cards outside the view could be replaced with lightweight placeholder divs. Would help when 50+ cards are loaded.
+- [x] ~~**Viewport culling**~~ — ✅ DONE. New `lib/viewport-culling.ts` module performs O(n) AABB overlap testing on every pan/zoom (debounced via rAF). Cards outside the viewport + 500px margin get `visibility:hidden` + `content-visibility:hidden` (keeps dimensions for layout). `fitAllFiles()` temporarily unculls all cards for accurate measurement. Verified on starwar repo: 64 total cards → 60 culled, 4 visible = **94% reduction** in rendered content during normal pan/zoom.
 
 ## 🟡 Improve
 - [ ] **Performance measurement dashboard** — Add a built-in perf overlay showing DOM node count, FPS during pan/zoom, and card render times. Use `measure-fn` to instrument key paths. Helps validate Canvas/WebGL decisions with data.
