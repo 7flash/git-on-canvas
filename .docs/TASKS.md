@@ -20,5 +20,5 @@
 
 ## 🟡 Improve
 - [x] ~~**Performance measurement dashboard**~~ — ✅ DONE. New `lib/perf-overlay.ts` — floating HUD toggled with `Shift+P`. Shows live FPS with sparkline graph (color-coded: green≥55, amber≥40, orange≥25, red<25), DOM node count, visible/culled card ratio, zoom %, and JS heap memory (Chrome only). Zero overhead when hidden — rAF loop only runs when overlay is visible. DOM count sampled every 1s to avoid overhead. Draggable panel with glassmorphic styling. Integrated into `page.client.tsx` orchestrator.
-- [ ] **Connection rendering performance** — SVG connection lines redraw on every scroll event. Consider debouncing or using canvas-based rendering for connections in large repos.
+- [x] ~~**Connection rendering performance**~~ — ✅ DONE. Added `scheduleRenderConnections()` with rAF coalescing. Card body scroll and drag mousemove now use scheduled version, eliminating redundant full SVG DOM rebuilds during smooth interactions. One-shot operations keep direct calls.
 - [ ] **Folding state persistence** — Folding state (expanded/collapsed) stored in localStorage can desync with server-side positions. Ensure dual storage properly reconciles fold state on load.
