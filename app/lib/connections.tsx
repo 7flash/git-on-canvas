@@ -24,6 +24,23 @@ let pendingConnection: {
     sourceCard: HTMLElement;
 } | null = null;
 
+// ─── rAF-coalesced render scheduler ─────────────────────
+// Multiple callers (scroll, drag, resize) may trigger renderConnections
+// in quick succession. This batches them into a single animation frame.
+let _renderPending = false;
+let _renderCtx: CanvasContext | null = null;
+
+/** Schedule a connection re-render on the next animation frame. Coalesces rapid calls. */
+export function scheduleRenderConnections(ctx: CanvasContext) {
+    _renderCtx = ctx;
+    if (_renderPending) return;
+    _renderPending = true;
+    requestAnimationFrame(() => {
+        _renderPending = false;
+        if (_renderCtx) renderConnections(_renderCtx);
+    });
+}
+
 // ─── Status indicator element ────────────────────────────
 let statusIndicator: HTMLElement | null = null;
 
