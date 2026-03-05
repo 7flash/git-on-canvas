@@ -4,6 +4,7 @@
  */
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
+import { scheduleViewportCulling, uncullAllCards } from './viewport-culling';
 
 // ─── Minimap cached state (avoids full rebuild on every pan/zoom) ──
 let _mmCache: {
@@ -32,6 +33,8 @@ export function updateCanvasTransform(ctx: CanvasContext) {
     ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
     // Cheap: only move the viewport rect using cached bounds
     updateMinimapViewport(ctx);
+    // Schedule viewport culling (debounced to next rAF)
+    scheduleViewportCulling(ctx);
 
     if (state.repoPath) {
         if ((window as any)._saveViewportTimer) clearTimeout((window as any)._saveViewportTimer);
@@ -264,6 +267,9 @@ export function fitAllFiles(ctx: CanvasContext) {
     measure('canvas:fitAll', () => {
         if (ctx.fileCards.size === 0) return;
 
+        // Temporarily uncull all cards so offsetWidth/Height are measurable
+        uncullAllCards(ctx);
+
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         ctx.fileCards.forEach(card => {
             const x = parseInt(card.style.left);
@@ -289,7 +295,7 @@ export function fitAllFiles(ctx: CanvasContext) {
 
         ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
         ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
-        updateCanvasTransform(ctx);
+        updateCanvasTransform(ctx); // this also schedules re-culling
         updateZoomUI(ctx);
     });
 }

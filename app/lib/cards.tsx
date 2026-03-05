@@ -26,6 +26,49 @@ const VISIBLE_LINE_LIMIT = 120;
 // Store file data on cards for re-rendering when expanding/collapsing
 const cardFileData = new WeakMap<HTMLElement, any>();
 
+// ─── Expanded state persistence ─────────────────────────
+function _getExpandedStorageKey(): string | null {
+    const hash = decodeURIComponent(window.location.hash.replace('#', ''));
+    const repo = hash || localStorage.getItem('gitcanvas:lastRepo');
+    if (!repo) return null;
+    return `gitcanvas:expanded:${repo}`;
+}
+
+function _loadExpandedPaths(): Set<string> {
+    const key = _getExpandedStorageKey();
+    if (!key) return new Set();
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw) return new Set(JSON.parse(raw));
+    } catch { }
+    return new Set();
+}
+
+function _saveExpandedPaths(paths: Set<string>) {
+    const key = _getExpandedStorageKey();
+    if (!key) return;
+    try {
+        if (paths.size === 0) {
+            localStorage.removeItem(key);
+        } else {
+            localStorage.setItem(key, JSON.stringify(Array.from(paths)));
+        }
+    } catch { }
+}
+
+/** Check if a file path is saved as expanded */
+export function isPathExpanded(filePath: string): boolean {
+    return _loadExpandedPaths().has(filePath);
+}
+
+/** Mark a file path as expanded or collapsed in storage */
+export function setPathExpanded(filePath: string, expanded: boolean) {
+    const paths = _loadExpandedPaths();
+    if (expanded) paths.add(filePath);
+    else paths.delete(filePath);
+    _saveExpandedPaths(paths);
+}
+
 // ─── Selection highlights ───────────────────────────────
 export function updateSelectionHighlights(ctx: CanvasContext) {
     const selected = ctx.snap().context.selectedCards;
@@ -796,13 +839,25 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
 
     const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
 
+    // Check if this file was previously expanded (persisted across refreshes)
+    const wasExpanded = isPathExpanded(file.path);
+
     let contentHTML = '';
     if (file.isBinary) {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
     } else if (file.content) {
-        contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, false, file.lines);
+        contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, wasExpanded, file.lines);
     } else {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Could not read file</span></code></pre></div>`;
+    }
+
+    // If previously expanded, override card dimensions
+    if (wasExpanded) {
+        card.dataset.expanded = 'true';
+        card.style.maxHeight = 'none';
+        // Use a tall default for expanded cards (will be adjusted by viewport in toggleCardExpand)
+        const expandHeight = Math.max(600, (window.innerHeight || 800) - 40);
+        card.style.height = `${expandHeight}px`;
     }
 
     const dir = file.path.includes('/') ? file.path.split('/').slice(0, -1).join('/') : '';
@@ -1394,11 +1449,13 @@ export function toggleCardExpand(ctx: CanvasContext) {
                 card.style.height = `${DEFAULT_CARD_HEIGHT}px`;
                 card.style.maxHeight = `${DEFAULT_CARD_HEIGHT}px`;
                 card.dataset.expanded = 'false';
+                setPathExpanded(path, false);
             } else {
                 // Expand to uniform height
                 card.style.height = `${expandHeight}px`;
                 card.style.maxHeight = 'none';
                 card.dataset.expanded = 'true';
+                setPathExpanded(path, true);
             }
 
             // Re-render content: expanded shows ALL lines, collapsed shows VISIBLE_LINE_LIMIT
@@ -1431,6 +1488,45 @@ export function toggleCardExpand(ctx: CanvasContext) {
         renderConnections(ctx);
 
     });
+}
+
+/** Expand a single card by path (used for auto-expanding changed files) */
+export function expandCardByPath(ctx: CanvasContext, path: string) {
+    const card = ctx.fileCards.get(path);
+    if (!card || card.dataset.expanded === 'true') return;
+
+    const body = card.querySelector('.file-card-body') as HTMLElement;
+    if (!body) return;
+
+    const vpRect = ctx.canvasViewport.getBoundingClientRect();
+    const expandHeight = Math.max(600, vpRect.height - 40);
+
+    card.style.height = `${expandHeight}px`;
+    card.style.maxHeight = 'none';
+    card.dataset.expanded = 'true';
+    setPathExpanded(path, true);
+
+    const file = cardFileData.get(card);
+    if (file && file.content && !file.isBinary) {
+        const addedLines: Set<number> = file.addedLines || new Set();
+        const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
+        const isAllAdded = file.status === 'added';
+        const isAllDeleted = file.status === 'deleted';
+        const preview = body.querySelector('.file-content-preview');
+        if (preview) {
+            const newHTML = _buildFileContentHTML(
+                file.content, file.layerSections, addedLines, deletedBeforeLine,
+                isAllAdded, isAllDeleted, true, file.lines
+            );
+            preview.outerHTML = newHTML;
+        }
+    }
+
+    const state = ctx.snap().context;
+    const commitHash = state.currentCommitHash || 'allfiles';
+    ctx.actor.send({ type: 'RESIZE_CARD', path, width: card.offsetWidth, height: expandHeight });
+    savePosition(ctx, commitHash, path, parseInt(card.style.left) || 0, parseInt(card.style.top) || 0, card.offsetWidth, expandHeight);
+    requestAnimationFrame(() => _updateHiddenLinesIndicator(card, 0));
 }
 
 // ─── Fit selected cards to screen viewport ──────────────
