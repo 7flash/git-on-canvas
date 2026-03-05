@@ -9,7 +9,7 @@ import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass } from './utils';
 import { savePosition, getPositionKey } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
-import { renderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
+import { renderConnections, scheduleRenderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { filterFileContentByLayer, layerState, createLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
 import { openFileChatInModal } from './chat';
@@ -188,7 +188,7 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
                 rafPending = true;
                 requestAnimationFrame(() => {
                     rafPending = false;
-                    renderConnections(ctx);
+                    scheduleRenderConnections(ctx);
                     updateMinimap(ctx);
                 });
             }
@@ -754,7 +754,7 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
     const body = card.querySelector('.file-card-body');
     if (body) {
         body.addEventListener('scroll', () => {
-            renderConnections(ctx);
+            scheduleRenderConnections(ctx);
         });
     }
 
@@ -906,7 +906,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     if (body) {
         body.addEventListener('scroll', () => {
             debounceSaveScroll(ctx, file.path, body.scrollTop);
-            renderConnections(ctx);
+            scheduleRenderConnections(ctx);
         });
     }
 
