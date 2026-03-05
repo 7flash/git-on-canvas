@@ -46,6 +46,8 @@ export async function loadSavedPositions(ctx: CanvasContext) {
                     const data = await res.json();
                     if (data.positions) {
                         ctx.positions = new Map(Object.entries(data.positions));
+                        // Migrate legacy expanded state from separate localStorage key
+                        _migrateLegacyExpanded(ctx, repoPath);
                         return;
                     }
                 } catch { /* fall through to localStorage */ }
@@ -59,6 +61,9 @@ export async function loadSavedPositions(ctx: CanvasContext) {
                 const data = JSON.parse(raw);
                 ctx.positions = new Map(Object.entries(data));
             }
+
+            // Migrate legacy expanded state from separate localStorage key
+            _migrateLegacyExpanded(ctx, repoPath);
         } catch (e) {
             measure('positions:loadError', () => e);
         }
@@ -102,7 +107,8 @@ export async function savePosition(ctx: CanvasContext, commitHash: string, fileP
                 x: x !== undefined ? x : existing.x,
                 y: y !== undefined ? y : existing.y,
                 width: width !== undefined ? width : existing.width,
-                height: height !== undefined ? height : existing.height
+                height: height !== undefined ? height : existing.height,
+                expanded: existing.expanded, // preserve expanded flag
             };
             ctx.positions.set(posKey, newPos);
 
@@ -118,4 +124,53 @@ export async function savePosition(ctx: CanvasContext, commitHash: string, fileP
 // ─── Position key helper ─────────────────────────────────
 export function getPositionKey(filePath: string, commitHash: string): string {
     return `${commitHash}:${filePath}`;
+}
+
+// ─── Expanded state (unified with positions) ─────────────
+
+/** Check if a file path is saved as expanded in positions */
+export function isPathExpandedInPositions(ctx: CanvasContext, filePath: string): boolean {
+    // Check allfiles key (primary)
+    const key = `allfiles:${filePath}`;
+    const pos = ctx.positions.get(key);
+    return !!(pos && pos.expanded);
+}
+
+/** Mark a file path as expanded or collapsed in positions */
+export function setPathExpandedInPositions(ctx: CanvasContext, filePath: string, expanded: boolean) {
+    const key = `allfiles:${filePath}`;
+    const existing = ctx.positions.get(key) || {};
+    ctx.positions.set(key, { ...existing, expanded });
+    // Trigger debounced persist
+    if (_saveTimer) clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(() => flushPositions(ctx), SAVE_DEBOUNCE_MS);
+}
+
+/** Migrate legacy expanded state from separate localStorage key into positions */
+function _migrateLegacyExpanded(ctx: CanvasContext, repoPath: string) {
+    const legacyKey = `gitcanvas:expanded:${repoPath}`;
+    try {
+        const raw = localStorage.getItem(legacyKey);
+        if (!raw) return;
+        const paths: string[] = JSON.parse(raw);
+        if (!Array.isArray(paths) || paths.length === 0) return;
+
+        let migrated = 0;
+        for (const filePath of paths) {
+            const posKey = `allfiles:${filePath}`;
+            const existing = ctx.positions.get(posKey) || {};
+            if (!existing.expanded) {
+                ctx.positions.set(posKey, { ...existing, expanded: true });
+                migrated++;
+            }
+        }
+
+        if (migrated > 0) {
+            // Persist immediately to save the migration
+            flushPositions(ctx);
+        }
+
+        // Remove the legacy key
+        localStorage.removeItem(legacyKey);
+    } catch { }
 }
