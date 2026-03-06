@@ -892,7 +892,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     if (file.isBinary) {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
     } else if (file.content) {
-        if (file.lines > 10000) {
+        if (ctx.useCanvasText) {
             useCanvasText = true;
             canvasOptions = {
                 content: file.content,
@@ -1539,7 +1539,7 @@ export function toggleCardExpand(ctx: CanvasContext) {
             // Re-render content: expanded shows ALL lines, collapsed shows VISIBLE_LINE_LIMIT
             const file = cardFileData.get(card);
             if (file && file.content && !file.isBinary) {
-                if (file.lines <= 10000) {
+                if (!ctx.useCanvasText) {
                     const addedLines: Set<number> = file.addedLines || new Set();
                     const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
                     const isAllAdded = file.status === 'added';
@@ -1588,7 +1588,7 @@ export function expandCardByPath(ctx: CanvasContext, path: string) {
 
     const file = cardFileData.get(card);
     if (file && file.content && !file.isBinary) {
-        if (file.lines <= 10000) {
+        if (!ctx.useCanvasText) {
             const addedLines: Set<number> = file.addedLines || new Set();
             const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
             const isAllAdded = file.status === 'added';

@@ -1,0 +1,166 @@
+/* galaxydraw.css — Base styles for the infinite canvas */
+
+/* ─── Viewport & Canvas ─────────────────────────────────── */
+.gd-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, #0c0e1a 0%, #060812 100%);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.gd-viewport.gd-space-pan {
+    cursor: grab;
+}
+
+.gd-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+/* ─── Dot grid background ───────────────────────────────── */
+.gd-viewport::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ─── Cards ─────────────────────────────────────────────── */
+.gd-card {
+    position: absolute;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(13, 15, 28, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    contain: layout style;
+}
+
+.gd-card--selected {
+    border-color: rgba(147, 130, 255, 0.4);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(147, 130, 255, 0.25);
+}
+
+.gd-card--dragging {
+    opacity: 0.9;
+    transition: none;
+}
+
+.gd-card--resizing {
+    transition: none;
+}
+
+.gd-card--collapsed .gd-card-body {
+    display: none;
+}
+
+/* ─── Card header ───────────────────────────────────────── */
+.gd-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: grab;
+    min-height: 40px;
+    flex-shrink: 0;
+}
+
+.gd-card-header:active {
+    cursor: grabbing;
+}
+
+.gd-card-header .title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ─── Card body ─────────────────────────────────────────── */
+.gd-card-body {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* ─── Resize handle ─────────────────────────────────────── */
+.gd-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nw-resize;
+    z-index: 1;
+}
+
+.gd-resize-handle::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0 0 2px 0;
+}
+
+.gd-card:hover .gd-resize-handle::after {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─── Minimap ───────────────────────────────────────────── */
+.gd-minimap {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    z-index: 999;
+    transition: opacity 0.2s ease;
+}
+
+.gd-minimap:hover {
+    opacity: 1;
+}
+
+/* ─── Scrollbar styling ─────────────────────────────────── */
+.gd-card-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.gd-card-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.gd-card-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.gd-card-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}

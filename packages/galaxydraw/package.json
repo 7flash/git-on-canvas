@@ -1,0 +1,26 @@
+{
+    "name": "galaxydraw",
+    "version": "0.1.0",
+    "description": "Infinite canvas framework for spatial applications. The engine behind GitMaps and WARMAPS.",
+    "type": "module",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        },
+        "./css": "./dist/galaxydraw.css"
+    },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "bun build src/index.ts --outdir dist --format esm --sourcemap=external",
+        "dev": "bun run --watch demo/server.ts"
+    },
+    "devDependencies": {
+        "typescript": "^5.4.0"
+    }
+}

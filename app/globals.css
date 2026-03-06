@@ -572,16 +572,7 @@ body {
 }
 
 .commit-item::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 0;
-    background: var(--accent-primary);
-    border-radius: 2px;
-    transition: height var(--transition-fast);
+    display: none;
 }
 
 .commit-item:hover {
@@ -589,19 +580,10 @@ body {
     border-color: var(--border-subtle);
 }
 
-.commit-item:hover::before {
-    height: 50%;
-}
-
 .commit-item.active {
     background: var(--bg-card);
     border-color: var(--border-accent);
     box-shadow: var(--shadow-sm);
-}
-
-.commit-item.active::before {
-    height: 70%;
-    box-shadow: 0 0 10px var(--accent-glow);
 }
 
 .commit-hash {
@@ -627,6 +609,24 @@ body {
     margin-top: 6px;
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+.commit-refs {
+    display: inline-flex;
+    gap: 4px;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.commit-ref-badge {
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    color: var(--accent-secondary);
+    padding: 0px 4px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
 }
 
 .commit-author {
@@ -694,38 +694,92 @@ body {
 }
 
 /* Hotkey Legend */
-.hotkey-legend {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px 10px;
+/* ─── Hotkey toggle button + popup ────────────── */
+.hotkey-toggle-wrapper {
+    position: relative;
     margin-top: 8px;
     padding-top: 8px;
     border-top: 1px solid var(--border-subtle);
 }
 
-.hotkey-row {
+.hotkey-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 0.62rem;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--text-muted);
-}
-
-.hotkey-row kbd {
-    display: inline-block;
-    padding: 1px 4px;
     background: var(--bg-elevated);
     border: 1px solid var(--border-subtle);
-    border-radius: 3px;
-    font-family: var(--font-sans);
-    font-size: 0.58rem;
-    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.hotkey-toggle:hover {
+    color: var(--text-primary);
+    border-color: rgba(147, 130, 255, 0.4);
+    background: rgba(147, 130, 255, 0.1);
+}
+
+.hotkey-popup {
+    display: none;
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    width: 320px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(13, 15, 28, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+    z-index: 999;
+}
+
+.hotkey-toggle-wrapper:hover .hotkey-popup,
+.hotkey-toggle:focus+.hotkey-popup {
+    display: block;
+}
+
+.hotkey-popup-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(147, 130, 255, 0.7);
+    margin-bottom: 10px;
+}
+
+.hotkey-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px 16px;
+}
+
+.hotkey-grid .hk {
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 5px;
     white-space: nowrap;
 }
 
-.hotkey-row span {
-    color: var(--text-muted);
-    font-size: 0.6rem;
+.hotkey-grid .hk kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    min-width: 18px;
+    text-align: center;
 }
 
 /* Canvas Area */

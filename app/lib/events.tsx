@@ -361,6 +361,28 @@ export function setupEventListeners(ctx: CanvasContext) {
         setupChangedFilesPanel();
         setupConnectionsPanel(ctx);
 
+        // Text rendering mode toggle (Canvas vs DOM)
+        const textToggle = document.getElementById('toggleCanvasText');
+        if (textToggle) {
+            ctx.useCanvasText = localStorage.getItem('gitcanvas:useCanvasText') === 'true';
+            textToggle.classList.toggle('active', ctx.useCanvasText);
+            textToggle.addEventListener('click', () => {
+                ctx.useCanvasText = !ctx.useCanvasText;
+                localStorage.setItem('gitcanvas:useCanvasText', String(ctx.useCanvasText));
+                textToggle.classList.toggle('active', ctx.useCanvasText);
+
+                // Re-render currently visible cards
+                const state = ctx.snap().context;
+                import('./repo').then(m => {
+                    if (state.currentCommitHash) {
+                        m.renderCommitCards(ctx, state.commitFilesData || []);
+                    } else {
+                        m.renderAllFilesCards(ctx, state.allFilesData || []);
+                    }
+                });
+            });
+        }
+
         // Connections visibility toggle
         const connToggle = document.getElementById('toggleConnections');
         if (connToggle) {
@@ -629,6 +651,18 @@ export function setupEventListeners(ctx: CanvasContext) {
         document.getElementById('arrangeCol')?.addEventListener('click', () => arrangeColumn(ctx));
         document.getElementById('arrangeColumn')?.addEventListener('click', () => arrangeColumn(ctx));
         document.getElementById('arrangeGrid')?.addEventListener('click', () => arrangeGrid(ctx));
+        document.getElementById('arrangeExpand')?.addEventListener('click', () => {
+            const selected = ctx.snap().context.selectedCards;
+            if (selected.length > 0) toggleCardExpand(ctx);
+        });
+        document.getElementById('arrangeFit')?.addEventListener('click', () => {
+            const selected = ctx.snap().context.selectedCards;
+            if (selected.length > 0) fitScreenSize(ctx);
+        });
+        document.getElementById('arrangeAI')?.addEventListener('click', () => {
+            const selected = ctx.snap().context.selectedCards;
+            if (selected.length > 0) toggleCanvasChat(ctx);
+        });
 
         // Close preview
         document.getElementById('closePreview')?.addEventListener('click', closePreview);
@@ -859,34 +893,38 @@ function openFileSearch(ctx: CanvasContext) {
     overlay.className = 'file-search-overlay';
     document.body.appendChild(overlay);
 
-    // Get all file paths from canvas or all active files
-    function getAllPaths(): string[] {
+    interface SearchMatch {
+        path: string;
+        line?: number;
+        snippet?: string;
+        isContentMatch: boolean;
+    }
+
+    function getAllFiles() {
         if (ctx.allFilesData && ctx.allFilesData.length > 0) {
-            return ctx.allFilesData.map(f => f.path);
+            return ctx.allFilesData;
         }
-        if (ctx.fileCards.size > 0) return Array.from(ctx.fileCards.keys());
-        const cards = document.querySelectorAll('.file-card[data-path]');
-        return Array.from(cards).map(c => (c as HTMLElement).dataset.path || '').filter(Boolean);
+        return [];
     }
 
     let selectedIdx = 0;
     let currentQuery = '';
 
-    function navigateToFile(path: string) {
-        let card = ctx.fileCards.get(path);
+    function navigateToFile(match: SearchMatch) {
+        let card = ctx.fileCards.get(match.path);
 
         if (!card) {
             const layer = getActiveLayer();
             if (layer && ctx.allFilesActive) {
                 // Instantly add the whole file to the active layer
-                addSectionToLayer(ctx, layer.id, path, '', '');
+                addSectionToLayer(ctx, layer.id, match.path, '', '');
 
                 // Wait for the active layer to apply/render then jump
                 setTimeout(() => {
-                    card = ctx.fileCards.get(path);
+                    card = ctx.fileCards.get(match.path);
                     if (card) {
                         close();
-                        doNavigate(path, card);
+                        doNavigate(match.path, card, match.line);
                     }
                 }, 50);
             } else if (!ctx.allFilesActive) {
@@ -896,10 +934,10 @@ function openFileSearch(ctx: CanvasContext) {
         }
 
         close();
-        doNavigate(path, card);
+        doNavigate(match.path, card, match.line);
     }
 
-    function doNavigate(path: string, card: HTMLElement) {
+    function doNavigate(path: string, card: HTMLElement, line?: number) {
         const vpRect = ctx.canvasViewport.getBoundingClientRect();
         const state = ctx.snap().context;
         const cardX = parseFloat(card.style.left) || 0;
@@ -915,6 +953,16 @@ function openFileSearch(ctx: CanvasContext) {
         ctx.actor.send({ type: 'SELECT_CARD', path, shift: false });
         updateSelectionHighlights(ctx);
         updateArrangeToolbar(ctx);
+
+        if (line) {
+            requestAnimationFrame(() => {
+                const body = card.querySelector('.file-card-body');
+                if (body) {
+                    const rowHeight = 20; // approximate row height
+                    body.scrollTop = (line - 1) * rowHeight - body.clientHeight / 2;
+                }
+            });
+        }
     }
 
     function close() {
@@ -922,20 +970,60 @@ function openFileSearch(ctx: CanvasContext) {
         overlay.remove();
     }
 
-    function highlightMatch(path: string, q: string): string {
-        if (!q) return escapeHtml(path);
-        const lp = path.toLowerCase();
+    function highlightMatch(text: string, q: string): string {
+        if (!q) return escapeHtml(text);
+        const lp = text.toLowerCase();
         const idx = lp.indexOf(q);
-        if (idx < 0) return escapeHtml(path);
-        return escapeHtml(path.substring(0, idx)) +
-            '<mark>' + escapeHtml(path.substring(idx, idx + q.length)) + '</mark>' +
-            escapeHtml(path.substring(idx + q.length));
+        if (idx < 0) return escapeHtml(text);
+        return escapeHtml(text.substring(0, idx)) +
+            '<mark>' + escapeHtml(text.substring(idx, idx + q.length)) + '</mark>' +
+            escapeHtml(text.substring(idx + q.length));
     }
 
-    function getMatches() {
-        const allPaths = getAllPaths();
+    function getMatches(): SearchMatch[] {
+        const files = getAllFiles();
         const q = currentQuery.toLowerCase().trim();
-        return q ? allPaths.filter(p => p.toLowerCase().includes(q)).slice(0, 15) : allPaths.slice(0, 15);
+
+        let pathOnlySearch = false; // By default search both
+        if (q.startsWith('f:')) {
+            pathOnlySearch = true;
+        }
+
+        const actualQuery = q.replace(/^f:/, '').trim();
+        if (!actualQuery) {
+            // Return top files randomly if no query yet
+            return files.slice(0, 15).map(f => ({ path: f.path, isContentMatch: false }));
+        }
+
+        const results: SearchMatch[] = [];
+
+        for (const f of files) {
+            if (results.length >= 50) break; // Hard limit to avoid freeze
+
+            // Path match check
+            if (f.path.toLowerCase().includes(actualQuery)) {
+                results.push({ path: f.path, isContentMatch: false });
+            }
+
+            // Content match check
+            if (!pathOnlySearch && f.content) {
+                const lines = f.content.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].toLowerCase().includes(actualQuery)) {
+                        results.push({
+                            path: f.path,
+                            line: i + 1,
+                            snippet: lines[i].trim().substring(0, 100), // Max 100 chars in preview
+                            isContentMatch: true
+                        });
+                        if (results.length >= 50) break;
+                    }
+                }
+            }
+        }
+
+        // Return top 15 matches to keep UI snappy
+        return results.slice(0, 15);
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -970,7 +1058,7 @@ function openFileSearch(ctx: CanvasContext) {
     const input = document.createElement('input');
     input.type = 'text';
     input.className = 'file-search-input';
-    input.placeholder = 'Search files on canvas...';
+    input.placeholder = 'Search paths (f:) or full text...';
     input.autocomplete = 'off';
     input.addEventListener('input', (e) => {
         currentQuery = (e.target as HTMLInputElement).value;
@@ -987,28 +1075,43 @@ function openFileSearch(ctx: CanvasContext) {
 
     function rerenderResults() {
         const matches = getMatches();
-        const q = currentQuery.toLowerCase().trim();
+        const q = currentQuery.replace(/^f:/, '').toLowerCase().trim();
         if (matches.length === 0 && q) {
-            resultsContainer.innerHTML = `<div class="file-search-empty">No files matching "${escapeHtml(q)}"</div>`;
+            resultsContainer.innerHTML = `<div class="file-search-empty">No results for "${escapeHtml(q)}"</div>`;
         } else {
-            resultsContainer.innerHTML = matches.map((path, i) =>
-                `<div class="file-search-item ${i === selectedIdx ? 'selected' : ''}" data-path="${escapeHtml(path)}">
-                    <span class="search-file-name">${highlightMatch(path, q)}</span>
-                </div>`
-            ).join('');
+            resultsContainer.innerHTML = matches.map((m, i) => {
+                if (m.isContentMatch) {
+                    return `
+                        <div class="file-search-item ${i === selectedIdx ? 'selected' : ''}" data-path="${escapeHtml(m.path)}" data-line="${m.line}">
+                            <div class="search-file-name" style="font-size: 0.75rem; color: var(--text-muted)">${escapeHtml(m.path)}:${m.line}</div>
+                            <div class="search-file-snippet">${highlightMatch(m.snippet || '', q)}</div>
+                        </div>`;
+                } else {
+                    return `
+                        <div class="file-search-item ${i === selectedIdx ? 'selected' : ''}" data-path="${escapeHtml(m.path)}">
+                            <span class="search-file-name">${highlightMatch(m.path, q)}</span>
+                        </div>`;
+                }
+            }).join('');
             // Attach click handlers
             resultsContainer.querySelectorAll('.file-search-item').forEach(el => {
-                el.addEventListener('click', () => navigateToFile((el as HTMLElement).dataset.path!));
+                el.addEventListener('click', () => {
+                    const path = (el as HTMLElement).dataset.path!;
+                    const line = (el as HTMLElement).dataset.line ? parseInt((el as HTMLElement).dataset.line!) : undefined;
+                    navigateToFile({ path, line, isContentMatch: !!line });
+                });
             });
+        }
+
+        // Scroll selected into view securely
+        const selectedEl = resultsContainer.querySelector('.file-search-item.selected');
+        if (selectedEl) {
+            selectedEl.scrollIntoView({ block: 'nearest' });
         }
     }
 
-    function rerender() {
-        rerenderResults();
-        if (document.activeElement !== input) {
-            input.focus();
-        }
-    }
+    rerenderResults();
+    setTimeout(() => input.focus(), 50);
 
     overlay.addEventListener('click', handleOverlayClick);
     rerender();
