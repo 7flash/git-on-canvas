@@ -5,6 +5,7 @@
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
 import { scheduleViewportCulling, uncullAllCards } from './viewport-culling';
+import { getGalaxyDrawState } from './galaxydraw-bridge';
 
 // ─── Minimap cached state (avoids full rebuild on every pan/zoom) ──
 let _mmCache: {
@@ -31,7 +32,20 @@ export function restoreViewport(ctx: CanvasContext) {
 export function updateCanvasTransform(ctx: CanvasContext) {
     if (!ctx.canvas) return;
     const state = ctx.snap().context;
-    ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
+
+    // Phase 2: delegate to GalaxyDraw state engine if available
+    const gdState = getGalaxyDrawState();
+    if (gdState) {
+        // Sync XState → GalaxyDraw
+        gdState.zoom = state.zoom;
+        gdState.offsetX = state.offsetX;
+        gdState.offsetY = state.offsetY;
+        gdState.applyTransform();
+    } else {
+        // Fallback: manual transform (pre-bridge init)
+        ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
+    }
+
     // Cheap: only move the viewport rect using cached bounds
     updateMinimapViewport(ctx);
     // Schedule viewport culling (debounced to next rAF)
