@@ -1,16 +1,25 @@
 // @ts-nocheck
 /**
- * Viewport culling — only render file cards visible in the current viewport.
+ * Viewport culling + LOD (Level of Detail) system
  *
  * Cards outside the viewport have their content stripped (innerHTML = '')
  * and get `data-culled="true"`. When they scroll back into view, their
  * content is rebuilt from the stored file data.
  *
- * Uses a generous margin (1 viewport width/height padding) so cards
- * entering the viewport are already rendered before they become visible.
+ * LOD System (zoom-aware):
+ *   zoom > LOD_ZOOM_THRESHOLD (0.25): Full file cards with content
+ *   zoom <= LOD_ZOOM_THRESHOLD:       Lightweight "pill" placeholders
+ *
+ * This prevents mass-materialization when zooming out on large repos
+ * (e.g. React with 6833 files). Instead of creating 6833 full DOM cards,
+ * we create tiny colored rectangles that swap to full cards on zoom-in.
+ *
+ * Materialization throttle: When many deferred cards enter viewport at
+ * once, we materialize them in batches (MAX_MATERIALIZE_PER_FRAME) to
+ * prevent frame drops.
  *
  * Performance: O(n) per frame with n = total cards. The check is a simple
- * AABB overlap test — no spatial indexing needed for < 500 cards.
+ * AABB overlap test — no spatial indexing needed for < 10K cards.
  */
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
@@ -22,6 +31,91 @@ let _cullEnabled = true;
 // Margin in viewport pixels — cards within this margin outside the visible
 // area are pre-rendered so scrolling feels instant. 
 const VIEWPORT_MARGIN = 500;
+
+// LOD threshold: below this zoom level, use lightweight pill placeholders
+const LOD_ZOOM_THRESHOLD = 0.25;
+
+// Maximum deferred cards to materialize per animation frame
+// Prevents frame drops when zooming out then back in on huge repos
+const MAX_MATERIALIZE_PER_FRAME = 30;
+
+// Track current LOD mode so we can detect transitions
+let _currentLodMode: 'full' | 'pill' = 'full';
+
+// Track pill elements for cleanup
+const pillCards = new Map<string, HTMLElement>();
+
+// ── Status colors for pill cards
+const PILL_COLORS: Record<string, string> = {
+    'ts': '#3178c6',
+    'tsx': '#3178c6',
+    'js': '#f7df1e',
+    'jsx': '#f7df1e',
+    'json': '#292929',
+    'css': '#264de4',
+    'scss': '#cd6799',
+    'html': '#e34f26',
+    'md': '#083fa1',
+    'py': '#3776ab',
+    'rs': '#dea584',
+    'go': '#00add8',
+    'vue': '#42b883',
+    'svelte': '#ff3e00',
+    'toml': '#9c4221',
+    'yaml': '#cb171e',
+    'yml': '#cb171e',
+    'sh': '#89e051',
+    'sql': '#e38c00',
+};
+
+function getPillColor(path: string, isChanged: boolean): string {
+    if (isChanged) return '#eab308'; // Yellow for changed files
+    const ext = path.split('.').pop()?.toLowerCase() || '';
+    return PILL_COLORS[ext] || '#6b7280'; // Default gray
+}
+
+/**
+ * Create a lightweight pill placeholder for a file.
+ * ~3 DOM nodes vs ~100+ for a full card = massive perf win at low zoom.
+ */
+function createPillCard(path: string, x: number, y: number, w: number, h: number, isChanged: boolean): HTMLElement {
+    const pill = document.createElement('div');
+    pill.className = 'file-pill';
+    pill.style.cssText = `
+        position: absolute;
+        left: ${x}px;
+        top: ${y}px;
+        width: ${w}px;
+        height: ${Math.min(h, 40)}px;
+        background: ${getPillColor(path, isChanged)};
+        border-radius: 4px;
+        opacity: 0.7;
+        pointer-events: none;
+        contain: strict;
+    `;
+    pill.dataset.path = path;
+
+    // File name label (single text node)
+    const name = path.split('/').pop() || path;
+    const label = document.createElement('span');
+    label.className = 'file-pill-label';
+    label.textContent = name;
+    label.style.cssText = `
+        display: block;
+        padding: 2px 6px;
+        font-size: 11px;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        line-height: ${Math.min(h, 40) - 4}px;
+        font-family: 'JetBrains Mono', monospace;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    `;
+    pill.appendChild(label);
+
+    return pill;
+}
 
 /**
  * Computes the visible world-coordinate rectangle from the current
@@ -66,10 +160,34 @@ function isCardVisible(card: HTMLElement, worldRect: { left: number; top: number
 }
 
 /**
+ * Remove all pill placeholders from the canvas.
+ */
+function clearAllPills(ctx: CanvasContext) {
+    for (const [, pill] of pillCards) {
+        pill.remove();
+    }
+    pillCards.clear();
+}
+
+/**
+ * Transition from pill mode to full mode: remove pills for cards that
+ * have been fully materialized.
+ */
+function removePillForPath(path: string) {
+    const pill = pillCards.get(path);
+    if (pill) {
+        pill.remove();
+        pillCards.delete(path);
+    }
+}
+
+/**
  * Performs viewport culling on all file cards.
  * Cards outside the viewport get visibility:hidden + content-visibility:hidden
  * Cards inside the viewport get shown.
  * Also materializes deferred cards that enter the viewport (virtualization).
+ * 
+ * LOD: At low zoom, uses pill placeholders instead of full cards.
  */
 export function performViewportCulling(ctx: CanvasContext) {
     if (!_cullEnabled || !ctx.canvas || ctx.fileCards.size === 0 && ctx.deferredCards.size === 0) return;
@@ -77,11 +195,43 @@ export function performViewportCulling(ctx: CanvasContext) {
     const worldRect = getVisibleWorldRect(ctx);
     if (!worldRect) return;
 
+    const state = ctx.snap().context;
+    const zoom = state.zoom;
+    const isLowZoom = zoom <= LOD_ZOOM_THRESHOLD;
+    const newLodMode = isLowZoom ? 'pill' : 'full';
+
     let culled = 0;
     let shown = 0;
 
-    // 1. Cull/show existing DOM cards
+    // ── LOD mode transition ──
+    if (newLodMode !== _currentLodMode) {
+        if (newLodMode === 'pill') {
+            // Transitioning to pill mode: hide all full cards, show pills
+            for (const [path, card] of ctx.fileCards) {
+                card.style.contentVisibility = 'hidden';
+                card.style.visibility = 'hidden';
+                card.dataset.culled = 'true';
+            }
+        } else {
+            // Transitioning to full mode: clear pills, show full cards
+            clearAllPills(ctx);
+        }
+        _currentLodMode = newLodMode;
+    }
+
+    // 1. Handle existing DOM cards (cull/show)
     for (const [path, card] of ctx.fileCards) {
+        if (isLowZoom) {
+            // In pill mode: always hide full cards
+            if (card.dataset.culled !== 'true') {
+                card.style.contentVisibility = 'hidden';
+                card.style.visibility = 'hidden';
+                card.dataset.culled = 'true';
+            }
+            culled++;
+            continue;
+        }
+
         const visible = isCardVisible(card, worldRect);
         const wasCulled = card.dataset.culled === 'true';
 
@@ -90,6 +240,7 @@ export function performViewportCulling(ctx: CanvasContext) {
             card.style.contentVisibility = '';
             card.style.visibility = '';
             card.dataset.culled = 'false';
+            removePillForPath(path);
             shown++;
         } else if (!visible && !wasCulled) {
             // Card leaving viewport — hide it (keep dimensions for layout)
@@ -104,47 +255,103 @@ export function performViewportCulling(ctx: CanvasContext) {
         }
     }
 
-    // 2. Materialize deferred cards that are now in viewport
+    // 2. Handle deferred cards
     if (ctx.deferredCards.size > 0) {
-        let materialized = 0;
-        const toRemove: string[] = [];
+        if (isLowZoom) {
+            // In pill mode: render pills for visible deferred cards (very cheap)
+            for (const [path, entry] of ctx.deferredCards) {
+                const { file, x, y, size, isChanged } = entry;
+                const cardW = size?.width || 580;
+                const cardH = size?.height || 700;
 
-        for (const [path, entry] of ctx.deferredCards) {
-            const { file, x, y, size, isChanged } = entry;
-            const cardW = size?.width || 580;
-            const cardH = size?.height || 700;
+                const inView = (
+                    x + cardW > worldRect.left &&
+                    x < worldRect.right &&
+                    y + cardH > worldRect.top &&
+                    y < worldRect.bottom
+                );
 
-            // AABB check against world rect
-            const inView = (
-                x + cardW > worldRect.left &&
-                x < worldRect.right &&
-                y + cardH > worldRect.top &&
-                y < worldRect.bottom
-            );
-
-            if (inView) {
-                // Lazy-import to avoid circular dependency
-                const { createAllFileCard, setupCardInteraction } = require('./cards');
-                const card = createAllFileCard(ctx, file, x, y, size);
-                if (isChanged) {
-                    card.classList.add('file-card--changed');
-                    card.dataset.changed = 'true';
+                if (inView && !pillCards.has(path)) {
+                    const pill = createPillCard(path, x, y, cardW, cardH, !!isChanged);
+                    ctx.canvas.appendChild(pill);
+                    pillCards.set(path, pill);
+                } else if (!inView && pillCards.has(path)) {
+                    removePillForPath(path);
                 }
-                ctx.canvas.appendChild(card);
-                ctx.fileCards.set(path, card);
-                toRemove.push(path);
-                materialized++;
-                shown++;
             }
-        }
 
-        // Remove materialized entries from deferred map
-        for (const path of toRemove) {
-            ctx.deferredCards.delete(path);
-        }
+            // Also create pills for existing cards that are visible
+            for (const [path, card] of ctx.fileCards) {
+                if (!pillCards.has(path)) {
+                    const x = parseFloat(card.style.left) || 0;
+                    const y = parseFloat(card.style.top) || 0;
+                    const w = card.offsetWidth || 580;
+                    const h = card.offsetHeight || 700;
+                    const isChanged = card.dataset.changed === 'true';
 
-        if (materialized > 0) {
-            console.log(`[cull] Materialized ${materialized} deferred cards (${ctx.deferredCards.size} remaining)`);
+                    const inView = (
+                        x + w > worldRect.left &&
+                        x < worldRect.right &&
+                        y + h > worldRect.top &&
+                        y < worldRect.bottom
+                    );
+
+                    if (inView) {
+                        const pill = createPillCard(path, x, y, w, h, isChanged);
+                        ctx.canvas.appendChild(pill);
+                        pillCards.set(path, pill);
+                    }
+                }
+            }
+        } else {
+            // Full mode: materialize deferred cards (throttled)
+            let materialized = 0;
+            const toRemove: string[] = [];
+
+            for (const [path, entry] of ctx.deferredCards) {
+                if (materialized >= MAX_MATERIALIZE_PER_FRAME) break;
+
+                const { file, x, y, size, isChanged } = entry;
+                const cardW = size?.width || 580;
+                const cardH = size?.height || 700;
+
+                // AABB check against world rect
+                const inView = (
+                    x + cardW > worldRect.left &&
+                    x < worldRect.right &&
+                    y + cardH > worldRect.top &&
+                    y < worldRect.bottom
+                );
+
+                if (inView) {
+                    // Lazy-import to avoid circular dependency
+                    const { createAllFileCard, setupCardInteraction } = require('./cards');
+                    const card = createAllFileCard(ctx, file, x, y, size);
+                    if (isChanged) {
+                        card.classList.add('file-card--changed');
+                        card.dataset.changed = 'true';
+                    }
+                    ctx.canvas.appendChild(card);
+                    ctx.fileCards.set(path, card);
+                    removePillForPath(path);
+                    toRemove.push(path);
+                    materialized++;
+                    shown++;
+                }
+            }
+
+            // Remove materialized entries from deferred map
+            for (const path of toRemove) {
+                ctx.deferredCards.delete(path);
+            }
+
+            if (materialized > 0) {
+                console.log(`[cull] Materialized ${materialized} deferred cards (${ctx.deferredCards.size} remaining)`);
+                // If more cards need materializing, schedule another pass
+                if (ctx.deferredCards.size > 0) {
+                    scheduleViewportCulling(ctx);
+                }
+            }
         }
     }
 
@@ -177,6 +384,10 @@ export function setViewportCullingEnabled(enabled: boolean) {
  * Also materializes all deferred cards so they can be measured.
  */
 export function uncullAllCards(ctx: CanvasContext) {
+    // Clear any pill placeholders
+    clearAllPills(ctx);
+    _currentLodMode = 'full';
+
     for (const [, card] of ctx.fileCards) {
         card.style.contentVisibility = '';
         card.style.visibility = '';
