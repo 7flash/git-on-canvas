@@ -9,7 +9,7 @@
 - [x] ~~**Layer bar overlap**~~ — ✅ DONE. Layers bar centered at bottom, minimap at bottom-right, no overlap.
 
 ## 🟡 Priority: Improve
-- [ ] **Dual control modes** — "Simple" (drag = pan) vs "Advanced" (space+drag = pan). Toggle in top settings. Framework supports it via galaxydraw.
+- [x] ~~**Dual control modes**~~ — ✅ DONE. Toggle in top toolbar: "Simple" (drag=pan, scroll=zoom) vs "Advanced" (space+drag=pan, rect select). Persists to localStorage.
 - [ ] **Repo persistence** — Previously selected repos should restore from localStorage on reload. Code exists (`gitcanvas:lastRepo`) but may not be triggering properly.
 - [ ] **Changed Files popup** — Auto-opens on commit select and blocks the canvas. Should be dismissible and remember state.
 
