@@ -25,7 +25,7 @@ import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { createLayer, getActiveLayer, addSectionToLayer } from './layers';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
-import { zoomTowardScreen } from './galaxydraw-bridge';
+import { zoomTowardScreen, panByDelta, screenToWorld } from './galaxydraw-bridge';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
@@ -123,15 +123,12 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
 
             if (e.shiftKey) {
                 const panSpeed = 1.5;
-                const dx = e.deltaY * panSpeed;
-                ctx.actor.send({ type: 'SET_OFFSET', x: state.offsetX - dx, y: state.offsetY });
+                panByDelta(ctx, -(e.deltaY * panSpeed), 0);
                 updateCanvasTransform(ctx);
                 updateMinimap(ctx);
             } else {
                 const panSpeed = 1.5;
-                const dy = e.deltaY * panSpeed;
-                const dx = e.deltaX * panSpeed;
-                ctx.actor.send({ type: 'SET_OFFSET', x: state.offsetX - dx, y: state.offsetY - dy });
+                panByDelta(ctx, -(e.deltaX * panSpeed), -(e.deltaY * panSpeed));
                 updateCanvasTransform(ctx);
                 updateMinimap(ctx);
             }
@@ -177,9 +174,9 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                     }
 
                     isRectSelecting = true;
-                    const vpRect = ctx.canvasViewport.getBoundingClientRect();
-                    selRectStartWorldX = (e.clientX - vpRect.left - state.offsetX) / state.zoom;
-                    selRectStartWorldY = (e.clientY - vpRect.top - state.offsetY) / state.zoom;
+                    const world = screenToWorld(ctx, e.clientX, e.clientY);
+                    selRectStartWorldX = world.x;
+                    selRectStartWorldY = world.y;
 
                     selectionRect = document.createElement('div');
                     selectionRect.className = 'selection-rect';
@@ -211,10 +208,9 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
             }
 
             if (isRectSelecting && selectionRect) {
-                const state = ctx.snap().context;
-                const vpRect = ctx.canvasViewport.getBoundingClientRect();
-                const worldX = (e.clientX - vpRect.left - state.offsetX) / state.zoom;
-                const worldY = (e.clientY - vpRect.top - state.offsetY) / state.zoom;
+                const world = screenToWorld(ctx, e.clientX, e.clientY);
+                const worldX = world.x;
+                const worldY = world.y;
 
                 const rx = Math.min(selRectStartWorldX, worldX);
                 const ry = Math.min(selRectStartWorldY, worldY);
