@@ -2,6 +2,7 @@
 
 ## 🔴 Priority: Fix
 - [x] ~~**Virtualized rendering**~~ — ✅ DONE. `renderAllFilesOnCanvas` now defers cards outside the viewport. React repo (6833 files): 9 DOM cards created, 6824 deferred. ~35ms vs ~14s.
+- [x] ~~**Zoom LOD system**~~ — ✅ DONE. Below zoom 25%, cards render as lightweight colored "pill" placeholders (~3 DOM nodes vs ~100+) instead of full file cards. Throttled materialization (max 30 per frame) prevents frame drops when zooming back in. `viewport-culling.ts` manages LOD transitions.
 - [x] ~~**Rename to GitMaps**~~ — ✅ DONE. Header, title, meta, onboarding all say "GitMaps".
 - [x] ~~**TypeErrors on init**~~ — ✅ DONE. Added null guards to `updateCanvasTransform`, `updateMinimapViewport`, `setupCanvasInteraction`, `fitAllFiles`, and `clearCanvas`. All now early-return if `ctx.canvas` / `ctx.canvasViewport` is null.
 - [x] ~~**Commit select delay**~~ — ✅ RESOLVED by virtualization. Was 8 minutes, now ~542ms (~900x faster). Root cause was re-rendering 6833 DOM cards on every commit select.
