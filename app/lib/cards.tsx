@@ -886,10 +886,26 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     const wasExpanded = isPathExpandedInPositions(ctx, file.path) || isPathExpanded(file.path);
 
     let contentHTML = '';
+    let useCanvasText = false;
+    let canvasOptions: any = null;
+
     if (file.isBinary) {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Binary file</span></code></pre></div>`;
     } else if (file.content) {
-        contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, wasExpanded, file.lines);
+        if (file.lines > 10000) {
+            useCanvasText = true;
+            canvasOptions = {
+                content: file.content,
+                addedLines,
+                deletedBeforeLine,
+                isAllAdded,
+                isAllDeleted,
+                visibleLineIndices: filterFileContentByLayer(file.content, file.layerSections).visibleLineIndices
+            };
+            contentHTML = `<div class="file-content-preview canvas-container" style="position:relative; height: 100%; overflow: auto; background: var(--bg-card); display: block -webkit-box;"></div>`;
+        } else {
+            contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, wasExpanded, file.lines);
+        }
     } else {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Could not read file</span></code></pre></div>`;
     }
@@ -937,6 +953,15 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
 
     setupConnectionDrag(ctx, card, file.path);
     setupCardInteraction(ctx, card, 'allfiles');
+
+    if (useCanvasText && canvasOptions) {
+        const previewEl = card.querySelector('.canvas-container') as HTMLElement;
+        if (previewEl) {
+            import('./canvas-text').then(({ CanvasTextRenderer }) => {
+                new CanvasTextRenderer(previewEl, canvasOptions);
+            });
+        }
+    }
 
     const expandBtn = card.querySelector('.expand-btn');
     if (expandBtn) {
@@ -1514,17 +1539,19 @@ export function toggleCardExpand(ctx: CanvasContext) {
             // Re-render content: expanded shows ALL lines, collapsed shows VISIBLE_LINE_LIMIT
             const file = cardFileData.get(card);
             if (file && file.content && !file.isBinary) {
-                const addedLines: Set<number> = file.addedLines || new Set();
-                const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
-                const isAllAdded = file.status === 'added';
-                const isAllDeleted = file.status === 'deleted';
-                const preview = body.querySelector('.file-content-preview');
-                if (preview) {
-                    const newHTML = _buildFileContentHTML(
-                        file.content, file.layerSections, addedLines, deletedBeforeLine,
-                        isAllAdded, isAllDeleted, willExpand, file.lines
-                    );
-                    preview.outerHTML = newHTML;
+                if (file.lines <= 10000) {
+                    const addedLines: Set<number> = file.addedLines || new Set();
+                    const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
+                    const isAllAdded = file.status === 'added';
+                    const isAllDeleted = file.status === 'deleted';
+                    const preview = body.querySelector('.file-content-preview');
+                    if (preview) {
+                        const newHTML = _buildFileContentHTML(
+                            file.content, file.layerSections, addedLines, deletedBeforeLine,
+                            isAllAdded, isAllDeleted, willExpand, file.lines
+                        );
+                        preview.outerHTML = newHTML;
+                    }
                 }
             }
 
@@ -1561,17 +1588,19 @@ export function expandCardByPath(ctx: CanvasContext, path: string) {
 
     const file = cardFileData.get(card);
     if (file && file.content && !file.isBinary) {
-        const addedLines: Set<number> = file.addedLines || new Set();
-        const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
-        const isAllAdded = file.status === 'added';
-        const isAllDeleted = file.status === 'deleted';
-        const preview = body.querySelector('.file-content-preview');
-        if (preview) {
-            const newHTML = _buildFileContentHTML(
-                file.content, file.layerSections, addedLines, deletedBeforeLine,
-                isAllAdded, isAllDeleted, true, file.lines
-            );
-            preview.outerHTML = newHTML;
+        if (file.lines <= 10000) {
+            const addedLines: Set<number> = file.addedLines || new Set();
+            const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
+            const isAllAdded = file.status === 'added';
+            const isAllDeleted = file.status === 'deleted';
+            const preview = body.querySelector('.file-content-preview');
+            if (preview) {
+                const newHTML = _buildFileContentHTML(
+                    file.content, file.layerSections, addedLines, deletedBeforeLine,
+                    isAllAdded, isAllDeleted, true, file.lines
+                );
+                preview.outerHTML = newHTML;
+            }
         }
     }
 
