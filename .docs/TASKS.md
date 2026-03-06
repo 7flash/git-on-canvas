@@ -20,7 +20,7 @@
 - [x] ~~**Share canvas layouts**~~ — ✅ DONE. Export/import canvas state as a shareable URL parameters. Layout payloads are base64-encoded to share viewports, hidden files, card positions and sizes instantly.
 - [x] ~~**Diff visualization on canvas**~~ — ✅ DONE. When navigating commits, show visual diffs directly on cards (added/removed lines highlighted in green/red).
 - [x] ~~**Replayable Onboarding**~~ — ✅ DONE. Added a "?" button to the top toolbar that replays the interactive onboarding tour.
-- [ ] **Local Drag-and-Drop** — Support dragging a local directory drop to upload it mapping files to canvas without Git clone.
+- [x] ~~**Local Drag-and-Drop**~~ — ✅ DONE. Support dragging a local directory drop to upload it mapping files to canvas without Git clone.
 
 ## 🔴 Priority: Performance
 - [ ] **Canvas/WebGL text rendering** — Explore rendering file card text content via `<canvas>` or WebGL instead of DOM spans for 10K+ line files.
