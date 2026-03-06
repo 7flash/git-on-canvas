@@ -86,6 +86,17 @@ export class CanvasState {
         this.notify();
     }
 
+    /** Center the viewport on a world coordinate */
+    panTo(worldX: number, worldY: number) {
+        if (!this.viewportEl) return;
+        const vpW = this.viewportEl.clientWidth;
+        const vpH = this.viewportEl.clientHeight;
+        this.offsetX = vpW / 2 - worldX * this.zoom;
+        this.offsetY = vpH / 2 - worldY * this.zoom;
+        this.applyTransform();
+        this.notify();
+    }
+
     /** Zoom toward a screen point (e.g. cursor position) */
     zoomToward(screenX: number, screenY: number, factor: number) {
         const newZoom = Math.max(this.MIN_ZOOM, Math.min(this.MAX_ZOOM, this.zoom * factor));
