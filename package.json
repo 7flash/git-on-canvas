@@ -2,6 +2,9 @@
   "name": "git-canvas",
   "version": "1.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run server.ts",
     "start": "bun run server.ts"
@@ -16,6 +19,7 @@
   "license": "ISC",
   "description": "Visual Git Repository Explorer with interactive canvas",
   "dependencies": {
+    "galaxydraw": "workspace:*",
     "jsx-ai": "^0.1.0",
     "measure-fn": "^3.8.1",
     "melina": "^2.3.1",
