@@ -25,6 +25,7 @@ import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { createLayer, getActiveLayer, addSectionToLayer } from './layers';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
+import { zoomTowardScreen } from './galaxydraw-bridge';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
@@ -74,18 +75,8 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
             // Ctrl+scroll = zoom (ALWAYS, even over file cards)
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();
-                const rect = ctx.canvasViewport.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-
-                const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                const newZoom = Math.min(3, Math.max(0.1, state.zoom * delta));
-                const scale = newZoom / state.zoom;
-                const newOffsetX = mouseX - (mouseX - state.offsetX) * scale;
-                const newOffsetY = mouseY - (mouseY - state.offsetY) * scale;
-
-                ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
-                ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+                const factor = e.deltaY > 0 ? 0.9 : 1.1;
+                zoomTowardScreen(ctx, e.clientX, e.clientY, factor);
                 updateCanvasTransform(ctx);
                 updateZoomUI(ctx);
                 return;
@@ -118,16 +109,8 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
 
             // In simple mode: plain scroll = zoom (like WARMAPS)
             if (ctx.controlMode === 'simple') {
-                const rect = ctx.canvasViewport.getBoundingClientRect();
-                const mouseX = e.clientX - rect.left;
-                const mouseY = e.clientY - rect.top;
-                const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                const newZoom = Math.min(3, Math.max(0.1, state.zoom * delta));
-                const scale = newZoom / state.zoom;
-                const newOffsetX = mouseX - (mouseX - state.offsetX) * scale;
-                const newOffsetY = mouseY - (mouseY - state.offsetY) * scale;
-                ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
-                ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+                const factor = e.deltaY > 0 ? 0.9 : 1.1;
+                zoomTowardScreen(ctx, e.clientX, e.clientY, factor);
                 updateCanvasTransform(ctx);
                 updateZoomUI(ctx);
                 return;
