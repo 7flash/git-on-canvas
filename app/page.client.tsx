@@ -21,6 +21,7 @@ import { loadRepository } from './lib/repo';
 import { initLayers, renderLayersUI } from './lib/layers';
 import { setupAuth, updateFavoriteStar } from './lib/user';
 import { setupPerfOverlay } from './lib/perf-overlay';
+import { initGalaxyDrawState } from './lib/galaxydraw-bridge';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -47,6 +48,9 @@ export default function mount(): () => void {
                 ctx.svgOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1;overflow:visible;';
                 ctx.canvas.appendChild(ctx.svgOverlay);
             }
+
+            // Init galaxydraw state engine (binds to existing DOM)
+            initGalaxyDrawState(ctx);
 
             actor.start();
             setupCanvasInteraction(ctx);
