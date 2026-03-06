@@ -9,16 +9,18 @@
 - [x] ~~🟡 **Position persistence per user**~~ — ✅ DONE. Migrated from server SQLite to localStorage keyed by `gitcanvas:positions:{repoPath}`. Debounced 300ms saves.
 - [x] ~~🟡 **Clone progress streaming**~~ — ✅ DONE. `/api/repo/clone-stream` SSE endpoint spawns `git clone --progress` and streams phase-aware progress. Client shows animated progress bar.
 - [x] ~~🟡 **Landing page improvement**~~ — ✅ DONE. Added animated grid background with pulsing lines, enhanced hero section with orbital icon, "Explore Popular Repositories" section with 6 curated repos (React, Deno, Svelte, Bun, Next.js, TailwindCSS). Click-to-clone on repo cards. Wired into existing clone flow via `events.tsx`.
-- [ ] **Featured repos — dynamic stats** — Currently star counts and language info are hardcoded in `page.tsx`. Fetch real stats from GitHub API on server-side `/api/github/featured` to keep numbers fresh.
-- [ ] **Onboarding flow** — After cloning a repo, show a brief interactive tutorial highlighting canvas controls (pan, zoom, drag, connect, layers). First-time user experience.
+- [x] ~~**Featured repos — dynamic stats**~~ — ✅ DONE. Star counts fetched from GitHub API at render time via `getFeaturedRepos()`. 5-minute server-side cache. Graceful fallback to hardcoded values if API unavailable.
+- [x] ~~**Onboarding flow**~~ — ✅ DONE. Interactive tutorial highlighting canvas controls after first clone, using `app/lib/onboarding.tsx`.
 
 ## 🟢 Feature
 - [x] ~~🟢 **User accounts**~~ — ✅ DONE. GitHub OAuth flow.
 - [x] ~~🟢 **Shared repositories**~~ — ✅ DONE. Position storage dual-mode.
 - [x] ~~🟢 **Import from GitHub API**~~ — ✅ DONE. Full modal UI with search, clone.
-- [ ] **AI-powered code explanation** — Click a file card and ask the AI about it. Send file content + connections context to Gemini for architecture analysis.
-- [ ] **Share canvas layouts** — Export/import canvas state as a shareable URL or JSON. Useful for code review handoffs.
+- [x] ~~**AI-powered code explanation**~~ — ✅ DONE. Click a file card and ask the AI about it. Sends file content + connections context to Gemini for architecture analysis.
+- [x] ~~**Share canvas layouts**~~ — ✅ DONE. Export/import canvas state as a shareable URL parameters. Layout payloads are base64-encoded to share viewports, hidden files, card positions and sizes instantly.
 - [ ] **Diff visualization on canvas** — When navigating commits, show visual diffs directly on cards (added/removed lines highlighted in green/red).
+- [x] ~~**Replayable Onboarding**~~ — ✅ DONE. Added a "?" button to the top toolbar that replays the interactive onboarding tour.
+- [ ] **Local Drag-and-Drop** — Support dragging a local directory drop to upload it mapping files to canvas without Git clone.
 
 ## 🔴 Priority: Performance
 - [ ] **Canvas/WebGL text rendering** — Explore rendering file card text content via `<canvas>` or WebGL instead of DOM spans for 10K+ line files.
