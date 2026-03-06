@@ -33,9 +33,9 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 
 **Phase 3** — 🟡 IN PROGRESS. Replace event handlers.
 - ✅ `zoomTowardScreen()` bridge function — replaces 3 duplicated zoom-math blocks in `events.tsx` with single call to `CanvasState.zoomToward()`
-- 🔲 `panByDelta()` — delegate wheel-scroll pan to `CanvasState.pan()`
-- 🔲 Mouse drag pan — delegate mousedown/mousemove pan to galaxydraw
-- 🔲 Rect selection → `CanvasState.screenToWorld()` for coordinate conversion
+- ✅ `panByDelta()` — delegate wheel-scroll pan to `CanvasState.pan()`
+- ✅ `screenToWorld()` — delegate coordinate conversion for rect selection to `CanvasState.screenToWorld()`
+- 🔲 Mouse drag pan — uses absolute offset pattern (dragStartX/Y), different from delta-based pan; lower priority
 - Must preserve: dual control modes, card drag, right-click, perf overlay
 
 **Phase 4** — 🔲 Card system migration.
