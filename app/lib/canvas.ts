@@ -29,6 +29,7 @@ export function restoreViewport(ctx: CanvasContext) {
 
 // ─── Update canvas CSS transform from state ─────────────
 export function updateCanvasTransform(ctx: CanvasContext) {
+    if (!ctx.canvas) return;
     const state = ctx.snap().context;
     ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
     // Cheap: only move the viewport rect using cached bounds
@@ -60,7 +61,7 @@ export function updateZoomUI(ctx: CanvasContext) {
 // ─── Cheap viewport-only minimap update ─────────────────
 function updateMinimapViewport(ctx: CanvasContext) {
     const viewport = document.getElementById('minimapViewport');
-    if (!viewport || !_mmCache) return;
+    if (!viewport || !_mmCache || !ctx.canvasViewport) return;
 
     const state = ctx.snap().context;
     const canvasRect = ctx.canvasViewport.getBoundingClientRect();
@@ -265,7 +266,7 @@ export function jumpToFile(ctx: CanvasContext, filePath: string) {
 // ─── Fit all files in viewport ──────────────────────────
 export function fitAllFiles(ctx: CanvasContext) {
     measure('canvas:fitAll', () => {
-        if (ctx.fileCards.size === 0) return;
+        if (ctx.fileCards.size === 0 || !ctx.canvasViewport) return;
 
         // Temporarily uncull all cards so offsetWidth/Height are measurable
         uncullAllCards(ctx);
@@ -434,7 +435,7 @@ export function setupMinimapClick(ctx: CanvasContext) {
 export function clearCanvas(ctx: CanvasContext) {
     ctx.fileCards.forEach(card => card.remove());
     ctx.fileCards.clear();
-    ctx.canvas.querySelectorAll('.dir-label').forEach(el => el.remove());
+    ctx.canvas?.querySelectorAll('.dir-label').forEach(el => el.remove());
     if (ctx.svgOverlay) ctx.svgOverlay.innerHTML = '';
 }
 

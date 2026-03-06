@@ -63,6 +63,7 @@ function _refreshRepoDropdown() {
 
 // ─── Canvas interaction (pan/zoom/select) ───────────────
 export function setupCanvasInteraction(ctx: CanvasContext) {
+    if (!ctx.canvasViewport) return;
     measure('canvas:setupInteraction', () => {
         let rafPendingPan = false;
         let rafPendingSelect = false;
