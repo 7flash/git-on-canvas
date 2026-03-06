@@ -94,3 +94,49 @@ export function zoomTowardScreen(
     ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
     return { zoom: newZoom, offsetX: newOffsetX, offsetY: newOffsetY };
 }
+
+/**
+ * Phase 3: Pan by pixel delta, delegating to galaxydraw's engine.
+ * Syncs back to XState for persistence.
+ */
+export function panByDelta(
+    ctx: CanvasContext,
+    dx: number,
+    dy: number,
+): void {
+    const gd = _gdState;
+
+    if (gd) {
+        gd.pan(dx, dy);
+        ctx.actor.send({ type: 'SET_OFFSET', x: gd.offsetX, y: gd.offsetY });
+        return;
+    }
+
+    // Fallback
+    const state = ctx.snap().context;
+    ctx.actor.send({ type: 'SET_OFFSET', x: state.offsetX + dx, y: state.offsetY + dy });
+}
+
+/**
+ * Phase 3: Convert screen coordinates to world coordinates.
+ * Delegates to CanvasState.screenToWorld() when available.
+ */
+export function screenToWorld(
+    ctx: CanvasContext,
+    screenX: number,
+    screenY: number,
+): { x: number; y: number } {
+    const gd = _gdState;
+
+    if (gd) {
+        return gd.screenToWorld(screenX, screenY);
+    }
+
+    // Fallback
+    const state = ctx.snap().context;
+    const rect = ctx.canvasViewport?.getBoundingClientRect();
+    return {
+        x: (screenX - (rect?.left ?? 0) - state.offsetX) / state.zoom,
+        y: (screenY - (rect?.top ?? 0) - state.offsetY) / state.zoom,
+    };
+}
