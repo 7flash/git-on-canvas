@@ -14,10 +14,40 @@
 - [x] ~~**Changed Files popup**~~ — ✅ DONE. Defaults to closed. State persists to localStorage. Toggle button in header opens it manually.
 
 ## 🟢 Priority: Features  
-- [ ] **galaxydraw migration** — Replace custom canvas.ts/events.tsx with `new GalaxyDraw(el, { mode: 'advanced' })`.
-- [ ] **WARMAPS migration** — Replace WARMAPS canvas.ts with `new GalaxyDraw(el, { mode: 'simple' })`.
+
+### galaxydraw Migration (GitMaps)
+Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine (~400 lines).
+
+**Phase 1** — ✅ DONE. State engine wired.
+- Bun workspaces configured (`"galaxydraw": "workspace:*"`)
+- `galaxydraw-bridge.ts` created — imports `CanvasState` from `packages/galaxydraw/src/core/state`
+- `initGalaxyDrawState(ctx)` called in `page.client.tsx` after DOM refs set
+- Uses relative import (Melina bundler doesn't resolve workspace packages)
+- **No behavior changes** — existing pan/zoom still works through `canvas.ts`
+
+**Phase 2** — 🔲 Delegate transforms.
+- `updateCanvasTransform()` in `canvas.ts` should call `getGalaxyDrawState()?.applyTransform()` instead of manual `ctx.canvas.style.transform = ...`
+- Sync XState zoom/offset → `CanvasState` on every SET_ZOOM/SET_OFFSET event
+- Single-line change but needs careful testing (pan, zoom, fit-all, minimap, viewport persistence)
+
+**Phase 3** — 🔲 Replace event handlers.
+- `setupCanvasInteraction()` (1500 lines in `events.tsx`) → `GalaxyDraw.setupWheel()` + `setupMouse()` + `setupKeyboard()`
+- This is the biggest change — wheel zoom, pan drag, space-to-pan, rect select all move to galaxydraw
+- Must preserve: dual control modes, card drag, right-click, perf overlay
+
+**Phase 4** — 🔲 Card system migration.
+- `renderAllFilesOnCanvas()` in `cards.tsx` → `CardManager.create()`
+- File cards become galaxydraw card plugins
+- SVG connections overlay stays (galaxydraw doesn't handle SVG overlays)
+- Remove `CanvasContext.canvas` / `canvasViewport` — use `GalaxyDraw.getCanvas()` / `getViewport()`
+
+### WARMAPS Migration
+- [ ] Replace WARMAPS `canvas.ts` (616 lines) with `new GalaxyDraw(el, { mode: 'simple' })`
+- Blocked on GitMaps migration (proves the engine works first)
 
 ## 📝 Architecture Notes
 - **Framework**: galaxydraw lives in `packages/galaxydraw/`
 - **Dev**: `bgrun --restart galaxy-canvas` (port 3335)
 - **Demo**: `bun run packages/galaxydraw/demo/server.ts` (port 3400)
+- **Import**: Use relative path `../../packages/galaxydraw/src/core/...` (not package name) for client code
+- **Bridge**: `app/lib/galaxydraw-bridge.ts` — thin adapter between CanvasState and CanvasContext
