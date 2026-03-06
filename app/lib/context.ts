@@ -55,6 +55,11 @@ export interface CanvasContext {
     // Cards deferred until they scroll into the viewport.
     // Key: file path, Value: { file data, x, y, size, isChanged }
     deferredCards: Map<string, { file: any; x: number; y: number; size: any; isChanged: boolean }>;
+
+    // ─── Control mode ─────────────────────────
+    // 'simple' = drag canvas to pan (WARMAPS style)
+    // 'advanced' = space+drag to pan, drag for rect select (GitMaps style)
+    controlMode: 'simple' | 'advanced';
 }
 
 /** Creates a fresh context (call once per mount). */
@@ -88,5 +93,6 @@ export function createCanvasContext(actor: any): CanvasContext {
         allFilesData: null,
         commitFilesData: null,
         deferredCards: new Map(),
+        controlMode: (localStorage.getItem('gitcanvas:controlMode') as any) || 'advanced',
     };
 }

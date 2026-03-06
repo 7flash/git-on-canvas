@@ -112,23 +112,38 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                 return;
             }
 
-            // Canvas pan only when Space is held
+            // Canvas behavior when not over scrollable content
             e.preventDefault();
 
+            // In simple mode: plain scroll = zoom (like WARMAPS)
+            if (ctx.controlMode === 'simple') {
+                const rect = ctx.canvasViewport.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                const newZoom = Math.min(3, Math.max(0.1, state.zoom * delta));
+                const scale = newZoom / state.zoom;
+                const newOffsetX = mouseX - (mouseX - state.offsetX) * scale;
+                const newOffsetY = mouseY - (mouseY - state.offsetY) * scale;
+                ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
+                ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+                updateCanvasTransform(ctx);
+                updateZoomUI(ctx);
+                return;
+            }
+
+            // Advanced mode: pan only when Space is held
             if (!ctx.spaceHeld) {
-                // Plain scroll without Space held = do nothing
                 return;
             }
 
             if (e.shiftKey) {
-                // Space + Shift+scroll = horizontal pan
                 const panSpeed = 1.5;
                 const dx = e.deltaY * panSpeed;
                 ctx.actor.send({ type: 'SET_OFFSET', x: state.offsetX - dx, y: state.offsetY });
                 updateCanvasTransform(ctx);
                 updateMinimap(ctx);
             } else {
-                // Space + scroll = vertical pan
                 const panSpeed = 1.5;
                 const dy = e.deltaY * panSpeed;
                 const dx = e.deltaX * panSpeed;
@@ -147,9 +162,8 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
         ctx.canvasViewport.addEventListener('mousedown', (e) => {
             const state = ctx.snap().context;
 
-            // Space held, middle-click or Alt+click = pan
+            // Space held, middle-click or Alt+click = pan (ALWAYS, both modes)
             if (e.button === 1 || e.altKey || ctx.spaceHeld) {
-                // Prevent middle-click from also being caught by card mousedown
                 ctx.isDragging = true;
                 ctx.dragStartX = e.clientX - state.offsetX;
                 ctx.dragStartY = e.clientY - state.offsetY;
@@ -162,26 +176,36 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
             const insideCard = (e.target as HTMLElement).closest('.file-card');
             if (insideCard) return;
 
-            // Left click on empty canvas = start rectangle selection
+            // Left click on empty canvas — behavior depends on control mode
             if (e.button === 0) {
-                if (!e.shiftKey) {
-                    ctx.actor.send({ type: 'DESELECT_ALL' });
-                    clearSelectionHighlights(ctx);
+                if (ctx.controlMode === 'simple') {
+                    // SIMPLE MODE: left-click on empty canvas = pan
+                    ctx.isDragging = true;
+                    ctx.dragStartX = e.clientX - state.offsetX;
+                    ctx.dragStartY = e.clientY - state.offsetY;
+                    ctx.canvasViewport.style.cursor = 'grabbing';
+                    e.preventDefault();
+                } else {
+                    // ADVANCED MODE: left-click on empty canvas = rect selection
+                    if (!e.shiftKey) {
+                        ctx.actor.send({ type: 'DESELECT_ALL' });
+                        clearSelectionHighlights(ctx);
+                    }
+
+                    isRectSelecting = true;
+                    const vpRect = ctx.canvasViewport.getBoundingClientRect();
+                    selRectStartWorldX = (e.clientX - vpRect.left - state.offsetX) / state.zoom;
+                    selRectStartWorldY = (e.clientY - vpRect.top - state.offsetY) / state.zoom;
+
+                    selectionRect = document.createElement('div');
+                    selectionRect.className = 'selection-rect';
+                    selectionRect.style.left = `${selRectStartWorldX}px`;
+                    selectionRect.style.top = `${selRectStartWorldY}px`;
+                    selectionRect.style.width = '0px';
+                    selectionRect.style.height = '0px';
+                    ctx.canvas.appendChild(selectionRect);
+                    ctx.canvasViewport.style.cursor = 'crosshair';
                 }
-
-                isRectSelecting = true;
-                const vpRect = ctx.canvasViewport.getBoundingClientRect();
-                selRectStartWorldX = (e.clientX - vpRect.left - state.offsetX) / state.zoom;
-                selRectStartWorldY = (e.clientY - vpRect.top - state.offsetY) / state.zoom;
-
-                selectionRect = document.createElement('div');
-                selectionRect.className = 'selection-rect';
-                selectionRect.style.left = `${selRectStartWorldX}px`;
-                selectionRect.style.top = `${selRectStartWorldY}px`;
-                selectionRect.style.width = '0px';
-                selectionRect.style.height = '0px';
-                ctx.canvas.appendChild(selectionRect);
-                ctx.canvasViewport.style.cursor = 'crosshair';
             }
         });
 
@@ -379,6 +403,49 @@ export function setupEventListeners(ctx: CanvasContext) {
                     } else {
                         m.renderAllFilesCards(ctx, state.allFilesData || []);
                     }
+                });
+            });
+        }
+
+        // Control mode toggle (Simple vs Advanced)
+        const modeToggle = document.getElementById('toggleControlMode');
+        if (modeToggle) {
+            // Set initial icon based on stored mode
+            const updateModeIcon = () => {
+                const icon = document.getElementById('controlModeIcon');
+                if (!icon) return;
+                if (ctx.controlMode === 'simple') {
+                    // Hand icon for simple mode
+                    icon.innerHTML = '<path d="M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v1M14 7V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v3M10 7V5a2 2 0 0 0-2-2a2 2 0 0 0-2 2v5M6 10V8a2 2 0 0 0-2-2a2 2 0 0 0-2 2v7a7 7 0 0 0 7 7h3a7 7 0 0 0 7-7v-3a2 2 0 0 0-2-2a2 2 0 0 0-2 2"/>';
+                    modeToggle.classList.add('active');
+                    modeToggle.title = 'Simple mode (drag = pan). Click to switch to Advanced.';
+                } else {
+                    // Crosshair icon for advanced mode
+                    icon.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>';
+                    modeToggle.classList.remove('active');
+                    modeToggle.title = 'Advanced mode (space+drag = pan). Click to switch to Simple.';
+                }
+            };
+            updateModeIcon();
+
+            modeToggle.addEventListener('click', () => {
+                ctx.controlMode = ctx.controlMode === 'simple' ? 'advanced' : 'simple';
+                localStorage.setItem('gitcanvas:controlMode', ctx.controlMode);
+                updateModeIcon();
+
+                // Update cursor
+                if (ctx.canvasViewport) {
+                    ctx.canvasViewport.style.cursor = ctx.controlMode === 'simple' ? 'grab' : '';
+                }
+
+                // Show toast
+                import('./utils').then(m => {
+                    m.showToast(
+                        ctx.controlMode === 'simple'
+                            ? 'Simple mode: Drag to pan, scroll to zoom'
+                            : 'Advanced mode: Space+drag to pan, Ctrl+scroll to zoom',
+                        'info'
+                    );
                 });
             });
         }
