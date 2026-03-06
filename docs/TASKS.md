@@ -26,14 +26,16 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 - Uses relative import (Melina bundler doesn't resolve workspace packages)
 - **No behavior changes** — existing pan/zoom still works through `canvas.ts`
 
-**Phase 2** — 🔲 Delegate transforms.
-- `updateCanvasTransform()` in `canvas.ts` should call `getGalaxyDrawState()?.applyTransform()` instead of manual `ctx.canvas.style.transform = ...`
-- Sync XState zoom/offset → `CanvasState` on every SET_ZOOM/SET_OFFSET event
-- Single-line change but needs careful testing (pan, zoom, fit-all, minimap, viewport persistence)
+**Phase 2** — ✅ DONE. Transform delegation.
+- `updateCanvasTransform()` calls `getGalaxyDrawState()?.applyTransform()` instead of manual CSS
+- Syncs XState zoom/offset → `CanvasState` on every render cycle
+- Tested: pan, zoom, fit-all, minimap, viewport persistence — all working
 
-**Phase 3** — 🔲 Replace event handlers.
-- `setupCanvasInteraction()` (1500 lines in `events.tsx`) → `GalaxyDraw.setupWheel()` + `setupMouse()` + `setupKeyboard()`
-- This is the biggest change — wheel zoom, pan drag, space-to-pan, rect select all move to galaxydraw
+**Phase 3** — 🟡 IN PROGRESS. Replace event handlers.
+- ✅ `zoomTowardScreen()` bridge function — replaces 3 duplicated zoom-math blocks in `events.tsx` with single call to `CanvasState.zoomToward()`
+- 🔲 `panByDelta()` — delegate wheel-scroll pan to `CanvasState.pan()`
+- 🔲 Mouse drag pan — delegate mousedown/mousemove pan to galaxydraw
+- 🔲 Rect selection → `CanvasState.screenToWorld()` for coordinate conversion
 - Must preserve: dual control modes, card drag, right-click, perf overlay
 
 **Phase 4** — 🔲 Card system migration.
