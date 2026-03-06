@@ -134,8 +134,75 @@ export class Minimap {
     }
 
     private handleClick(e: MouseEvent) {
-        // TODO: Convert minimap click coords back to world coords and pan there
         e.stopPropagation();
+        e.preventDefault();
+
+        // Compute the same bounding box used in rebuild()
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const [, card] of this.cards.cards) {
+            const x = parseFloat(card.style.left) || 0;
+            const y = parseFloat(card.style.top) || 0;
+            const w = card.offsetWidth || 400;
+            const h = card.offsetHeight || 300;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + w);
+            maxY = Math.max(maxY, y + h);
+        }
+        for (const [, data] of this.cards.deferred) {
+            minX = Math.min(minX, data.x);
+            minY = Math.min(minY, data.y);
+            maxX = Math.max(maxX, data.x + data.width);
+            maxY = Math.max(maxY, data.y + data.height);
+        }
+        if (minX === Infinity) return;
+
+        const pad = 50;
+        const worldW = maxX - minX + pad * 2;
+        const worldH = maxY - minY + pad * 2;
+        const scale = Math.min(this.width / worldW, this.height / worldH);
+        const ox = (this.width - worldW * scale) / 2;
+        const oy = (this.height - worldH * scale) / 2;
+
+        // Convert minimap click → world coordinates
+        const rect = this.el.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const clickY = e.clientY - rect.top;
+
+        const worldX = (clickX - ox) / scale + minX - pad;
+        const worldY = (clickY - oy) / scale + minY - pad;
+
+        // Center the viewport on this world position
+        const vp = this.state.getVisibleWorldRect();
+        if (vp) {
+            const vpWorldW = vp.width;
+            const vpWorldH = vp.height;
+            const newOffsetX = -(worldX - vpWorldW / 2) * this.state.zoom;
+            const newOffsetY = -(worldY - vpWorldH / 2) * this.state.zoom;
+            this.state.set(this.state.zoom, newOffsetX, newOffsetY);
+        }
+
+        // Support drag on the minimap
+        const onMove = (ev: MouseEvent) => {
+            const mx = ev.clientX - rect.left;
+            const my = ev.clientY - rect.top;
+            const wx = (mx - ox) / scale + minX - pad;
+            const wy = (my - oy) / scale + minY - pad;
+            const v = this.state.getVisibleWorldRect();
+            if (v) {
+                this.state.set(
+                    this.state.zoom,
+                    -(wx - v.width / 2) * this.state.zoom,
+                    -(wy - v.height / 2) * this.state.zoom,
+                );
+            }
+        };
+        const onUp = () => {
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
     }
 
     /** Show/hide the minimap */

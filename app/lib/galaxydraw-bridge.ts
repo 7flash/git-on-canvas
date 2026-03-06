@@ -140,3 +140,32 @@ export function screenToWorld(
         y: (screenY - (rect?.top ?? 0) - state.offsetY) / state.zoom,
     };
 }
+
+/**
+ * Phase 3: Center the viewport on a world coordinate.
+ * Delegates to CanvasState.panTo() when available.
+ */
+export function panToWorld(
+    ctx: CanvasContext,
+    worldX: number,
+    worldY: number,
+): void {
+    const gd = _gdState;
+
+    if (gd) {
+        gd.panTo(worldX, worldY);
+        ctx.actor.send({ type: 'SET_OFFSET', x: gd.offsetX, y: gd.offsetY });
+        return;
+    }
+
+    // Fallback
+    const state = ctx.snap().context;
+    const vp = ctx.canvasViewport;
+    if (vp) {
+        const vpW = vp.clientWidth;
+        const vpH = vp.clientHeight;
+        const newOffsetX = vpW / 2 - worldX * state.zoom;
+        const newOffsetY = vpH / 2 - worldY * state.zoom;
+        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+    }
+}
