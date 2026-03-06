@@ -2,8 +2,6 @@
  * galaxydraw demo server
  * Run: bun run demo/server.ts
  */
-import { GalaxyDraw } from '../src/core/engine';
-import type { CardPlugin } from '../src/cards';
 
 // We'll bundle the client code and serve it inline
 const clientCode = await Bun.build({
