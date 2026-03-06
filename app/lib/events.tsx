@@ -838,11 +838,14 @@ export function setupEventListeners(ctx: CanvasContext) {
             }
         });
 
-        // ── GitHub Import Modal ──
+        // GitHub Import Modal
         setupGithubImport(ctx);
 
         // Minimap click navigation
         setupMinimapClick(ctx);
+
+        // Local Directory Drag-and-Drop
+        setupDragAndDrop(ctx);
     });
 }
 
@@ -1213,3 +1216,127 @@ function _timeAgo(date: Date): string {
     if (months < 12) return `${months}mo ago`;
     return `${Math.floor(months / 12)}y ago`;
 }
+
+// ─── Local Directory Drag and Drop ──────────────────────
+function setupDragAndDrop(ctx: CanvasContext) {
+    window.addEventListener('dragover', (e) => {
+        // Allow dropping if we drag over canvas/viewport
+        e.preventDefault();
+        if (e.dataTransfer) {
+            e.dataTransfer.dropEffect = 'copy';
+        }
+    });
+
+    window.addEventListener('drop', async (e) => {
+        e.preventDefault();
+
+        if (!e.dataTransfer || !e.dataTransfer.items) return;
+        const items = e.dataTransfer.items;
+
+        const filesToUpload: File[] = [];
+
+        // Helper to recursively read directory contents
+        async function readEntry(entry: any, path = '') {
+            if (entry.isFile) {
+                const file: any = await new Promise(resolve => entry.file(resolve));
+                // Ignore heavy directories
+                if (!path.includes('node_modules/') && !path.includes('.git/') && !path.includes('.bun/')) {
+                    file.fullPath = path + entry.name;
+                    filesToUpload.push(file);
+                }
+            } else if (entry.isDirectory) {
+                if (entry.name === 'node_modules' || entry.name === '.git' || entry.name === '.bun') return;
+                const dirReader = entry.createReader();
+                const entries: any[] = await new Promise(resolve => {
+                    const results: any[] = [];
+                    const readNext = () => {
+                        dirReader.readEntries((ent: any[]) => {
+                            if (ent.length === 0) resolve(results);
+                            else { results.push(...ent); readNext(); }
+                        });
+                    };
+                    readNext();
+                });
+                for (const ent of entries) {
+                    await readEntry(ent, path + entry.name + '/');
+                }
+            }
+        }
+
+        // Display a loading indication
+        const cloneStatus = document.getElementById('cloneStatus');
+        const cloneInput = document.getElementById('cloneUrlInput') as HTMLInputElement;
+        if (cloneStatus) {
+            cloneStatus.style.display = 'block';
+            cloneStatus.className = 'clone-status cloning';
+            cloneStatus.innerHTML = `
+                <div class="clone-progress-text">⏳ Reading dropped files...</div>
+                <div class="clone-progress-bar"><div class="clone-progress-fill" style="width: 50%"></div></div>
+            `;
+        }
+
+        try {
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind === 'file') {
+                    const entry = item.webkitGetAsEntry();
+                    if (entry) await readEntry(entry);
+                }
+            }
+
+            if (filesToUpload.length === 0) {
+                if (cloneStatus) {
+                    cloneStatus.className = 'clone-status error';
+                    cloneStatus.textContent = '❌ No valid files found in drop';
+                    setTimeout(() => cloneStatus.style.display = 'none', 3000);
+                }
+                return;
+            }
+
+            if (cloneStatus) {
+                const progressText = cloneStatus.querySelector('.clone-progress-text');
+                if (progressText) progressText.textContent = `⏳ Uploading ${filesToUpload.length} files...`;
+            }
+
+            const formData = new FormData();
+            filesToUpload.forEach(f => {
+                formData.append('files', f, (f as any).fullPath);
+            });
+
+            const res = await fetch('/api/repo/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await res.json();
+
+            if (!res.ok || data.error) {
+                throw new Error(data.error || 'Upload failed');
+            }
+
+            if (cloneStatus) {
+                cloneStatus.className = 'clone-status success';
+                cloneStatus.textContent = '✅ Upload complete — loading...';
+                if (cloneInput) cloneInput.value = '';
+
+                // Add to recent repos dropdown and load it
+                const repoPath = data.path;
+                _addRecentRepo(repoPath);
+                _refreshRepoDropdown();
+                const repoSel = document.getElementById('repoSelect') as HTMLSelectElement;
+                if (repoSel) repoSel.value = repoPath;
+                import('./repo').then(m => m.loadRepository(ctx, repoPath));
+
+                setTimeout(() => cloneStatus.style.display = 'none', 3000);
+            }
+
+        } catch (err: any) {
+            if (cloneStatus) {
+                cloneStatus.className = 'clone-status error';
+                cloneStatus.textContent = '❌ ' + (err.message || 'Error processing drop');
+                setTimeout(() => cloneStatus.style.display = 'none', 5000);
+            }
+        }
+    });
+}
+
