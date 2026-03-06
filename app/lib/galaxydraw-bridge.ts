@@ -1,66 +1,55 @@
 // @ts-nocheck
 /**
- * GalaxyDraw Bridge — Connects galaxydraw engine to existing GitMaps modules.
+ * GalaxyDraw Bridge — Phase 1: State Engine Only
  * 
- * This bridge lets us migrate incrementally:
- * 1. page.client.tsx creates GalaxyDraw instead of raw DOM setup
- * 2. Bridge populates CanvasContext from GalaxyDraw's internal state
- * 3. Existing modules (canvas.ts, events.tsx, cards.tsx) keep working
- * 4. Gradually, each module shifts to use GalaxyDraw's API directly
+ * Instead of replacing DOM, we only replace the transform/state logic.
+ * The server-rendered DOM (#canvasViewport, #canvasContent) stays intact.
  * 
- * Phase 1 (this file): Pan/zoom/transform handled by galaxydraw
- * Phase 2: Card creation through galaxydraw CardManager
- * Phase 3: Remove CanvasContext entirely
+ * What changes:
+ * - CanvasState from galaxydraw manages zoom/pan/transform
+ * - updateCanvasTransform() delegates to CanvasState.applyTransform()
+ * - Coordinate conversion uses galaxydraw's utilities
+ * 
+ * What stays the same:
+ * - Server-rendered DOM structure
+ * - XState actor for app state
+ * - All existing event handlers in events.tsx
+ * - All card rendering in cards.tsx
  */
 
-import { GalaxyDraw } from 'galaxydraw';
-import type { ControlMode } from 'galaxydraw';
+import { CanvasState } from '../../packages/galaxydraw/src/core/state';
 import type { CanvasContext } from './context';
 
-/**
- * Create a GalaxyDraw instance and wire it into the existing CanvasContext.
- * 
- * After calling this, `ctx.canvas` and `ctx.canvasViewport` point to
- * galaxydraw's internal DOM elements, so existing code keeps working.
+/** 
+ * Shared galaxydraw state instance.
+ * Replaces manual `ctx.canvas.style.transform = ...` calls.
  */
-export function initGalaxyDraw(
-    container: HTMLElement,
-    ctx: CanvasContext,
-    mode: ControlMode = 'advanced'
-): GalaxyDraw {
-    const gd = new GalaxyDraw(container, {
-        mode,
-        className: 'gitmaps-canvas',
-    });
+let _gdState: CanvasState | null = null;
 
-    // Wire galaxydraw DOM into the existing CanvasContext
-    ctx.canvas = gd.getCanvas();
-    ctx.canvasViewport = gd.getViewport();
+/**
+ * Initialize the galaxydraw state engine and bind to existing DOM.
+ * Call this after ctx.canvas and ctx.canvasViewport are set.
+ */
+export function initGalaxyDrawState(ctx: CanvasContext): CanvasState {
+    _gdState = new CanvasState();
 
-    // Sync control mode
-    ctx.controlMode = mode;
+    if (ctx.canvasViewport && ctx.canvas) {
+        _gdState.bind(ctx.canvasViewport, ctx.canvas);
+    }
 
-    // When galaxydraw updates state, sync it to the XState actor 
-    // so existing modules that read ctx.snap().context get correct values
-    gd.state.subscribe(() => {
-        const snap = ctx.snap().context;
-        // Only sync if values actually changed (avoid infinite loops)
-        if (snap.zoom !== gd.state.zoom) {
-            ctx.actor.send({ type: 'SET_ZOOM', zoom: gd.state.zoom });
-        }
-        if (snap.offsetX !== gd.state.offsetX || snap.offsetY !== gd.state.offsetY) {
-            ctx.actor.send({ type: 'SET_OFFSET', x: gd.state.offsetX, y: gd.state.offsetY });
-        }
-    });
+    // Sync initial state from XState
+    const state = ctx.snap().context;
+    if (state.zoom) _gdState.zoom = state.zoom;
+    if (state.offsetX) _gdState.offsetX = state.offsetX;
+    if (state.offsetY) _gdState.offsetY = state.offsetY;
+    _gdState.applyTransform();
 
-    return gd;
+    return _gdState;
 }
 
 /**
- * Sync XState → GalaxyDraw. Call this when XState state changes
- * from sources other than galaxydraw (e.g. repo load, fit-all).
+ * Get the shared CanvasState instance.
  */
-export function syncStateToGalaxyDraw(ctx: CanvasContext, gd: GalaxyDraw) {
-    const state = ctx.snap().context;
-    gd.state.set(state.zoom, state.offsetX, state.offsetY);
+export function getGalaxyDrawState(): CanvasState | null {
+    return _gdState;
 }
