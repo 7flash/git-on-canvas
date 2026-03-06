@@ -10,8 +10,8 @@
 
 ## 🟡 Priority: Improve
 - [x] ~~**Dual control modes**~~ — ✅ DONE. Toggle in top toolbar: "Simple" (drag=pan, scroll=zoom) vs "Advanced" (space+drag=pan, rect select). Persists to localStorage.
-- [ ] **Repo persistence** — Previously selected repos should restore from localStorage on reload. Code exists (`gitcanvas:lastRepo`) but may not be triggering properly.
-- [ ] **Changed Files popup** — Auto-opens on commit select and blocks the canvas. Should be dismissible and remember state.
+- [x] ~~**Repo persistence**~~ — ✅ DONE. Auto-loads last repo from localStorage on bare URL visit. Sets hash so URL is shareable.
+- [x] ~~**Changed Files popup**~~ — ✅ DONE. Defaults to closed. State persists to localStorage. Toggle button in header opens it manually.
 
 ## 🟢 Priority: Features  
 - [ ] **galaxydraw migration** — Replace custom canvas.ts/events.tsx with `new GalaxyDraw(el, { mode: 'advanced' })`.
