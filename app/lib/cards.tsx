@@ -663,6 +663,39 @@ function FileCardContent({ file }: { file: any }) {
 const STATUS_COLORS: Record<string, string> = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444', renamed: '#a78bfa', copied: '#60a5fa' };
 const STATUS_LABELS: Record<string, string> = { added: '+ ADDED', modified: '~ MODIFIED', deleted: '- DELETED', renamed: '→ RENAMED', copied: '⊕ COPIED' };
 
+function _handleChatClick(ctx: CanvasContext, file: any) {
+    const filePath = file.path;
+    const content = file.content || '';
+    const status = file.status || '';
+
+    let extraContext = '';
+
+    if (file.hunks && file.hunks.length > 0) {
+        extraContext += `\n--- DIFF SUMMARY ---\n`;
+        extraContext += file.hunks.map((h: any) =>
+            `@@ -${h.oldStart},${h.oldCount} +${h.newStart},${h.newCount} @@\n` +
+            h.lines.map((l: any) => `${l.type === 'add' ? '+' : l.type === 'del' ? '-' : ' '} ${l.content}`).join('\n')
+        ).join('\n');
+    }
+
+    const connections = ctx.snap().context.connections;
+    const relatedLinks = connections.filter((c: any) => c.sourceFile === filePath || c.targetFile === filePath);
+
+    if (relatedLinks.length > 0) {
+        extraContext += `\n\n--- ARCHITECTURE CONNECTIONS ---\n`;
+        extraContext += `This file is logically connected to the following modules in the visual graph:\n`;
+        relatedLinks.forEach((c: any) => {
+            if (c.sourceFile === filePath) {
+                extraContext += `- Outbound dependency on \`${c.targetFile}\` (Lines ${c.sourceLineStart}-${c.sourceLineEnd} -> Lines ${c.targetLineStart}-${c.targetLineEnd}). Note: "${c.comment || 'None'}"\n`;
+            } else {
+                extraContext += `- Inbound dependency from \`${c.sourceFile}\` (Lines ${c.sourceLineStart}-${c.sourceLineEnd} -> Lines ${c.targetLineStart}-${c.targetLineEnd}). Note: "${c.comment || 'None'}"\n`;
+            }
+        });
+    }
+
+    openFileChatInModal(filePath, content, status, extraContext);
+}
+
 // ─── Create file card (commit diff) ─────────────────────
 export function createFileCard(ctx: CanvasContext, file: any, x: number, y: number, commitHash: string): HTMLElement {
     const card = document.createElement('div');
@@ -716,6 +749,7 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
                 <span className="file-name">{file.name}</span>
                 <span className="file-status" style={`background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;`}>{statusLabel}</span>
                 <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">{metaInfo}</span>
+                <button className="connect-btn ai-btn" title="Ask AI about this file" data-path={file.path}>AI</button>
                 <button className="connect-btn expand-btn" title="Expand file (selectable text)" data-path={file.path}>
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
@@ -746,6 +780,15 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
         expandBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             openFileModal(ctx, file);
+        });
+    }
+
+    // AI button → open chat
+    const aiBtn = card.querySelector('.ai-btn');
+    if (aiBtn) {
+        aiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _handleChatClick(ctx, file);
         });
     }
 
@@ -876,6 +919,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             </div>
             <span class="file-name">${escapeHtml(file.name)}</span>
             ${metaInfo}
+            <button class="connect-btn ai-btn" title="Ask AI about this file" data-path="${escapeHtml(file.path)}">AI</button>
             <button class="connect-btn expand-btn" title="Expand file (selectable text)" data-path="${escapeHtml(file.path)}">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
@@ -899,6 +943,15 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
         expandBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             openFileModal(ctx, file);
+        });
+    }
+
+    // AI button → open chat
+    const aiBtn = card.querySelector('.ai-btn');
+    if (aiBtn) {
+        aiBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            _handleChatClick(ctx, file);
         });
     }
 

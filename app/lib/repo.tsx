@@ -82,6 +82,11 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
 
             hideLoadingProgress(ctx);
             showToast(`Loaded ${data.commits.length} commits`, 'success');
+
+            // Trigger onboarding for first-time users
+            if (!localStorage.getItem('gitcanvas:onboarded')) {
+                import('./onboarding').then(m => m.startOnboarding(ctx));
+            }
         } catch (err) {
             hideLoadingProgress(ctx);
             ctx.actor.send({ type: 'REPO_ERROR', error: err.message });

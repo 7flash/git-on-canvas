@@ -62,6 +62,44 @@ export default function mount(): () => void {
             // Init auth UI
             setupAuth();
 
+            // ── Shared Layout Decoder ──────────────────────────────────────────
+            const applySharedLayout = async (ctx: CanvasContext) => {
+                const urlParams = new URLSearchParams(window.location.search);
+                const sharedLayout = urlParams.get('layout');
+                if (!sharedLayout) return;
+
+                try {
+                    const parsed = JSON.parse(atob(sharedLayout));
+                    if (parsed.positions) {
+                        ctx.positions = new Map(Object.entries(parsed.positions));
+                        const { savePosition } = await import('./lib/positions');
+                        // Quick dummy save to trigger debounced persistence
+                        savePosition(ctx, '_share_', '_trigger_', 0, 0);
+                    }
+                    if (parsed.hiddenFiles) {
+                        ctx.hiddenFiles = new Set(parsed.hiddenFiles);
+                        const { saveHiddenFiles } = await import('./lib/hidden-files');
+                        saveHiddenFiles(ctx);
+                        updateHiddenUI(ctx);
+                    }
+                    if (parsed.zoom !== undefined) ctx.actor.send({ type: 'SET_ZOOM', zoom: parsed.zoom });
+                    if (parsed.offsetX !== undefined) ctx.actor.send({ type: 'SET_OFFSET', x: parsed.offsetX, y: parsed.offsetY });
+                    if (parsed.cardSizes) {
+                        for (const [path, size] of Object.entries(parsed.cardSizes)) {
+                            ctx.actor.send({ type: 'RESIZE_CARD', path, width: (size as any).width, height: (size as any).height });
+                        }
+                    }
+
+                    const cleanUrl = new URL(window.location.href);
+                    cleanUrl.searchParams.delete('layout');
+                    window.history.replaceState({}, '', cleanUrl.toString());
+                    const { showToast } = await import('./lib/utils');
+                    showToast('Shared layout applied!', 'success');
+                } catch (e) {
+                    console.error('Failed to decode shared layout', e);
+                }
+            };
+
             // Check URL hash for repo path
             const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
             if (hashRepo) {
@@ -77,6 +115,7 @@ export default function mount(): () => void {
                 ctx.snap().context.repoPath = hashRepo;
                 await loadSavedPositions(ctx); // reload positions for this repo
                 if (disposed) return;
+                await applySharedLayout(ctx);
                 initLayers(ctx);
                 renderLayersUI(ctx);
                 restoreViewport(ctx);
@@ -97,6 +136,7 @@ export default function mount(): () => void {
                     ctx.snap().context.repoPath = saved;
                     await loadSavedPositions(ctx); // reload positions for this repo
                     if (disposed) return;
+                    await applySharedLayout(ctx);
                     initLayers(ctx);
                     renderLayersUI(ctx);
                     restoreViewport(ctx);

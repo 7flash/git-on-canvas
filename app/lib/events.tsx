@@ -640,6 +640,40 @@ export function setupEventListeners(ctx: CanvasContext) {
         // AI chat toggle
         document.getElementById('toggleCanvasChat')?.addEventListener('click', () => toggleCanvasChat(ctx));
 
+        // Replayable onboarding
+        document.getElementById('helpOnboarding')?.addEventListener('click', () => {
+            import('./onboarding').then(m => m.startOnboarding(ctx));
+        });
+
+        // Share Layout
+        document.getElementById('shareLayout')?.addEventListener('click', () => {
+            measure('share:layout', () => {
+                const state = ctx.snap();
+                if (!state.context.repoPath) {
+                    showToast('Load a repository first to share its layout.', 'error');
+                    return;
+                }
+                const layoutData = {
+                    positions: Object.fromEntries(ctx.positions),
+                    hiddenFiles: Array.from(ctx.hiddenFiles),
+                    zoom: state.context.zoom,
+                    offsetX: state.context.offsetX,
+                    offsetY: state.context.offsetY,
+                    cardSizes: state.context.cardSizes,
+                };
+                const encoded = btoa(JSON.stringify(layoutData));
+                const url = new URL(window.location.href);
+                // Strip existing layout param if any
+                url.searchParams.set('layout', encoded);
+
+                navigator.clipboard.writeText(url.toString()).then(() => {
+                    showToast('Layout link copied to clipboard!', 'success');
+                }).catch(() => {
+                    showToast('Failed to copy to clipboard', 'error');
+                });
+            });
+        });
+
         // ── Keyboard shortcuts ──
         window.addEventListener('keydown', (e) => {
             // Space-bar canvas panning

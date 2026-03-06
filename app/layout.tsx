@@ -230,6 +230,22 @@ export default function RootLayout({ children }: { children: any }) {
                                         <path d="M14 9l2 2-2 2" />
                                     </svg>
                                 </button>
+                                <button id="shareLayout" className="btn-ghost btn-sm" title="Share Layout (Copy URL)">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="18" cy="5" r="3" />
+                                        <circle cx="6" cy="12" r="3" />
+                                        <circle cx="18" cy="19" r="3" />
+                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                                    </svg>
+                                </button>
+                                <button id="helpOnboarding" className="btn-ghost btn-sm" title="Replay Tutorial (?)">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                                    </svg>
+                                </button>
                                 <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat (I)">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
