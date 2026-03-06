@@ -341,11 +341,20 @@ function setupChangedFilesPanel() {
         const panel = document.getElementById('changedFilesPanel');
         const closeBtn = document.getElementById('closeChangedFiles');
 
+        // Restore persisted state — default to closed
+        if (panel) {
+            const wasClosed = localStorage.getItem('gitcanvas:changedFilesPanelClosed');
+            // Default closed unless explicitly opened
+            panel.dataset.manuallyClosed = wasClosed !== 'false' ? 'true' : 'false';
+            panel.style.display = 'none';
+        }
+
         if (toggleBtn && panel) {
             toggleBtn.addEventListener('click', () => {
                 const isVisible = panel.style.display !== 'none';
                 panel.style.display = isVisible ? 'none' : 'flex';
                 panel.dataset.manuallyClosed = isVisible ? 'true' : 'false';
+                localStorage.setItem('gitcanvas:changedFilesPanelClosed', isVisible ? 'true' : 'false');
             });
         }
 
@@ -353,6 +362,7 @@ function setupChangedFilesPanel() {
             closeBtn.addEventListener('click', () => {
                 panel.style.display = 'none';
                 panel.dataset.manuallyClosed = 'true';
+                localStorage.setItem('gitcanvas:changedFilesPanelClosed', 'true');
             });
         }
     });

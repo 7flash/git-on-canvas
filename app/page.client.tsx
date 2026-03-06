@@ -132,9 +132,12 @@ export default function mount(): () => void {
                     const sel2 = document.getElementById('repoSelect') as HTMLSelectElement;
                     if (sel2) sel2.value = saved;
 
+                    // Set the hash so it's reflected in the URL
+                    window.location.hash = encodeURIComponent(saved);
+
                     ctx.actor.send({ type: 'LOAD_REPO', path: saved });
                     ctx.snap().context.repoPath = saved;
-                    await loadSavedPositions(ctx); // reload positions for this repo
+                    await loadSavedPositions(ctx);
                     if (disposed) return;
                     await applySharedLayout(ctx);
                     initLayers(ctx);
@@ -142,6 +145,11 @@ export default function mount(): () => void {
                     restoreViewport(ctx);
                     updateCanvasTransform(ctx);
                     updateZoomUI(ctx);
+
+                    // Actually load the repo data
+                    if (!disposed) {
+                        loadRepository(ctx, saved);
+                    }
                 }
             }
 
