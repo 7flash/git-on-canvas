@@ -40,7 +40,7 @@ export default function mount(): () => void {
 
             // Reuse existing SVG overlay from server-rendered DOM
             ctx.svgOverlay = document.getElementById('connectionsOverlay') as unknown as SVGSVGElement;
-            if (!ctx.svgOverlay) {
+            if (!ctx.svgOverlay && ctx.canvas) {
                 // Fallback: create overlay if not present
                 ctx.svgOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement;
                 ctx.svgOverlay.id = 'connectionsOverlay';

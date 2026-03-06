@@ -50,8 +50,12 @@ async function getFeaturedRepos() {
     }
 }
 
-export default async function Page() {
-    const featuredRepos = await getFeaturedRepos();
+export default function Page() {
+    // Use fallback values synchronously — Melina does NOT support async page components.
+    // The GitHub star counts are fetched client-side or pre-cached.
+    const featuredRepos = _cachedRepos || FEATURED_REPOS_FALLBACK;
+    // Trigger async cache fill for next render
+    getFeaturedRepos().catch(() => { });
 
     const langColors: Record<string, string> = {
         JavaScript: '#f1e05a',

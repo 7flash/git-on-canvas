@@ -125,15 +125,32 @@ export async function loadAllFiles(ctx: CanvasContext) {
 }
 
 // ─── JSX Components for commit sidebar ──────────────────
-function CommitItem({ commit, onClick }: { commit: any; onClick: () => void }) {
+function CommitItem({ commit, lane, color, onClick }: { commit: any; lane: number; color: string; onClick: () => void }) {
     // Derive handle from email (part before @) — more useful than git config name
     const handle = commit.email
         ? commit.email.split('@')[0]
         : commit.author;
+
+    // Calculate indentation based on visual lanes
+    const paddingLeft = 16 + lane * 14;
+
     return (
-        <div className="commit-item" data-hash={commit.hash} onClick={onClick}>
+        <div
+            className="commit-item"
+            data-hash={commit.hash}
+            data-lane={lane}
+            style={`padding-left: ${paddingLeft}px; --timeline-color: ${color};`}
+            onClick={onClick}
+        >
             <div className="commit-hash">{commit.hash.substring(0, 7)}</div>
-            <div className="commit-message">{commit.message}</div>
+            <div className="commit-message">
+                {commit.refs && commit.refs.length > 0 && (
+                    <span className="commit-refs">
+                        {commit.refs.map(r => <span className="commit-ref-badge">{escapeHtml(r)}</span>)}
+                    </span>
+                )}
+                {commit.message}
+            </div>
             <div className="commit-meta">
                 <span className="commit-author">👤 {handle}</span>
                 <span>{formatDate(commit.date)}</span>
@@ -192,18 +209,110 @@ export function renderCommitTimeline(ctx: CanvasContext) {
             return;
         }
 
+        // Branch graph calculation
+        const lanes: (string | null)[] = [];
+        const nodes: any[] = [];
+        const colors = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4'];
+
+        commitsList.forEach((commit, i) => {
+            let laneIndex = lanes.indexOf(commit.hash);
+            if (laneIndex < 0) {
+                laneIndex = lanes.findIndex(h => !h);
+                if (laneIndex < 0) laneIndex = lanes.length;
+            }
+            nodes.push({ hash: commit.hash, lane: laneIndex, index: i });
+
+            if (commit.parents && commit.parents.length > 0) {
+                commit.parents.forEach((pHash, pIndex) => {
+                    const pLaneIndex = lanes.indexOf(pHash);
+                    if (pIndex === 0) {
+                        if (pLaneIndex < 0) lanes[laneIndex] = pHash;
+                        else lanes[laneIndex] = null;
+                    } else {
+                        if (pLaneIndex < 0) {
+                            let empty = lanes.findIndex(h => !h);
+                            if (empty < 0) empty = lanes.length;
+                            lanes[empty] = pHash;
+                        }
+                    }
+                });
+            } else {
+                lanes[laneIndex] = null;
+            }
+        });
+
         render(
-            <>
-                {commitsList.map(commit => (
-                    <CommitItem
-                        key={commit.hash}
-                        commit={commit}
-                        onClick={() => selectCommit(ctx, commit.hash)}
-                    />
-                ))}
-            </>,
+            <div style="position:relative;">
+                <svg id="timelineGraph" style="position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0;"></svg>
+                <div id="timelineItems">
+                    {commitsList.map((commit, i) => (
+                        <CommitItem
+                            key={commit.hash}
+                            commit={commit}
+                            lane={nodes[i].lane}
+                            color={colors[nodes[i].lane % colors.length]}
+                            onClick={() => selectCommit(ctx, commit.hash)}
+                        />
+                    ))}
+                </div>
+            </div>,
             container
         );
+
+        requestAnimationFrame(() => {
+            const graph = document.getElementById('timelineGraph');
+            if (!graph) return;
+            const items = document.querySelectorAll('.commit-item');
+            const coords = new Map<string, { x: number, y: number, color: string }>();
+
+            let maxLane = 0;
+            items.forEach((item: HTMLElement) => {
+                const hash = item.dataset.hash;
+                const lane = parseInt(item.dataset.lane || '0');
+                if (lane > maxLane) maxLane = lane;
+                // Center of the lane dot, shifted to accommodate the graph drawing
+                const x = 16 + lane * 14;
+                // offsetTop is relative to the relative parent div we just wrapped it in
+                const y = item.offsetTop + item.offsetHeight / 2;
+                coords.set(hash, { x, y, color: colors[lane % colors.length] });
+            });
+
+            let svgContent = '';
+
+            // Draw edges
+            commitsList.forEach(commit => {
+                const start = coords.get(commit.hash);
+                if (!start) return;
+
+                (commit.parents || []).forEach((pHash, pIdx) => {
+                    const end = coords.get(pHash);
+                    if (!end) return;
+
+                    const isMerge = pIdx > 0;
+                    const pathColor = isMerge ? end.color : start.color;
+
+                    if (start.x === end.x) {
+                        svgContent += `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${pathColor}" stroke-opacity="0.6" stroke-width="2" />`;
+                    } else {
+                        const midY = start.y + (end.y - start.y) / 2;
+                        svgContent += `<path d="M ${start.x} ${start.y} C ${start.x} ${midY}, ${end.x} ${midY}, ${end.x} ${end.y}" fill="none" stroke="${pathColor}" stroke-opacity="0.6" stroke-width="2" />`;
+                    }
+                });
+            });
+
+            // Draw nodes
+            commitsList.forEach(commit => {
+                const p = coords.get(commit.hash);
+                if (!p) return;
+                let dot = `<circle cx="${p.x}" cy="${p.y}" r="4.5" fill="${p.color}" stroke="var(--bg-secondary)" stroke-width="2" />`;
+                if (commit.refs && commit.refs.length > 0) {
+                    dot += `<circle cx="${p.x}" cy="${p.y}" r="7" fill="none" stroke="${p.color}" stroke-opacity="0.8" stroke-width="1.5" />`;
+                }
+                svgContent += dot;
+            });
+
+            graph.innerHTML = svgContent;
+        });
     });
 }
 
@@ -327,9 +436,12 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
 }
 
 // ─── Render all files on canvas (working tree) ──────────
+// Virtualized: only creates DOM for cards in/near the viewport.
+// Remaining cards are deferred and materialized on-demand by viewport culling.
 export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
     measure('canvas:renderAllFiles', () => {
         clearCanvas(ctx);
+        ctx.deferredCards.clear();
 
         const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
         updateHiddenUI(ctx);
@@ -355,6 +467,23 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         const cellW = defaultCardWidth + gap;
         const cellH = defaultCardHeight + gap;
 
+        // Determine initial viewport rect for virtualization
+        const MARGIN = 800; // px beyond viewport to pre-create
+        const state = ctx.snap().context;
+        const vpEl = ctx.canvasViewport;
+        const vpW = vpEl?.clientWidth || window.innerWidth;
+        const vpH = vpEl?.clientHeight || window.innerHeight;
+        const zoom = state.zoom || 1;
+        const offsetX = state.offsetX || 0;
+        const offsetY = state.offsetY || 0;
+        const worldLeft = (-offsetX - MARGIN) / zoom;
+        const worldTop = (-offsetY - MARGIN) / zoom;
+        const worldRight = (vpW - offsetX + MARGIN) / zoom;
+        const worldBottom = (vpH - offsetY + MARGIN) / zoom;
+
+        let createdCount = 0;
+        let deferredCount = 0;
+
         layerFiles.forEach((f, index) => {
             const isChanged = ctx.changedFilePaths.has(f.path);
             const posKey = `allfiles:${f.path}`;
@@ -370,8 +499,8 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
                 y = 50 + row * cellH;
             }
 
-            const state = ctx.snap().context;
-            let size = state.cardSizes?.[f.path];
+            const cardState = ctx.snap().context;
+            let size = cardState.cardSizes?.[f.path];
             if (!size && ctx.positions.has(posKey)) {
                 const pos = ctx.positions.get(posKey);
                 if (pos.width) size = { width: pos.width, height: pos.height };
@@ -440,26 +569,44 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
                 size = { width: defaultCardWidth, height: defaultCardHeight };
             }
 
-            const card = createAllFileCard(ctx, fileWithDiff, x, y, size);
+            // ── Virtualization: check if card is near the viewport ──
+            const cardW = size?.width || defaultCardWidth;
+            const cardH = size?.height || defaultCardHeight;
+            const inViewport = (
+                x + cardW > worldLeft &&
+                x < worldRight &&
+                y + cardH > worldTop &&
+                y < worldBottom
+            );
 
-            if (isChanged) {
-                card.classList.add('file-card--changed');
-                card.dataset.changed = 'true';
-            }
+            if (inViewport) {
+                // Create DOM immediately
+                const card = createAllFileCard(ctx, fileWithDiff, x, y, size);
+                if (isChanged) {
+                    card.classList.add('file-card--changed');
+                    card.dataset.changed = 'true';
+                }
+                ctx.canvas.appendChild(card);
+                ctx.fileCards.set(f.path, card);
 
-            ctx.canvas.appendChild(card);
-            ctx.fileCards.set(f.path, card);
-
-            // Restore scroll position
-            const scrollKey = `scroll:${f.path}`;
-            if (ctx.positions.has(scrollKey)) {
-                const savedScroll = ctx.positions.get(scrollKey);
-                requestAnimationFrame(() => {
-                    const body = card.querySelector('.file-card-body');
-                    if (body && savedScroll.x) body.scrollTop = savedScroll.x;
-                });
+                // Restore scroll position
+                const scrollKey = `scroll:${f.path}`;
+                if (ctx.positions.has(scrollKey)) {
+                    const savedScroll = ctx.positions.get(scrollKey);
+                    requestAnimationFrame(() => {
+                        const body = card.querySelector('.file-card-body');
+                        if (body && savedScroll.x) body.scrollTop = savedScroll.x;
+                    });
+                }
+                createdCount++;
+            } else {
+                // Defer: store data for lazy creation when it enters viewport
+                ctx.deferredCards.set(f.path, { file: fileWithDiff, x, y, size, isChanged });
+                deferredCount++;
             }
         });
+
+        console.log(`[render] Created ${createdCount} cards, deferred ${deferredCount} (total: ${count})`);
 
         renderConnections(ctx);
         buildConnectionMarkers(ctx);

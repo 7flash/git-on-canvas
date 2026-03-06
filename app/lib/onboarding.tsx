@@ -4,7 +4,7 @@ import { updateCanvasTransform } from './canvas';
 
 const steps = [
     {
-        title: "Welcome to Galaxy Canvas ✨",
+        title: "Welcome to GitMaps ✨",
         text: "Let's take a quick tour to help you navigate your code visually.",
         highlightId: null,
         position: 'center'

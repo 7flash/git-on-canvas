@@ -42,11 +42,19 @@ export interface CanvasContext {
     // ─── Loading overlay ref ──────────────────
     loadingOverlay: HTMLElement | null;
 
+    // ─── Text rendering mode ──────────────────
+    useCanvasText: boolean;
+
     // ─── All-files mode state ─────────────────
     allFilesActive: boolean;
     changedFilePaths: Set<string>;
     allFilesData: any[] | null;
     commitFilesData: any[] | null;
+
+    // ─── Virtualized rendering ────────────────
+    // Cards deferred until they scroll into the viewport.
+    // Key: file path, Value: { file data, x, y, size, isChanged }
+    deferredCards: Map<string, { file: any; x: number; y: number; size: any; isChanged: boolean }>;
 }
 
 /** Creates a fresh context (call once per mount). */
@@ -73,10 +81,12 @@ export function createCanvasContext(actor: any): CanvasContext {
         scrollTimers: {},
         connectionDragState: null,
         loadingOverlay: null,
+        useCanvasText: false,
 
         allFilesActive: true,
         changedFilePaths: new Set(),
         allFilesData: null,
         commitFilesData: null,
+        deferredCards: new Map(),
     };
 }

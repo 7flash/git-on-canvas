@@ -263,9 +263,11 @@ export function openFileChatInModal(filePath: string, content: string, status: s
 export function openCanvasChat(ctx: CanvasContext) {
     measure('chat:openCanvasChat', () => {
         const state = ctx.snap().context;
+        const selected = state.selectedCards || [];
 
-        const files = [];
+        const files: any[] = [];
         ctx.fileCards.forEach((card, path) => {
+            if (selected.length > 0 && !selected.includes(path)) return;
             const status = card.querySelector('.diff-badge')?.textContent || 'file';
             files.push({ path, status });
         });
