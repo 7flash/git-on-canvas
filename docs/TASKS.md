@@ -40,13 +40,14 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 - ✅ Mouse drag pan — refactored from absolute offset pattern to delta-based `panByDelta()` via GalaxyDraw engine
 - Must preserve: dual control modes, card drag, right-click, perf overlay
 
-**Phase 4** — 🟡 IN PROGRESS. Card system migration.
+**Phase 4** — ✅ DONE. Card system migration.
 - ✅ `FileCardPlugin` + `DiffCardPlugin` — wrap existing `createAllFileCard()` / `createFileCard()` as `CardPlugin` implementations
 - ✅ `initCardManager()` — creates CardManager with both plugins, registered on mount
 - ✅ EventBus wiring — `card:move` + `card:resize` events sync back to XState
 - ✅ **Phase 4b**: `renderAllFilesViaCardManager()` — routes through `CardManager.create()` (viewport) + `CardManager.defer()` (off-screen). `skipInteraction` flag on card creation functions prevents double-binding drag/resize handlers. `materializeViewport()` for lazy loading on pan/zoom.
 - ✅ **Phase 4c**: Wired into render path. `renderAllFilesOnCanvas()` tries CardManager first with graceful fallback. `performViewportCulling()` calls `materializeViewport()` to lazy-create deferred cards on pan/zoom.
-- 🔲 Replace `CanvasContext.canvas` / `canvasViewport` — use `GalaxyDraw.getCanvas()` / `getViewport()`
+- ✅ Cleaned up legacy `dragStartX`/`dragStartY` from CanvasContext (replaced by local delta vars in Phase 3)
+- ⏭️ `CanvasContext.canvas`/`canvasViewport` DOM refs — evaluated: no benefit from indirection (set once, used as DOM refs). Keeping as-is.
 - SVG connections overlay stays (galaxydraw doesn't handle SVG overlays)
 
 ### WARMAPS Migration
