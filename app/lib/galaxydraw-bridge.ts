@@ -1,22 +1,15 @@
 // @ts-nocheck
 /**
- * GalaxyDraw Bridge — Phase 2+3+4: State Engine + Event Delegation + Card Manager
- * 
- * Instead of replacing DOM, we only replace the transform/state logic
- * and gradually delegate event handlers to the galaxydraw engine.
- * The server-rendered DOM (#canvasViewport, #canvasContent) stays intact.
- * 
- * What changes:
- * - CanvasState from galaxydraw manages zoom/pan/transform
- * - updateCanvasTransform() delegates to CanvasState.applyTransform()
- * - Coordinate conversion uses galaxydraw's utilities
- * - zoomTowardScreen() replaces manual zoom-toward-cursor math
- * - CardManager (Phase 4) wraps card creation with plugins
- * 
- * What stays the same:
- * - Server-rendered DOM structure
- * - XState actor for app state (source-of-truth for persistence)
- * - Card rendering in cards.tsx (wrapped by FileCardPlugin)
+ * GalaxyDraw Bridge — Adapter between GitMaps and the galaxydraw engine.
+ *
+ * Wires galaxydraw's CanvasState + CardManager into the existing
+ * server-rendered DOM and XState persistence layer.
+ *
+ * Architecture:
+ * - CanvasState manages zoom/pan/transform (replaces manual math)
+ * - CardManager creates/defers cards via FileCardPlugin + DiffCardPlugin
+ * - XState actor remains source-of-truth for persistence
+ * - Server-rendered DOM (#canvasViewport, #canvasContent) stays intact
  */
 
 import { CanvasState } from '../../packages/galaxydraw/src/core/state';
@@ -62,12 +55,9 @@ export function getGalaxyDrawState(): CanvasState | null {
 }
 
 /**
- * Phase 3: Zoom toward a screen point using galaxydraw's engine,
+ * Zoom toward a screen point using galaxydraw's engine,
  * then sync the computed state back to XState for persistence.
- * 
- * Replaces the manual zoom math previously duplicated in events.tsx.
- * Falls back to manual calculation if galaxydraw isn't initialized.
- * 
+ *
  * @returns The new zoom/offset values (for callers that need them)
  */
 export function zoomTowardScreen(
@@ -102,7 +92,7 @@ export function zoomTowardScreen(
 }
 
 /**
- * Phase 3: Pan by pixel delta, delegating to galaxydraw's engine.
+ * Pan by pixel delta via galaxydraw's engine.
  * Syncs back to XState for persistence.
  */
 export function panByDelta(
@@ -124,7 +114,7 @@ export function panByDelta(
 }
 
 /**
- * Phase 3: Convert screen coordinates to world coordinates.
+ * Convert screen coordinates to world coordinates.
  * Delegates to CanvasState.screenToWorld() when available.
  */
 export function screenToWorld(
@@ -148,7 +138,7 @@ export function screenToWorld(
 }
 
 /**
- * Phase 3: Center the viewport on a world coordinate.
+ * Center the viewport on a world coordinate.
  * Delegates to CanvasState.panTo() when available.
  */
 export function panToWorld(
@@ -176,7 +166,7 @@ export function panToWorld(
     }
 }
 
-// ─── Phase 4: Card Manager ──────────────────────────────
+// ─── Card Manager ───────────────────────────────────────
 
 /**
  * Initialize the CardManager with file card plugins.
@@ -237,7 +227,7 @@ export function getEventBus(): EventBus | null {
     return _eventBus;
 }
 
-// ─── Phase 4b: Card Creation via CardManager ────────────
+// ─── Card Creation via CardManager ──────────────────────
 
 import { FILE_CARD_TYPE, DIFF_CARD_TYPE } from './file-card-plugin';
 import { getActiveLayer } from './layers';
@@ -405,7 +395,7 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
         }
     });
 
-    console.log(`[galaxydraw-bridge] Phase 4b: ${createdCount} created, ${deferredCount} deferred (${layerFiles.length} total)`);
+    console.log(`[gd-bridge] ${createdCount} created, ${deferredCount} deferred (${layerFiles.length} total)`);
     return true; // Signal: we handled it
 }
 
