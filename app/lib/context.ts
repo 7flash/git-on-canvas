@@ -23,8 +23,6 @@ export interface CanvasContext {
 
     // ─── Drag/pan state ───────────────────────
     isDragging: boolean;
-    dragStartX: number;
-    dragStartY: number;
     spaceHeld: boolean;
 
     // ─── Hidden files ─────────────────────────
@@ -76,8 +74,6 @@ export function createCanvasContext(actor: any): CanvasContext {
         positions: new Map(),
 
         isDragging: false,
-        dragStartX: 0,
-        dragStartY: 0,
         spaceHeld: false,
 
         hiddenFiles: new Set(),
