@@ -31,13 +31,13 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 - Syncs XState zoom/offset → `CanvasState` on every render cycle
 - Tested: pan, zoom, fit-all, minimap, viewport persistence — all working
 
-**Phase 3** — 🟡 IN PROGRESS. Replace event handlers.
+**Phase 3** — ✅ DONE. Replace event handlers.
 - ✅ `zoomTowardScreen()` bridge function — replaces 3 duplicated zoom-math blocks in `events.tsx` with single call to `CanvasState.zoomToward()`
 - ✅ `panByDelta()` — delegate wheel-scroll pan to `CanvasState.pan()`
 - ✅ `screenToWorld()` — delegate coordinate conversion for rect selection to `CanvasState.screenToWorld()`
 - ✅ `panTo()` + `panToWorld()` — center viewport on a world point; used by minimap click navigation
 - ✅ `Minimap.handleClick()` — reverse-maps minimap click to world coords, supports click+drag pan
-- 🔲 Mouse drag pan — uses absolute offset pattern (dragStartX/Y), different from delta-based pan; lower priority
+- ✅ Mouse drag pan — refactored from absolute offset pattern to delta-based `panByDelta()` via GalaxyDraw engine
 - Must preserve: dual control modes, card drag, right-click, perf overlay
 
 **Phase 4** — 🟡 IN PROGRESS. Card system migration.
