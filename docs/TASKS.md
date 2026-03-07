@@ -44,7 +44,8 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 - ✅ `FileCardPlugin` + `DiffCardPlugin` — wrap existing `createAllFileCard()` / `createFileCard()` as `CardPlugin` implementations
 - ✅ `initCardManager()` — creates CardManager with both plugins, registered on mount
 - ✅ EventBus wiring — `card:move` + `card:resize` events sync back to XState
-- 🔲 **Phase 4b**: Swap `renderAllFilesOnCanvas()` to use `CardManager.create()` + `CardManager.defer()` instead of direct DOM creation
+- ✅ **Phase 4b**: `renderAllFilesViaCardManager()` — routes through `CardManager.create()` (viewport) + `CardManager.defer()` (off-screen). `skipInteraction` flag on card creation functions prevents double-binding drag/resize handlers. `materializeViewport()` for lazy loading on pan/zoom.
+- 🔲 **Phase 4c**: Wire `renderAllFilesViaCardManager()` into the actual render path in repo.tsx (call it from `renderAllFilesOnCanvas()` with graceful fallback). Hook `materializeViewport()` into zoom/pan events.
 - 🔲 Replace `CanvasContext.canvas` / `canvasViewport` — use `GalaxyDraw.getCanvas()` / `getViewport()`
 - SVG connections overlay stays (galaxydraw doesn't handle SVG overlays)
 
