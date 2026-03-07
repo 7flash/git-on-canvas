@@ -68,6 +68,11 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
     measure('canvas:setupInteraction', () => {
         let rafPendingPan = false;
         let rafPendingSelect = false;
+
+        // Delta-based drag state — tracks last mouse position for panByDelta()
+        let lastDragX = 0;
+        let lastDragY = 0;
+
         // ── Wheel behavior ──
         ctx.canvasViewport.addEventListener('wheel', (e) => {
             const state = ctx.snap().context;
@@ -141,13 +146,11 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
 
         // ── Mousedown on viewport ──
         ctx.canvasViewport.addEventListener('mousedown', (e) => {
-            const state = ctx.snap().context;
-
             // Space held, middle-click or Alt+click = pan (ALWAYS, both modes)
             if (e.button === 1 || e.altKey || ctx.spaceHeld) {
                 ctx.isDragging = true;
-                ctx.dragStartX = e.clientX - state.offsetX;
-                ctx.dragStartY = e.clientY - state.offsetY;
+                lastDragX = e.clientX;
+                lastDragY = e.clientY;
                 ctx.canvasViewport.style.cursor = 'grabbing';
                 e.preventDefault();
                 e.stopPropagation();
@@ -162,8 +165,8 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                 if (ctx.controlMode === 'simple') {
                     // SIMPLE MODE: left-click on empty canvas = pan
                     ctx.isDragging = true;
-                    ctx.dragStartX = e.clientX - state.offsetX;
-                    ctx.dragStartY = e.clientY - state.offsetY;
+                    lastDragX = e.clientX;
+                    lastDragY = e.clientY;
                     ctx.canvasViewport.style.cursor = 'grabbing';
                     e.preventDefault();
                 } else {
@@ -193,9 +196,14 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
         // ── Global mousemove (pan + rect select) ──
         window.addEventListener('mousemove', (e) => {
             if (ctx.isDragging) {
-                const newX = e.clientX - ctx.dragStartX;
-                const newY = e.clientY - ctx.dragStartY;
-                ctx.actor.send({ type: 'SET_OFFSET', x: newX, y: newY });
+                // Delta-based pan via galaxydraw engine
+                const dx = e.clientX - lastDragX;
+                const dy = e.clientY - lastDragY;
+                lastDragX = e.clientX;
+                lastDragY = e.clientY;
+
+                panByDelta(ctx, dx, dy);
+
                 // Throttle transform + minimap to one frame
                 if (!rafPendingPan) {
                     rafPendingPan = true;

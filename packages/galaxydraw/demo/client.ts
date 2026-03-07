@@ -90,7 +90,7 @@ const items = [
             content: '<div><strong>Simple</strong> (WARMAPS): Drag = pan canvas<br/><strong>Advanced</strong> (GitMaps): Space+Drag = pan, Click = select</div>'
         }
     },
-    { type: 'note', id: 'note3', x: 900, y: 360, width: 280, height: 160, meta: { title: 'Next Steps', text: 'Migrate WARMAPS and GitMaps to use galaxydraw as the canvas backbone.' } },
+    { type: 'note', id: 'note3', x: 900, y: 360, width: 280, height: 160, meta: { title: 'In Production', text: 'Powering GitMaps (repo visualization) and WARMAPS (geopolitical intelligence dashboard). Touch support included.' } },
 ];
 
 for (const c of items) {
