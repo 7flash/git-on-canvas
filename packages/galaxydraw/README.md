@@ -159,7 +159,7 @@ gd.fitAll(60); // 60px padding
 src/
 ├── index.ts           # Package entry — re-exports everything
 └── core/
-    ├── engine.ts      # GalaxyDraw class (253 lines)
+    ├── engine.ts      # GalaxyDraw class (282 lines)
     ├── state.ts       # CanvasState — zoom/offset/transform
     ├── cards.ts       # CardManager — create/defer/drag/resize/z-order
     ├── viewport.ts    # ViewportCuller — show/hide based on visibility
@@ -168,7 +168,7 @@ src/
     └── minimap.ts     # Minimap — overview with click navigation
 ```
 
-Total: ~700 lines of engine code. No dependencies.
+Total: ~1,200 lines of engine code. No dependencies.
 
 ## Used By
 
