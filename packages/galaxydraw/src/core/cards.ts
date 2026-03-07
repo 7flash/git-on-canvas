@@ -361,8 +361,8 @@ export class CardManager {
 
     /** Check if a plugin says it handles wheel events for a target element */
     consumesWheel(target: HTMLElement): boolean {
-        // Walk up to find the card, then check its plugin
-        const card = target.closest('.gd-card') as HTMLElement | null;
+        // Walk up to find the card — check both .gd-card (engine-created) and [data-card-type] (externally managed)
+        const card = (target.closest('.gd-card') || target.closest('[data-card-type]')) as HTMLElement | null;
         if (!card) return false;
         const type = card.dataset.cardType;
         if (!type) return false;
@@ -371,7 +371,7 @@ export class CardManager {
 
     /** Check if a plugin says it handles mouse events for a target element */
     consumesMouse(target: HTMLElement): boolean {
-        const card = target.closest('.gd-card') as HTMLElement | null;
+        const card = (target.closest('.gd-card') || target.closest('[data-card-type]')) as HTMLElement | null;
         if (!card) return false;
         const type = card.dataset.cardType;
         if (!type) return false;

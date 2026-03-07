@@ -13,6 +13,9 @@
 - [x] ~~**Dual control modes**~~ — ✅ DONE. Toggle in top toolbar: "Simple" (drag=pan, scroll=zoom) vs "Advanced" (space+drag=pan, rect select). Persists to localStorage.
 - [x] ~~**Repo persistence**~~ — ✅ DONE. Auto-loads last repo from localStorage on bare URL visit. Sets hash so URL is shareable.
 - [x] ~~**Changed Files popup**~~ — ✅ DONE. Defaults to closed. State persists to localStorage. Toggle button in header opens it manually.
+- [x] ~~**galaxydraw README polish**~~ — ✅ DONE. Banner image, centered badges (version/downloads/license), constructor options table, CardPlugin interface table, event bus reference table with all 8 events, output comments on every code example.
+- [ ] **galaxydraw npm publish** — Bump to `0.2.0` and publish. Current `0.1.0` was initial release. README is now polished.
+- [ ] **galaxydraw interactive demo** — Build a standalone demo page at `packages/galaxydraw/demo/` that showcases all features (cards, drag, zoom, minimap, modes). Could be hosted on GitHub Pages.
 
 ## 🟢 Priority: Features  
 
