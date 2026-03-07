@@ -697,7 +697,7 @@ function _handleChatClick(ctx: CanvasContext, file: any) {
 }
 
 // ─── Create file card (commit diff) ─────────────────────
-export function createFileCard(ctx: CanvasContext, file: any, x: number, y: number, commitHash: string): HTMLElement {
+export function createFileCard(ctx: CanvasContext, file: any, x: number, y: number, commitHash: string, skipInteraction = false): HTMLElement {
     const card = document.createElement('div');
     card.className = `file-card file-card--${file.status || 'modified'}`;
     card.style.left = `${x}px`;
@@ -771,7 +771,10 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
         card
     );
 
-    setupCardInteraction(ctx, card, commitHash);
+    // When managed by CardManager, skip legacy drag/resize/z-order setup
+    if (!skipInteraction) {
+        setupCardInteraction(ctx, card, commitHash);
+    }
     setupConnectionDrag(ctx, card, file.path);
 
     // Expand button → open modal
@@ -860,7 +863,7 @@ function _buildFileContentHTML(
 }
 
 // ─── Create all-file card (working tree) ────────────────
-export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: number, savedSize: any): HTMLElement {
+export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: number, savedSize: any, skipInteraction = false): HTMLElement {
     const card = document.createElement('div');
     card.className = 'file-card';
     card.style.left = `${x}px`;
@@ -952,7 +955,10 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     cardFileData.set(card, file);
 
     setupConnectionDrag(ctx, card, file.path);
-    setupCardInteraction(ctx, card, 'allfiles');
+    // When managed by CardManager, skip legacy drag/resize/z-order setup
+    if (!skipInteraction) {
+        setupCardInteraction(ctx, card, 'allfiles');
+    }
 
     if (useCanvasText && canvasOptions) {
         const previewEl = card.querySelector('.canvas-container') as HTMLElement;
