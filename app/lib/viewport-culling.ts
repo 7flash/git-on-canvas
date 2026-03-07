@@ -23,6 +23,7 @@
  */
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
+import { materializeViewport } from './galaxydraw-bridge';
 
 // ── Culling state ──────────────────────────────────────────
 let _cullRafPending = false;
@@ -194,6 +195,9 @@ export function performViewportCulling(ctx: CanvasContext) {
 
     const worldRect = getVisibleWorldRect(ctx);
     if (!worldRect) return;
+
+    // Phase 4c: also materialize deferred CardManager cards
+    materializeViewport(ctx);
 
     const state = ctx.snap().context;
     const zoom = state.zoom;

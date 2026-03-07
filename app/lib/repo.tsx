@@ -14,6 +14,7 @@ import { showLoadingProgress, updateLoadingProgress, hideLoadingProgress } from 
 import { createFileCard, createAllFileCard, debounceSaveScroll, expandCardByPath } from './cards';
 import { getActiveLayer } from './layers';
 import { renderConnections, buildConnectionMarkers } from './connections';
+import { renderAllFilesViaCardManager, materializeViewport } from './galaxydraw-bridge';
 
 // Shared: reference to ctx for changed-files panel navigation
 let _panelCtx: CanvasContext | null = null;
@@ -443,6 +444,21 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         clearCanvas(ctx);
         ctx.deferredCards.clear();
 
+        // ── Phase 4c: Try CardManager path first ──
+        const handled = renderAllFilesViaCardManager(ctx, files);
+        if (handled) {
+            renderConnections(ctx);
+            buildConnectionMarkers(ctx);
+            forceMinimapRebuild(ctx);
+            // Materialize any deferred cards visible in initial viewport
+            requestAnimationFrame(() => {
+                materializeViewport(ctx);
+                performViewportCulling(ctx);
+            });
+            return;
+        }
+
+        // ── Legacy fallback (CardManager not initialized) ──
         const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
         updateHiddenUI(ctx);
 
