@@ -40,11 +40,13 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 - 🔲 Mouse drag pan — uses absolute offset pattern (dragStartX/Y), different from delta-based pan; lower priority
 - Must preserve: dual control modes, card drag, right-click, perf overlay
 
-**Phase 4** — 🔲 Card system migration.
-- `renderAllFilesOnCanvas()` in `cards.tsx` → `CardManager.create()`
-- File cards become galaxydraw card plugins
+**Phase 4** — 🟡 IN PROGRESS. Card system migration.
+- ✅ `FileCardPlugin` + `DiffCardPlugin` — wrap existing `createAllFileCard()` / `createFileCard()` as `CardPlugin` implementations
+- ✅ `initCardManager()` — creates CardManager with both plugins, registered on mount
+- ✅ EventBus wiring — `card:move` + `card:resize` events sync back to XState
+- 🔲 **Phase 4b**: Swap `renderAllFilesOnCanvas()` to use `CardManager.create()` + `CardManager.defer()` instead of direct DOM creation
+- 🔲 Replace `CanvasContext.canvas` / `canvasViewport` — use `GalaxyDraw.getCanvas()` / `getViewport()`
 - SVG connections overlay stays (galaxydraw doesn't handle SVG overlays)
-- Remove `CanvasContext.canvas` / `canvasViewport` — use `GalaxyDraw.getCanvas()` / `getViewport()`
 
 ### WARMAPS Migration
 - [ ] Replace WARMAPS `canvas.ts` (616 lines) with `new GalaxyDraw(el, { mode: 'simple' })`
