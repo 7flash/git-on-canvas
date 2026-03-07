@@ -1,14 +1,20 @@
 <p align="center">
+  <img src="banner.png" alt="GitMaps" width="100%" />
+</p>
+
+<p align="center">
   <img src="https://img.shields.io/badge/runtime-Bun-f472b6?style=flat-square" alt="Bun">
   <img src="https://img.shields.io/badge/framework-Melina-7c3aed?style=flat-square" alt="Melina">
+  <img src="https://img.shields.io/badge/engine-GalaxyDraw-38bdf8?style=flat-square" alt="GalaxyDraw">
   <img src="https://img.shields.io/badge/license-ISC-4ade80?style=flat-square" alt="License">
 </p>
 
-# 🪐 Git on Canvas
+# 🪐 GitMaps
 
 **See every file at once.** Pan, zoom, drag — arrange your codebase the way *you* think about it, not the way the file system forces you to.
 
 ---
+
 
 ## The Problem
 
@@ -89,6 +95,20 @@ Layers let you isolate subsets of files for focused review:
 - **Default**: "All Files" layer shows everything
 
 Each layer remembers its own viewport position, so switching layers is instant context-switching.
+
+## 🎮 GalaxyDraw Engine
+
+The canvas is powered by **GalaxyDraw** — a zero-dependency infinite 2D canvas engine built for this project:
+
+| Capability | Implementation |
+|-----------|---------------|
+| **Viewport culling** | Only creates DOM for visible cards. React repo (6833 files): 9 DOM nodes created, 6824 deferred. ~35ms vs 14s. |
+| **Zoom LOD** | Below 25%, cards render as lightweight colored pills (~3 DOM nodes vs ~100+). |
+| **Throttled materialization** | Max 30 cards per frame when zooming back in — no frame drops. |
+| **Dual control modes** | Simple (drag=pan, scroll=zoom) or Advanced (space+drag=pan, rect select). |
+| **Touch support** | Single-finger pan + pinch-to-zoom on tablets. |
+
+GalaxyDraw is also used by [WARMAPS](https://github.com/7flash/starwar) for its intelligence dashboard canvas.
 
 ## ⚙️ Stack
 
