@@ -48,6 +48,11 @@ export class GalaxyDraw {
     private dragStartY = 0;
     private cleanupFns: (() => void)[] = [];
 
+    // Touch state
+    private touchStartX = 0;
+    private touchStartY = 0;
+    private lastPinchDist = 0;
+
     constructor(container: HTMLElement, options?: GalaxyDrawOptions) {
         this.mode = options?.mode ?? 'simple';
         this.bus = new EventBus();
@@ -75,6 +80,7 @@ export class GalaxyDraw {
         // ── Wire up interactions ──
         this.setupWheel();
         this.setupMouse();
+        this.setupTouch();
         this.setupKeyboard();
 
         // ── Cull on state change ──
@@ -215,6 +221,84 @@ export class GalaxyDraw {
                 this.isDragging = false;
                 this.viewport.style.cursor = '';
             }
+        });
+    }
+
+    // ─── Touch interactions ──────────────────────────────
+
+    private setupTouch() {
+        const onTouchStart = (e: TouchEvent) => {
+            const target = e.touches[0]?.target as HTMLElement;
+            if (!target) return;
+
+            // Let card plugins handle their own touch
+            if (this.cards.consumesMouse(target)) return;
+
+            if (e.touches.length === 1) {
+                // Single finger = pan (in simple mode or space held)
+                const touch = e.touches[0];
+                const card = target.closest('.gd-card');
+
+                const shouldPan =
+                    (this.mode === 'simple' && !card) ||
+                    (this.mode === 'advanced' && this.spaceHeld);
+
+                if (shouldPan) {
+                    this.isDragging = true;
+                    this.touchStartX = touch.clientX - this.state.offsetX;
+                    this.touchStartY = touch.clientY - this.state.offsetY;
+                    e.preventDefault();
+                }
+            } else if (e.touches.length === 2) {
+                // Two fingers = pinch zoom
+                this.isDragging = false;
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                this.lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+                e.preventDefault();
+            }
+        };
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (this.isDragging && e.touches.length === 1) {
+                const touch = e.touches[0];
+                this.state.set(
+                    this.state.zoom,
+                    touch.clientX - this.touchStartX,
+                    touch.clientY - this.touchStartY,
+                );
+                e.preventDefault();
+            }
+
+            if (e.touches.length === 2) {
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (this.lastPinchDist > 0) {
+                    const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    const factor = dist / this.lastPinchDist;
+                    this.state.zoomToward(midX, midY, factor);
+                }
+
+                this.lastPinchDist = dist;
+                e.preventDefault();
+            }
+        };
+
+        const onTouchEnd = () => {
+            this.isDragging = false;
+            this.lastPinchDist = 0;
+        };
+
+        this.viewport.addEventListener('touchstart', onTouchStart, { passive: false });
+        this.viewport.addEventListener('touchmove', onTouchMove, { passive: false });
+        this.viewport.addEventListener('touchend', onTouchEnd);
+        this.cleanupFns.push(() => {
+            this.viewport.removeEventListener('touchstart', onTouchStart);
+            this.viewport.removeEventListener('touchmove', onTouchMove);
+            this.viewport.removeEventListener('touchend', onTouchEnd);
         });
     }
 
