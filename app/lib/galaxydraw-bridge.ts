@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * GalaxyDraw Bridge — Phase 2+3: State Engine + Event Delegation
+ * GalaxyDraw Bridge — Phase 2+3+4: State Engine + Event Delegation + Card Manager
  * 
  * Instead of replacing DOM, we only replace the transform/state logic
  * and gradually delegate event handlers to the galaxydraw engine.
@@ -11,14 +11,18 @@
  * - updateCanvasTransform() delegates to CanvasState.applyTransform()
  * - Coordinate conversion uses galaxydraw's utilities
  * - zoomTowardScreen() replaces manual zoom-toward-cursor math
+ * - CardManager (Phase 4) wraps card creation with plugins
  * 
  * What stays the same:
  * - Server-rendered DOM structure
  * - XState actor for app state (source-of-truth for persistence)
- * - Card rendering in cards.tsx
+ * - Card rendering in cards.tsx (wrapped by FileCardPlugin)
  */
 
 import { CanvasState } from '../../packages/galaxydraw/src/core/state';
+import { CardManager } from '../../packages/galaxydraw/src/core/cards';
+import { EventBus } from '../../packages/galaxydraw/src/core/events';
+import { createFileCardPlugin, createDiffCardPlugin } from './file-card-plugin';
 import type { CanvasContext } from './context';
 
 /** 
@@ -26,6 +30,8 @@ import type { CanvasContext } from './context';
  * Replaces manual `ctx.canvas.style.transform = ...` calls.
  */
 let _gdState: CanvasState | null = null;
+let _cardManager: CardManager | null = null;
+let _eventBus: EventBus | null = null;
 
 /**
  * Initialize the galaxydraw state engine and bind to existing DOM.
@@ -168,4 +174,65 @@ export function panToWorld(
         const newOffsetY = vpH / 2 - worldY * state.zoom;
         ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
     }
+}
+
+// ─── Phase 4: Card Manager ──────────────────────────────
+
+/**
+ * Initialize the CardManager with file card plugins.
+ * Call after initGalaxyDrawState() when ctx.canvas is available.
+ * 
+ * The CardManager handles:
+ * - Card creation via plugins (FileCardPlugin, DiffCardPlugin)
+ * - Drag, resize, z-order management
+ * - Selection (single, multi)
+ * - Deferred rendering (virtualization)
+ */
+export function initCardManager(ctx: CanvasContext): CardManager | null {
+    if (!_gdState || !ctx.canvas) {
+        console.warn('[galaxydraw-bridge] Cannot init CardManager: state or canvas not ready');
+        return null;
+    }
+
+    _eventBus = new EventBus();
+    _cardManager = new CardManager(_gdState, _eventBus, ctx.canvas, {
+        defaultWidth: 580,
+        defaultHeight: 700,
+        minWidth: 280,
+        minHeight: 200,
+        gridSize: 0,
+        cornerSize: 40,
+    });
+
+    // Register plugins
+    _cardManager.registerPlugin(createFileCardPlugin());
+    _cardManager.registerPlugin(createDiffCardPlugin());
+
+    // Sync card events back to XState for persistence
+    _eventBus.on('card:move', (ev) => {
+        const { id, x, y } = ev;
+        ctx.actor.send({ type: 'SAVE_POSITION', path: id, x, y });
+    });
+
+    _eventBus.on('card:resize', (ev) => {
+        const { id, width, height } = ev;
+        ctx.actor.send({ type: 'RESIZE_CARD', path: id, width, height });
+    });
+
+    console.log('[galaxydraw-bridge] CardManager initialized with file + diff plugins');
+    return _cardManager;
+}
+
+/**
+ * Get the shared CardManager instance.
+ */
+export function getCardManager(): CardManager | null {
+    return _cardManager;
+}
+
+/**
+ * Get the shared EventBus instance.
+ */
+export function getEventBus(): EventBus | null {
+    return _eventBus;
 }
