@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <a href="https://7flash.github.io/git-on-canvas/"><img src="https://img.shields.io/badge/🌌_Live_Demo-galaxydraw-9382ff?style=flat-square" alt="Live Demo"></a>
   <a href="https://www.npmjs.com/package/galaxydraw"><img src="https://img.shields.io/npm/v/galaxydraw.svg?style=flat-square" alt="npm version"></a>
   <a href="https://www.npmjs.com/package/galaxydraw"><img src="https://img.shields.io/npm/dm/galaxydraw.svg?style=flat-square" alt="npm downloads"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
