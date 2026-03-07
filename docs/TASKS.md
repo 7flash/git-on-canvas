@@ -51,7 +51,8 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 
 ### WARMAPS Migration
 - [x] **Created `warmaps-canvas.ts`** — GalaxyDraw adapter (350 lines) replacing custom `canvas.ts` (760 lines). WarmapsContainerPlugin for MapLibre/feed passthrough, layout persistence, minimap, collapse, resize, fit-all, auto-arrange. `galaxydraw` added as `file:` dependency.
-- [ ] Wire `warmaps-canvas.ts` into `page.client.tsx` (replace `initCanvas()` import) and test
+- [x] **Wired into page.client.tsx** — switched import, added initContainerDrag (mouse+touch), initMinimapClick, fixed minimap IDs. consumesMouse blocks engine pan on header drag. Legacy canvas.ts kept but unused.
+- [ ] Remove legacy `canvas.ts` once switchover is verified in production
 
 ## 📝 Architecture Notes
 - **Framework**: galaxydraw lives in `packages/galaxydraw/`
