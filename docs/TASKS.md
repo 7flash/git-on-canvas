@@ -50,9 +50,10 @@ Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine
 - SVG connections overlay stays (galaxydraw doesn't handle SVG overlays)
 
 ### WARMAPS Migration
-- [x] **Created `warmaps-canvas.ts`** — GalaxyDraw adapter (350 lines) replacing custom `canvas.ts` (760 lines). WarmapsContainerPlugin for MapLibre/feed passthrough, layout persistence, minimap, collapse, resize, fit-all, auto-arrange. `galaxydraw` added as `file:` dependency.
-- [x] **Wired into page.client.tsx** — switched import, added initContainerDrag (mouse+touch), initMinimapClick, fixed minimap IDs. consumesMouse blocks engine pan on header drag. Legacy canvas.ts kept but unused.
-- [ ] Remove legacy `canvas.ts` once switchover is verified in production
+- [x] **Created `warmaps-canvas.ts`** — GalaxyDraw adapter replacing custom `canvas.ts` (760 lines). WarmapsContainerPlugin for MapLibre/feed passthrough, layout persistence, minimap, collapse, resize, fit-all, auto-arrange. `galaxydraw` added as `file:` dependency.
+- [x] **Wired into page.client.tsx** — switched import, added initContainerDrag (mouse+touch), initMinimapClick, fixed minimap IDs. consumesMouse blocks engine pan on header drag.
+- [x] **Snap guidelines restored** — Blue dashed SVG alignment lines + Shift+grid snap ported to warmaps-canvas.ts.
+- [x] **Legacy `canvas.ts` removed** — all 760 lines deleted, feature parity confirmed.
 
 ## 📝 Architecture Notes
 - **Framework**: galaxydraw lives in `packages/galaxydraw/`
