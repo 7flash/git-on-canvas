@@ -44,8 +44,9 @@ export function createFileCardPlugin(): CardPlugin {
 
             // Dynamically import to avoid circular dependencies
             // The actual rendering is still in cards.tsx
+            // skipInteraction=true: CardManager handles drag/resize/z-order
             const { createAllFileCard } = require('./cards');
-            const card = createAllFileCard(ctx, file, data.x, data.y, savedSize);
+            const card = createAllFileCard(ctx, file, data.x, data.y, savedSize, true);
             return card;
         },
 
@@ -102,7 +103,7 @@ export function createDiffCardPlugin(): CardPlugin {
             }
 
             const { createFileCard } = require('./cards');
-            const card = createFileCard(ctx, file, data.x, data.y, commitHash);
+            const card = createFileCard(ctx, file, data.x, data.y, commitHash, true);
             return card;
         },
 

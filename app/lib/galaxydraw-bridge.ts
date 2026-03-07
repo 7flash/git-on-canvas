@@ -236,3 +236,201 @@ export function getCardManager(): CardManager | null {
 export function getEventBus(): EventBus | null {
     return _eventBus;
 }
+
+// ─── Phase 4b: Card Creation via CardManager ────────────
+
+import { FILE_CARD_TYPE, DIFF_CARD_TYPE } from './file-card-plugin';
+import { getActiveLayer } from './layers';
+import { updateHiddenUI } from './hidden-files';
+import type { ViewportRect } from '../../packages/galaxydraw/src/core/state';
+
+/**
+ * Render all files on canvas using CardManager instead of direct DOM.
+ * 
+ * This replaces the viewport culling logic in renderAllFilesOnCanvas():
+ * - Cards in/near viewport → CardManager.create() (immediate DOM)
+ * - Cards outside viewport → CardManager.defer() (lazy materialization)
+ * - On scroll/zoom → materializeViewport() creates deferred cards
+ * 
+ * Benefits over the legacy approach:
+ * - Drag/resize/z-order handled uniformly by CardManager
+ * - EventBus emits card:create/card:move/card:resize for persistence
+ * - Cleaner separation between rendering and interaction
+ */
+export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
+    if (!_cardManager || !_gdState) {
+        // Fallback to legacy if CardManager not initialized
+        console.warn('[galaxydraw-bridge] CardManager not ready, falling back to legacy render');
+        return false; // Signal caller to use legacy path
+    }
+
+    _cardManager.clear();
+
+    const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
+    updateHiddenUI(ctx);
+
+    // Build changed file data map
+    const changedFileDataMap = new Map<string, any>();
+    if (ctx.commitFilesData) {
+        ctx.commitFilesData.forEach(f => changedFileDataMap.set(f.path, f));
+    }
+
+    let layerFiles = visibleFiles;
+    const activeLayer = getActiveLayer();
+    if (activeLayer) {
+        layerFiles = visibleFiles.filter(f => !!activeLayer.files[f.path]);
+    }
+
+    // Grid layout: square-ish
+    const count = layerFiles.length;
+    const cols = Math.max(1, Math.ceil(Math.sqrt(count)));
+    const defaultCardWidth = 580;
+    const defaultCardHeight = 700;
+    const gap = 20;
+    const cellW = defaultCardWidth + gap;
+    const cellH = defaultCardHeight + gap;
+
+    // Viewport rect for initial visibility check
+    const MARGIN = 800;
+    const state = _gdState.getSnapshot();
+    const vpEl = ctx.canvasViewport;
+    const vpW = vpEl?.clientWidth || window.innerWidth;
+    const vpH = vpEl?.clientHeight || window.innerHeight;
+    const zoom = state.zoom || 1;
+    const offsetX = state.offsetX || 0;
+    const offsetY = state.offsetY || 0;
+    const worldLeft = (-offsetX - MARGIN) / zoom;
+    const worldTop = (-offsetY - MARGIN) / zoom;
+    const worldRight = (vpW - offsetX + MARGIN) / zoom;
+    const worldBottom = (vpH - offsetY + MARGIN) / zoom;
+
+    let createdCount = 0;
+    let deferredCount = 0;
+
+    layerFiles.forEach((f, index) => {
+        const posKey = `allfiles:${f.path}`;
+        let x: number, y: number;
+
+        if (ctx.positions.has(posKey)) {
+            const pos = ctx.positions.get(posKey);
+            x = pos.x; y = pos.y;
+        } else {
+            const col = index % cols;
+            const row = Math.floor(index / cols);
+            x = 50 + col * cellW;
+            y = 50 + row * cellH;
+        }
+
+        // Get saved size
+        const cardState = ctx.snap().context;
+        let size = cardState.cardSizes?.[f.path];
+        if (!size && ctx.positions.has(posKey)) {
+            const pos = ctx.positions.get(posKey);
+            if (pos.width) size = { width: pos.width, height: pos.height };
+        }
+
+        // Merge diff/layer data
+        let fileWithDiff = { ...f };
+        if (activeLayer && activeLayer.files[fileWithDiff.path]) {
+            fileWithDiff.layerSections = activeLayer.files[fileWithDiff.path].sections;
+        }
+
+        const isChanged = ctx.changedFilePaths.has(f.path);
+        if (isChanged && changedFileDataMap.has(fileWithDiff.path)) {
+            const diffData = changedFileDataMap.get(fileWithDiff.path);
+            if (diffData.content) {
+                fileWithDiff.content = diffData.content;
+                fileWithDiff.lines = diffData.content.split('\n').length;
+            }
+            fileWithDiff.status = diffData.status;
+            fileWithDiff.hunks = diffData.hunks;
+
+            if (diffData.hunks?.length > 0) {
+                const addedLines = new Set<number>();
+                const deletedBeforeLine = new Map<number, string[]>();
+                for (const hunk of diffData.hunks) {
+                    let newLine = hunk.newStart;
+                    let pendingDeleted: string[] = [];
+                    for (const l of hunk.lines) {
+                        if (l.type === 'add') {
+                            addedLines.add(newLine);
+                            if (pendingDeleted.length > 0) {
+                                const existing = deletedBeforeLine.get(newLine) || [];
+                                deletedBeforeLine.set(newLine, existing.concat(pendingDeleted));
+                                pendingDeleted = [];
+                            }
+                            newLine++;
+                        } else if (l.type === 'del') {
+                            pendingDeleted.push(l.content);
+                        } else {
+                            if (pendingDeleted.length > 0) {
+                                const existing = deletedBeforeLine.get(newLine) || [];
+                                deletedBeforeLine.set(newLine, existing.concat(pendingDeleted));
+                                pendingDeleted = [];
+                            }
+                            newLine++;
+                        }
+                    }
+                    if (pendingDeleted.length > 0) {
+                        const existing = deletedBeforeLine.get(newLine) || [];
+                        deletedBeforeLine.set(newLine, existing.concat(pendingDeleted));
+                    }
+                }
+                fileWithDiff.addedLines = addedLines;
+                fileWithDiff.deletedBeforeLine = deletedBeforeLine;
+            }
+        }
+
+        const cardData = {
+            id: f.path,
+            x, y,
+            width: size?.width || defaultCardWidth,
+            height: size?.height || defaultCardHeight,
+            meta: { file: fileWithDiff, ctx, savedSize: size },
+        };
+
+        // Check if in viewport
+        const inViewport =
+            x + (size?.width || defaultCardWidth) > worldLeft &&
+            x < worldRight &&
+            y + (size?.height || defaultCardHeight) > worldTop &&
+            y < worldBottom;
+
+        if (inViewport) {
+            _cardManager!.create(FILE_CARD_TYPE, cardData);
+            createdCount++;
+        } else {
+            _cardManager!.defer(FILE_CARD_TYPE, cardData);
+            deferredCount++;
+        }
+    });
+
+    console.log(`[galaxydraw-bridge] Phase 4b: ${createdCount} created, ${deferredCount} deferred (${layerFiles.length} total)`);
+    return true; // Signal: we handled it
+}
+
+/**
+ * Materialize deferred cards that are now in the viewport.
+ * Call this on zoom/pan changes.
+ */
+export function materializeViewport(ctx: CanvasContext): number {
+    if (!_cardManager || !_gdState) return 0;
+
+    const MARGIN = 800;
+    const state = _gdState.getSnapshot();
+    const vpEl = ctx.canvasViewport;
+    const vpW = vpEl?.clientWidth || window.innerWidth;
+    const vpH = vpEl?.clientHeight || window.innerHeight;
+    const zoom = state.zoom || 1;
+    const offsetX = state.offsetX || 0;
+    const offsetY = state.offsetY || 0;
+
+    const rect: ViewportRect = {
+        left: (-offsetX - MARGIN) / zoom,
+        top: (-offsetY - MARGIN) / zoom,
+        right: (vpW - offsetX + MARGIN) / zoom,
+        bottom: (vpH - offsetY + MARGIN) / zoom,
+    };
+
+    return _cardManager.materializeInRect(rect);
+}
