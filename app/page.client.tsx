@@ -21,7 +21,7 @@ import { loadRepository } from './lib/repo';
 import { initLayers, renderLayersUI } from './lib/layers';
 import { setupAuth, updateFavoriteStar } from './lib/user';
 import { setupPerfOverlay } from './lib/perf-overlay';
-import { initGalaxyDrawState } from './lib/galaxydraw-bridge';
+import { initGalaxyDrawState, initCardManager } from './lib/galaxydraw-bridge';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -51,6 +51,9 @@ export default function mount(): () => void {
 
             // Init galaxydraw state engine (binds to existing DOM)
             initGalaxyDrawState(ctx);
+
+            // Init galaxydraw card manager (Phase 4 — registers file + diff plugins)
+            initCardManager(ctx);
 
             actor.start();
             setupCanvasInteraction(ctx);
