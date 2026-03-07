@@ -154,11 +154,14 @@ export class GalaxyDraw {
             if (this.cards.consumesWheel(target)) return;
 
             // Let scrollable card bodies scroll naturally
-            const scrollBody = target.closest('.gd-card-body') as HTMLElement | null;
-            if (scrollBody && scrollBody.scrollHeight > scrollBody.clientHeight) {
-                const atTop = scrollBody.scrollTop <= 0 && e.deltaY < 0;
-                const atBottom = scrollBody.scrollTop + scrollBody.clientHeight >= scrollBody.scrollHeight - 1 && e.deltaY > 0;
-                if (!atTop && !atBottom) return;
+            const cardEl = target.closest('.gd-card') || target.closest('[data-card-type]');
+            if (cardEl) {
+                const scrollBody = (target.closest('.gd-card-body') || target.closest('.wm-container-body')) as HTMLElement | null;
+                if (scrollBody && scrollBody.scrollHeight > scrollBody.clientHeight) {
+                    const atTop = scrollBody.scrollTop <= 0 && e.deltaY < 0;
+                    const atBottom = scrollBody.scrollTop + scrollBody.clientHeight >= scrollBody.scrollHeight - 1 && e.deltaY > 0;
+                    if (!atTop && !atBottom) return;
+                }
             }
 
             e.preventDefault();
@@ -177,10 +180,10 @@ export class GalaxyDraw {
             if (this.cards.consumesMouse(target)) return;
 
             // Card header drag is handled by CardManager
-            if (target.closest('.gd-card-header') || target.closest('.gd-resize-handle')) return;
+            if (target.closest('.gd-card-header') || target.closest('.wm-container-header') || target.closest('.gd-resize-handle')) return;
 
             // Click on card = bring to front + select
-            const card = target.closest('.gd-card') as HTMLElement | null;
+            const card = (target.closest('.gd-card') || target.closest('[data-card-type]')) as HTMLElement | null;
             if (card && e.button === 0) {
                 const id = card.dataset.cardId;
                 if (id) {
@@ -237,7 +240,7 @@ export class GalaxyDraw {
             if (e.touches.length === 1) {
                 // Single finger = pan (in simple mode or space held)
                 const touch = e.touches[0];
-                const card = target.closest('.gd-card');
+                const card = target.closest('.gd-card') || target.closest('[data-card-type]');
 
                 const shouldPan =
                     (this.mode === 'simple' && !card) ||
