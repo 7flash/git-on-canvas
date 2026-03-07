@@ -1,6 +1,6 @@
 {
     "name": "galaxydraw",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "Infinite canvas framework for spatial applications. Zero dependencies, ~31KB.",
     "type": "module",
     "main": "src/index.ts",

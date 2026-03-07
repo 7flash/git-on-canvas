@@ -343,7 +343,7 @@ class CardManager {
     });
   }
   consumesWheel(target) {
-    const card = target.closest(".gd-card");
+    const card = target.closest(".gd-card") || target.closest("[data-card-type]");
     if (!card)
       return false;
     const type = card.dataset.cardType;
@@ -352,7 +352,7 @@ class CardManager {
     return this.plugins.get(type)?.consumesWheel?.(target) ?? false;
   }
   consumesMouse(target) {
-    const card = target.closest(".gd-card");
+    const card = target.closest(".gd-card") || target.closest("[data-card-type]");
     if (!card)
       return false;
     const type = card.dataset.cardType;
@@ -568,12 +568,15 @@ class GalaxyDraw {
       const target = e.target;
       if (this.cards.consumesWheel(target))
         return;
-      const scrollBody = target.closest(".gd-card-body");
-      if (scrollBody && scrollBody.scrollHeight > scrollBody.clientHeight) {
-        const atTop = scrollBody.scrollTop <= 0 && e.deltaY < 0;
-        const atBottom = scrollBody.scrollTop + scrollBody.clientHeight >= scrollBody.scrollHeight - 1 && e.deltaY > 0;
-        if (!atTop && !atBottom)
-          return;
+      const cardEl = target.closest(".gd-card") || target.closest("[data-card-type]");
+      if (cardEl) {
+        const scrollBody = target.closest(".gd-card-body") || target.closest(".wm-container-body");
+        if (scrollBody && scrollBody.scrollHeight > scrollBody.clientHeight) {
+          const atTop = scrollBody.scrollTop <= 0 && e.deltaY < 0;
+          const atBottom = scrollBody.scrollTop + scrollBody.clientHeight >= scrollBody.scrollHeight - 1 && e.deltaY > 0;
+          if (!atTop && !atBottom)
+            return;
+        }
       }
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
@@ -585,9 +588,9 @@ class GalaxyDraw {
       const target = e.target;
       if (this.cards.consumesMouse(target))
         return;
-      if (target.closest(".gd-card-header") || target.closest(".gd-resize-handle"))
+      if (target.closest(".gd-card-header") || target.closest(".wm-container-header") || target.closest(".gd-resize-handle"))
         return;
-      const card = target.closest(".gd-card");
+      const card = target.closest(".gd-card") || target.closest("[data-card-type]");
       if (card && e.button === 0) {
         const id = card.dataset.cardId;
         if (id) {
@@ -627,7 +630,7 @@ class GalaxyDraw {
         return;
       if (e.touches.length === 1) {
         const touch = e.touches[0];
-        const card = target.closest(".gd-card");
+        const card = target.closest(".gd-card") || target.closest("[data-card-type]");
         const shouldPan = this.mode === "simple" && !card || this.mode === "advanced" && this.spaceHeld;
         if (shouldPan) {
           this.isDragging = true;
@@ -978,4 +981,4 @@ export {
   CanvasState
 };
 
-//# debugId=7F71EC087A884FA064756E2164756E21
+//# debugId=A4ED09BD658332D164756E2164756E21
