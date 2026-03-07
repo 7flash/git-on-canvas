@@ -175,6 +175,19 @@ Total: ~700 lines of engine code. No dependencies.
 - **[GitMaps](https://github.com/7flash/git-on-canvas)** — Repository visualization on an infinite canvas. Uses `advanced` mode with FileCardPlugin + DiffCardPlugin.
 - **[WARMAPS](https://github.com/7flash/starwar)** — Real-time geopolitical intelligence dashboard. Uses `simple` mode with WarmapsContainerPlugin for MapLibre passthrough.
 
+## Testing
+
+24 unit tests covering the core engine:
+
+```sh
+bun test
+```
+
+| Suite | Tests | Coverage |
+|-------|-------|----------|
+| CanvasState | 14 | zoom, pan, clamp, screenToWorld, subscribe, fitAll |
+| EventBus | 10 | on/off, emit, multi-listener, wildcard, once |
+
 ## License
 
 MIT
