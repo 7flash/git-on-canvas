@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>galaxydraw — Interactive Demo</title>
+    <meta name="description" content="Interactive demo of galaxydraw, a zero-dependency infinite canvas framework for spatial applications.">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌌</text></svg>">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; background: #060812; color: #e4e4e7; font-family: 'Inter', sans-serif; overflow: hidden; }
+        #app { width: 100vw; height: 100vh; }
+
+        .demo-toolbar {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 12px;
+            background: rgba(13, 15, 28, 0.85);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .demo-toolbar button {
+            padding: 6px 14px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            font-size: 12px;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            transition: all 0.15s ease;
+        }
+
+        .demo-toolbar button:hover {
+            background: rgba(147, 130, 255, 0.15);
+            border-color: rgba(147, 130, 255, 0.3);
+            color: #fff;
+        }
+
+        .demo-toolbar button.active {
+            background: rgba(147, 130, 255, 0.2);
+            border-color: rgba(147, 130, 255, 0.4);
+            color: #fff;
+        }
+
+        .demo-toolbar .mode-label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.4);
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+        }
+
+        /* Responsive toolbar */
+        @media (max-width: 640px) {
+            .demo-toolbar {
+                flex-wrap: wrap;
+                max-width: 90vw;
+                justify-content: center;
+            }
+            .demo-toolbar button {
+                font-size: 11px;
+                padding: 5px 10px;
+            }
+        }
+
+        /* galaxydraw.css — Base styles for the infinite canvas */
+
+/* ─── Viewport & Canvas ─────────────────────────────────── */
+.gd-viewport {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 50%, #0c0e1a 0%, #060812 100%);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.gd-viewport.gd-space-pan {
+    cursor: grab;
+}
+
+.gd-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: 0 0;
+    will-change: transform;
+}
+
+/* ─── Dot grid background ───────────────────────────────── */
+.gd-viewport::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* ─── Cards ─────────────────────────────────────────────── */
+.gd-card {
+    position: absolute;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(13, 15, 28, 0.92);
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    contain: layout style;
+}
+
+.gd-card--selected {
+    border-color: rgba(147, 130, 255, 0.4);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(147, 130, 255, 0.25);
+}
+
+.gd-card--dragging {
+    opacity: 0.9;
+    transition: none;
+}
+
+.gd-card--resizing {
+    transition: none;
+}
+
+.gd-card--collapsed .gd-card-body {
+    display: none;
+}
+
+/* ─── Card header ───────────────────────────────────────── */
+.gd-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    cursor: grab;
+    min-height: 40px;
+    flex-shrink: 0;
+}
+
+.gd-card-header:active {
+    cursor: grabbing;
+}
+
+.gd-card-header .title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    font-family: 'Inter', sans-serif;
+}
+
+/* ─── Card body ─────────────────────────────────────────── */
+.gd-card-body {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+/* ─── Resize handle ─────────────────────────────────────── */
+.gd-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nw-resize;
+    z-index: 1;
+}
+
+.gd-resize-handle::after {
+    content: '';
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid rgba(255, 255, 255, 0.15);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0 0 2px 0;
+}
+
+.gd-card:hover .gd-resize-handle::after {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─── Minimap ───────────────────────────────────────────── */
+.gd-minimap {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    border-radius: 8px;
+    overflow: hidden;
+    backdrop-filter: blur(12px);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    z-index: 999;
+    transition: opacity 0.2s ease;
+}
+
+.gd-minimap:hover {
+    opacity: 1;
+}
+
+/* ─── Scrollbar styling ─────────────────────────────────── */
+.gd-card-body::-webkit-scrollbar {
+    width: 4px;
+}
+
+.gd-card-body::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.gd-card-body::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.gd-card-body::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+    <script type="module">class F{zoom=1;offsetX=0;offsetY=0;viewportEl=null;contentEl=null;listeners=new Set;MIN_ZOOM=0.05;MAX_ZOOM=5;constructor(E,K){this.viewportEl=E??null,this.contentEl=K??null}bind(E,K){this.viewportEl=E,this.contentEl=K,this.applyTransform()}snapshot(){return{zoom:this.zoom,offsetX:this.offsetX,offsetY:this.offsetY}}subscribe(E){return this.listeners.add(E),()=>this.listeners.delete(E)}notify(){for(let E of this.listeners)E()}applyTransform(){if(!this.contentEl)return;this.contentEl.style.transform=`translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.zoom})`}set(E,K,D){this.zoom=Math.max(this.MIN_ZOOM,Math.min(this.MAX_ZOOM,E)),this.offsetX=K,this.offsetY=D,this.applyTransform(),this.notify()}pan(E,K){this.offsetX+=E,this.offsetY+=K,this.applyTransform(),this.notify()}panTo(E,K){if(!this.viewportEl)return;let D=this.viewportEl.clientWidth,G=this.viewportEl.clientHeight;this.offsetX=D/2-E*this.zoom,this.offsetY=G/2-K*this.zoom,this.applyTransform(),this.notify()}zoomToward(E,K,D){let G=Math.max(this.MIN_ZOOM,Math.min(this.MAX_ZOOM,this.zoom*D));if(G===this.zoom)return;let k=this.viewportEl?.getBoundingClientRect(),$=E-(k?.left??0),j=K-(k?.top??0),J=($-this.offsetX)/this.zoom,q=(j-this.offsetY)/this.zoom;this.zoom=G,this.offsetX=$-J*G,this.offsetY=j-q*G,this.applyTransform(),this.notify()}screenToWorld(E,K){let D=this.viewportEl?.getBoundingClientRect(),G=E-(D?.left??0),k=K-(D?.top??0);return{x:(G-this.offsetX)/this.zoom,y:(k-this.offsetY)/this.zoom}}worldToScreen(E,K){let D=this.viewportEl?.getBoundingClientRect();return{x:E*this.zoom+this.offsetX+(D?.left??0),y:K*this.zoom+this.offsetY+(D?.top??0)}}getVisibleWorldRect(E=0){if(!this.viewportEl)return null;let K=this.viewportEl.clientWidth,D=this.viewportEl.clientHeight,G=(-this.offsetX-E)/this.zoom,k=(-this.offsetY-E)/this.zoom,$=(K-this.offsetX+E)/this.zoom,j=(D-this.offsetY+E)/this.zoom;return{left:G,top:k,right:$,bottom:j,width:$-G,height:j-k}}fitRect(E,K,D,G,k=60){if(!this.viewportEl)return;let $=this.viewportEl.clientWidth,j=this.viewportEl.clientHeight,J=D-E+k*2,q=G-K+k*2,Q=Math.min($/J,j/q,this.MAX_ZOOM);this.set(Q,($-J*Q)/2-(E-k)*Q,(j-q*Q)/2-(K-k)*Q)}}var A={defaultWidth:400,defaultHeight:300,minWidth:200,minHeight:150,gridSize:0,cornerSize:40};class L{state;bus;canvas;cards=new Map;deferred=new Map;selected=new Set;topZ=10;plugins=new Map;opts;constructor(E,K,D,G){this.state=E;this.bus=K;this.canvas=D;this.opts={...A,...G}}registerPlugin(E){this.plugins.set(E.type,E)}create(E,K){let D=this.plugins.get(E);if(!D)return console.warn(`[galaxydraw] No plugin registered for card type "${E}"`),null;let G={x:K.x??0,y:K.y??0,width:K.width??this.opts.defaultWidth,height:K.height??this.opts.defaultHeight,collapsed:K.collapsed??!1,meta:K.meta??{},...K},k=D.render(G);if(k.classList.add("gd-card"),k.dataset.cardId=G.id,k.dataset.cardType=E,k.style.left=`${G.x}px`,k.style.top=`${G.y}px`,k.style.width=`${G.width}px`,!G.collapsed)k.style.height=`${G.height}px`;return this.canvas.appendChild(k),this.cards.set(G.id,k),this.bringToFront(k),this.setupDrag(k),this.setupResize(k,E),this.bus.emit("card:create",{id:G.id,x:G.x,y:G.y}),k}remove(E){let K=this.cards.get(E);if(!K){this.deferred.delete(E);return}let D=K.dataset.cardType;if(D)this.plugins.get(D)?.onDestroy?.(K);K.remove(),this.cards.delete(E),this.selected.delete(E),this.bus.emit("card:remove",{id:E})}defer(E,K){this.deferred.set(K.id,{...K,plugin:E})}materializeInRect(E){let K=0,D=[];for(let[G,k]of this.deferred){let{x:$,y:j,width:J,height:q,plugin:Q}=k,V=J||this.opts.defaultWidth,_=q||this.opts.defaultHeight;if($+V>E.left&&$<E.right&&j+_>E.top&&j<E.bottom){if(Q)this.create(Q,k);D.push(G),K++}}for(let G of D)this.deferred.delete(G);return K}clear(){for(let[E,K]of this.cards){let D=K.dataset.cardType;if(D)this.plugins.get(D)?.onDestroy?.(K);K.remove()}this.cards.clear(),this.deferred.clear(),this.selected.clear()}bringToFront(E){this.topZ++,E.style.zIndex=String(this.topZ)}select(E,K=!1){if(!K)this.deselectAll();this.selected.add(E),this.cards.get(E)?.classList.add("gd-card--selected"),this.bus.emit("card:select",{ids:[...this.selected]})}deselect(E){this.selected.delete(E),this.cards.get(E)?.classList.remove("gd-card--selected"),this.bus.emit("card:deselect",{ids:[E]})}deselectAll(){for(let K of this.selected)this.cards.get(K)?.classList.remove("gd-card--selected");let E=[...this.selected];if(this.selected.clear(),E.length>0)this.bus.emit("card:deselect",{ids:E})}toggleCollapse(E){let K=this.cards.get(E);if(!K)return;let D=K.classList.toggle("gd-card--collapsed");this.bus.emit("card:collapse",{id:E,collapsed:D})}setupDrag(E){let K=E.querySelector(".gd-card-header"),D=K||E,G=!1,k=0,$=0,j=0,J=0;D.addEventListener("mousedown",(q)=>{if(q.button!==0)return;if(K&&q.target!==K&&!K.contains(q.target))return;q.preventDefault(),G=!0,this.bringToFront(E);let Q=this.state.screenToWorld(q.clientX,q.clientY);j=parseFloat(E.style.left)||0,J=parseFloat(E.style.top)||0,k=Q.x,$=Q.y,E.classList.add("gd-card--dragging");let V=(x)=>{if(!G)return;let O=this.state.screenToWorld(x.clientX,x.clientY),P=j+(O.x-k),z=J+(O.y-$);if(this.opts.gridSize>0&&x.shiftKey)P=Math.round(P/this.opts.gridSize)*this.opts.gridSize,z=Math.round(z/this.opts.gridSize)*this.opts.gridSize;E.style.left=`${P}px`,E.style.top=`${z}px`},_=()=>{G=!1,E.classList.remove("gd-card--dragging"),window.removeEventListener("mousemove",V),window.removeEventListener("mouseup",_);let x=parseFloat(E.style.left)||0,O=parseFloat(E.style.top)||0;this.bus.emit("card:move",{id:E.dataset.cardId,x,y:O})};window.addEventListener("mousemove",V),window.addEventListener("mouseup",_)})}setupResize(E,K){let D=document.createElement("div");D.className="gd-resize-handle",E.appendChild(D);let G=!1,k=0,$=0,j=0,J=0;D.addEventListener("mousedown",(q)=>{q.preventDefault(),q.stopPropagation(),G=!0,k=E.offsetWidth,$=E.offsetHeight,j=q.clientX,J=q.clientY,E.classList.add("gd-card--resizing");let Q=(_)=>{if(!G)return;let x=(_.clientX-j)/this.state.zoom,O=(_.clientY-J)/this.state.zoom,P=Math.max(this.opts.minWidth,k+x),z=Math.max(this.opts.minHeight,$+O);E.style.width=`${P}px`,E.style.height=`${z}px`,this.plugins.get(K)?.onResize?.(E,P,z)},V=()=>{G=!1,E.classList.remove("gd-card--resizing"),window.removeEventListener("mousemove",Q),window.removeEventListener("mouseup",V),this.bus.emit("card:resize",{id:E.dataset.cardId,width:E.offsetWidth,height:E.offsetHeight})};window.addEventListener("mousemove",Q),window.addEventListener("mouseup",V)})}consumesWheel(E){let K=E.closest(".gd-card")||E.closest("[data-card-type]");if(!K)return!1;let D=K.dataset.cardType;if(!D)return!1;return this.plugins.get(D)?.consumesWheel?.(E)??!1}consumesMouse(E){let K=E.closest(".gd-card")||E.closest("[data-card-type]");if(!K)return!1;let D=K.dataset.cardType;if(!D)return!1;return this.plugins.get(D)?.consumesMouse?.(E)??!1}}class M{state;cards;bus;rafPending=!1;enabled=!0;margin=500;constructor(E,K,D){this.state=E;this.cards=K;this.bus=D}setEnabled(E){this.enabled=E}schedule(){if(this.rafPending||!this.enabled)return;this.rafPending=!0,requestAnimationFrame(()=>{this.rafPending=!1,this.perform()})}perform(){let E={shown:0,culled:0,materialized:0,total:0};if(!this.enabled)return E;let K=this.state.getVisibleWorldRect(this.margin);if(!K)return E;for(let[D,G]of this.cards.cards){let k=this.isCardInRect(G,K),$=G.dataset.culled==="true";if(k&&$)G.style.contentVisibility="",G.style.visibility="",G.dataset.culled="false",E.shown++;else if(!k&&!$)G.style.contentVisibility="hidden",G.style.visibility="hidden",G.dataset.culled="true",E.culled++;else if(k)E.shown++;else E.culled++}if(this.cards.deferred.size>0)E.materialized=this.cards.materializeInRect(K);if(E.total=this.cards.cards.size+this.cards.deferred.size,E.materialized>0)this.bus.emit("viewport:cull",E);return E}uncullAll(){for(let[,E]of this.cards.cards)E.style.contentVisibility="",E.style.visibility="",E.dataset.culled="false"}isCardInRect(E,K){let D=parseFloat(E.style.left)||0,G=parseFloat(E.style.top)||0,k=E.offsetWidth||400,$=E.offsetHeight||300;return D+k>K.left&&D<K.right&&G+$>K.top&&G<K.bottom}}class U{handlers=new Map;on(E,K){if(!this.handlers.has(E))this.handlers.set(E,new Set);return this.handlers.get(E).add(K),()=>{this.handlers.get(E)?.delete(K)}}once(E,K){let D=(k)=>{G(),K(k)},G=this.on(E,D);return G}emit(E,K){let D=this.handlers.get(E);if(!D)return;for(let G of D)try{G(K)}catch(k){console.error(`[galaxydraw] Event handler error for "${E}":`,k)}}off(E,K){if(K)this.handlers.get(E)?.delete(K);else this.handlers.delete(E)}clear(){this.handlers.clear()}}class h{state;cards;culler;bus;mode;viewport;canvas;spaceHeld=!1;isDragging=!1;dragStartX=0;dragStartY=0;cleanupFns=[];touchStartX=0;touchStartY=0;lastPinchDist=0;constructor(E,K){if(this.mode=K?.mode??"simple",this.bus=new U,this.viewport=document.createElement("div"),this.viewport.className=`gd-viewport ${K?.className??""}`.trim(),this.viewport.style.cssText="position:relative;width:100%;height:100%;overflow:hidden;",this.canvas=document.createElement("div"),this.canvas.className="gd-canvas",this.canvas.style.cssText="position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform;",this.viewport.appendChild(this.canvas),E.appendChild(this.viewport),this.state=new F,this.state.bind(this.viewport,this.canvas),this.cards=new L(this.state,this.bus,this.canvas,K?.cards),this.culler=new M(this.state,this.cards,this.bus),K?.cullMargin)this.culler.margin=K.cullMargin;this.setupWheel(),this.setupMouse(),this.setupTouch(),this.setupKeyboard();let D=this.state.subscribe(()=>this.culler.schedule());this.cleanupFns.push(D)}setMode(E){this.mode=E,this.bus.emit("mode:change",{mode:E})}getMode(){return this.mode}registerPlugin(E){this.cards.registerPlugin(E)}fitAll(E=60){if(this.culler.uncullAll(),this.cards.cards.size===0)return;let K=1/0,D=1/0,G=-1/0,k=-1/0;for(let[,$]of this.cards.cards){let j=parseFloat($.style.left)||0,J=parseFloat($.style.top)||0,q=$.offsetWidth||400,Q=$.offsetHeight||300;K=Math.min(K,j),D=Math.min(D,J),G=Math.max(G,j+q),k=Math.max(k,J+Q)}this.state.fitRect(K,D,G,k,E)}getViewport(){return this.viewport}getCanvas(){return this.canvas}destroy(){this.cleanupFns.forEach((E)=>E()),this.cleanupFns=[],this.cards.clear(),this.bus.clear(),this.viewport.remove()}setupWheel(){this.viewport.addEventListener("wheel",(E)=>{let K=E.target;if(this.cards.consumesWheel(K))return;if(K.closest(".gd-card")||K.closest("[data-card-type]")){let k=K.closest(".gd-card-body")||K.closest(".wm-container-body");if(k&&k.scrollHeight>k.clientHeight){let $=k.scrollTop<=0&&E.deltaY<0,j=k.scrollTop+k.clientHeight>=k.scrollHeight-1&&E.deltaY>0;if(!$&&!j)return}}E.preventDefault();let G=E.deltaY<0?1.08:0.9259259259259258;this.state.zoomToward(E.clientX,E.clientY,G)},{passive:!1})}setupMouse(){this.viewport.addEventListener("mousedown",(E)=>{let K=E.target;if(this.cards.consumesMouse(K))return;if(K.closest(".gd-card-header")||K.closest(".wm-container-header")||K.closest(".gd-resize-handle"))return;let D=K.closest(".gd-card")||K.closest("[data-card-type]");if(D&&E.button===0){let k=D.dataset.cardId;if(k)this.cards.bringToFront(D),this.cards.select(k,E.shiftKey);if(this.mode==="advanced")return}if(E.button===1||this.mode==="simple"&&E.button===0&&!D||this.mode==="advanced"&&this.spaceHeld)this.isDragging=!0,this.dragStartX=E.clientX-this.state.offsetX,this.dragStartY=E.clientY-this.state.offsetY,this.viewport.style.cursor="grabbing",E.preventDefault()}),window.addEventListener("mousemove",(E)=>{if(this.isDragging)this.state.set(this.state.zoom,E.clientX-this.dragStartX,E.clientY-this.dragStartY)}),window.addEventListener("mouseup",()=>{if(this.isDragging)this.isDragging=!1,this.viewport.style.cursor=""})}setupTouch(){let E=(G)=>{let k=G.touches[0]?.target;if(!k)return;if(this.cards.consumesMouse(k))return;if(G.touches.length===1){let $=G.touches[0],j=k.closest(".gd-card")||k.closest("[data-card-type]");if(this.mode==="simple"&&!j||this.mode==="advanced"&&this.spaceHeld)this.isDragging=!0,this.touchStartX=$.clientX-this.state.offsetX,this.touchStartY=$.clientY-this.state.offsetY,G.preventDefault()}else if(G.touches.length===2){this.isDragging=!1;let $=G.touches[0].clientX-G.touches[1].clientX,j=G.touches[0].clientY-G.touches[1].clientY;this.lastPinchDist=Math.sqrt($*$+j*j),G.preventDefault()}},K=(G)=>{if(this.isDragging&&G.touches.length===1){let k=G.touches[0];this.state.set(this.state.zoom,k.clientX-this.touchStartX,k.clientY-this.touchStartY),G.preventDefault()}if(G.touches.length===2){let k=G.touches[0].clientX-G.touches[1].clientX,$=G.touches[0].clientY-G.touches[1].clientY,j=Math.sqrt(k*k+$*$);if(this.lastPinchDist>0){let J=(G.touches[0].clientX+G.touches[1].clientX)/2,q=(G.touches[0].clientY+G.touches[1].clientY)/2,Q=j/this.lastPinchDist;this.state.zoomToward(J,q,Q)}this.lastPinchDist=j,G.preventDefault()}},D=()=>{this.isDragging=!1,this.lastPinchDist=0};this.viewport.addEventListener("touchstart",E,{passive:!1}),this.viewport.addEventListener("touchmove",K,{passive:!1}),this.viewport.addEventListener("touchend",D),this.cleanupFns.push(()=>{this.viewport.removeEventListener("touchstart",E),this.viewport.removeEventListener("touchmove",K),this.viewport.removeEventListener("touchend",D)})}setupKeyboard(){let E=(D)=>{if(D.code==="Space"&&!D.repeat){let G=D.target.tagName;if(G==="INPUT"||G==="TEXTAREA")return;D.preventDefault(),this.spaceHeld=!0,this.viewport.classList.add("gd-space-pan")}},K=(D)=>{if(D.code==="Space"){if(this.spaceHeld=!1,this.viewport.classList.remove("gd-space-pan"),this.isDragging)this.isDragging=!1,this.viewport.style.cursor=""}};window.addEventListener("keydown",E),window.addEventListener("keyup",K),this.cleanupFns.push(()=>{window.removeEventListener("keydown",E),window.removeEventListener("keyup",K)})}}var W={type:"text",render(E){let K=document.createElement("div"),D=document.createElement("div");D.className="gd-card-header",D.innerHTML=`<span class="title">${E.meta?.title||E.id}</span>`;let G=document.createElement("div");return G.className="gd-card-body",G.style.cssText="padding:12px; font-size:13px; color:rgba(255,255,255,0.6); line-height:1.6;",G.innerHTML=E.meta?.content||"Drag by the header, resize from the corner.",K.appendChild(D),K.appendChild(G),K}},S={type:"note",render(E){let K=["#22c55e","#eab308","#ef4444","#3b82f6","#a855f7"],D=K[Math.floor(Math.random()*K.length)],G=document.createElement("div"),k=document.createElement("div");k.className="gd-card-header",k.style.borderLeft=`3px solid ${D}`,k.innerHTML=`
+            <span class="title">${E.meta?.title||"Note"}</span>
+            <span style="font-size:10px; color:${D}; text-transform:uppercase; letter-spacing:0.05em;">Note</span>
+        `;let $=document.createElement("div");return $.className="gd-card-body",$.style.padding="16px",$.innerHTML=`
+            <div contenteditable="true" style="font-size:13px; color:rgba(255,255,255,0.7); outline:none; min-height:60px; line-height:1.6;">
+                ${E.meta?.text||"Click to edit..."}
+            </div>
+        `,G.appendChild(k),G.appendChild($),G},consumesMouse(E){return E.closest("[contenteditable]")!==null}},T=document.getElementById("app"),I=new h(T,{mode:"simple",cards:{defaultWidth:320,defaultHeight:240}});I.registerPlugin(W);I.registerPlugin(S);var R=[{type:"text",id:"welcome",x:100,y:100,width:380,height:220,meta:{title:"galaxydraw",content:'<div style="font-size:20px; font-weight:600; color:#fff; margin-bottom:8px;">Infinite Canvas Framework</div><div>The engine behind <strong>GitMaps</strong> and <strong>WARMAPS</strong>.</div><br/><div style="font-size:11px; color:rgba(255,255,255,0.35);">Pan: drag empty space | Zoom: scroll | Drag cards by headers</div>'}},{type:"note",id:"note1",x:550,y:80,width:280,height:200,meta:{title:"Architecture",text:"EventBus > CanvasState > CardManager > ViewportCuller"}},{type:"text",id:"features",x:100,y:380,width:350,height:280,meta:{title:"Features",content:'<ul style="padding-left:16px;"><li>Virtualized rendering</li><li>Card plugins for custom content</li><li>Dual control modes (Simple / Advanced)</li><li>Viewport culling</li><li>Layout persistence</li><li>Minimap</li><li>Type-safe EventBus</li></ul>'}},{type:"note",id:"note2",x:550,y:340,width:280,height:180,meta:{title:"Performance",text:"React repo: 6833 files, only 9 DOM cards created. 6824 deferred. Over 300x speedup."}},{type:"text",id:"modes",x:900,y:100,width:300,height:200,meta:{title:"Control Modes",content:"<div><strong>Simple</strong> (WARMAPS): Drag = pan canvas<br/><strong>Advanced</strong> (GitMaps): Space+Drag = pan, Click = select</div>"}},{type:"note",id:"note3",x:900,y:360,width:280,height:160,meta:{title:"In Production",text:"Powering GitMaps (repo visualization) and WARMAPS (geopolitical intelligence dashboard). Touch support included."}}];for(let E of R)I.cards.create(E.type,E);var N=document.createElement("div");N.className="demo-toolbar";var C=document.createElement("span");C.className="mode-label";C.textContent="Mode:";N.appendChild(C);var H=document.createElement("button");H.textContent="Simple (WARMAPS)";H.className="active";H.id="modeSimple";N.appendChild(H);var Z=document.createElement("button");Z.textContent="Advanced (GitMaps)";Z.id="modeAdvanced";N.appendChild(Z);var B=document.createElement("button");B.textContent="+ Card";N.appendChild(B);var s=document.createElement("button");s.textContent="Fit All";N.appendChild(s);document.body.appendChild(N);H.onclick=()=>{I.setMode("simple"),H.classList.add("active"),Z.classList.remove("active")};Z.onclick=()=>{I.setMode("advanced"),Z.classList.add("active"),H.classList.remove("active")};B.onclick=()=>{let E="card-"+Date.now();I.cards.create("note",{id:E,x:200+Math.random()*600,y:200+Math.random()*400,width:260,height:180,meta:{title:"New Note",text:"Click to edit..."}})};s.onclick=()=>I.fitAll();window.gd=I;
+</script>
+</body>
+</html>
