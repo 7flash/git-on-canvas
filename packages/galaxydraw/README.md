@@ -1,6 +1,8 @@
 # galaxydraw
 
-Infinite canvas framework for spatial applications. Zero dependencies, ~50KB total.
+[![npm](https://img.shields.io/npm/v/galaxydraw.svg?style=flat-square)](https://www.npmjs.com/package/galaxydraw)
+
+Infinite canvas framework for spatial applications. Zero dependencies, ~31KB.
 
 **Before** — 760 lines of custom pan/zoom/drag/touch/minimap/resize code per project:
 
