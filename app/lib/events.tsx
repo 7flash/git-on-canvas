@@ -25,7 +25,7 @@ import type { CanvasContext } from './context';
 import { showToast, escapeHtml } from './utils';
 import { createLayer, getActiveLayer, addSectionToLayer } from './layers';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
-import { zoomTowardScreen, panByDelta, screenToWorld } from './galaxydraw-bridge';
+import { zoomTowardScreen, panByDelta, screenToWorld, getCardManager } from './galaxydraw-bridge';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
@@ -890,8 +890,8 @@ export function setupEventListeners(ctx: CanvasContext) {
                 if (commitEl) commitEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
-            // / or Ctrl+F = Open file search
-            if (e.key === '/' || (e.ctrlKey && e.key === 'f')) {
+            // /, Ctrl+F, or Ctrl+P = Open file search / command palette
+            if (e.key === '/' || ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
                 e.preventDefault();
                 openFileSearch(ctx);
             }
@@ -976,9 +976,11 @@ function openFileSearch(ctx: CanvasContext) {
     let currentQuery = '';
 
     function navigateToFile(match: SearchMatch) {
-        let card = ctx.fileCards.get(match.path);
+        const mgr = getCardManager();
+        const activeCard = mgr?.cards.get(match.path);
+        const deferredCard = mgr?.deferred.get(match.path);
 
-        if (!card) {
+        if (!activeCard && !deferredCard) {
             const layer = getActiveLayer();
             if (layer && ctx.allFilesActive) {
                 // Instantly add the whole file to the active layer
@@ -986,7 +988,7 @@ function openFileSearch(ctx: CanvasContext) {
 
                 // Wait for the active layer to apply/render then jump
                 setTimeout(() => {
-                    card = ctx.fileCards.get(match.path);
+                    const card = ctx.fileCards.get(match.path);
                     if (card) {
                         close();
                         doNavigate(match.path, card, match.line);
@@ -999,7 +1001,31 @@ function openFileSearch(ctx: CanvasContext) {
         }
 
         close();
-        doNavigate(match.path, card, match.line);
+
+        // If active, use its DOM element. If deferred, use its stored coordinates.
+        if (activeCard) {
+            doNavigate(match.path, activeCard, match.line);
+        } else if (deferredCard) {
+            doNavigateDeferred(match.path, deferredCard, match.line);
+        }
+    }
+
+    function doNavigateDeferred(path: string, deferredCard: any, line?: number) {
+        const vpRect = ctx.canvasViewport.getBoundingClientRect();
+        const state = ctx.snap().context;
+        const newOffsetX = -(deferredCard.x + deferredCard.width / 2) * state.zoom + vpRect.width / 2;
+        const newOffsetY = -(deferredCard.y + deferredCard.height / 2) * state.zoom + vpRect.height / 2;
+
+        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
+        updateCanvasTransform(ctx); // This triggers CardManager.materializeInRect()
+
+        // Wait a frame for materialization to hit DOM
+        requestAnimationFrame(() => {
+            const materializedCard = getCardManager()?.cards.get(path);
+            if (materializedCard) {
+                _animateAndSelectCard(path, materializedCard, line);
+            }
+        });
     }
 
     function doNavigate(path: string, card: HTMLElement, line?: number) {
@@ -1013,6 +1039,10 @@ function openFileSearch(ctx: CanvasContext) {
         ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
         updateCanvasTransform(ctx);
 
+        _animateAndSelectCard(path, card, line);
+    }
+
+    function _animateAndSelectCard(path: string, card: HTMLElement, line?: number) {
         card.classList.add('card-flash');
         setTimeout(() => card.classList.remove('card-flash'), 1500);
         ctx.actor.send({ type: 'SELECT_CARD', path, shift: false });
@@ -1179,7 +1209,6 @@ function openFileSearch(ctx: CanvasContext) {
     setTimeout(() => input.focus(), 50);
 
     overlay.addEventListener('click', handleOverlayClick);
-    rerender();
     requestAnimationFrame(() => {
         const input = overlay.querySelector('.file-search-input') as HTMLInputElement;
         if (input) input.focus();
