@@ -11,7 +11,7 @@
 - [x] ~~**Layer bar overlap**~~ — ✅ DONE. Layers bar centered at bottom, minimap at bottom-right, no overlap.
 
 ## 🟡 Priority: Improve
-- [ ] **Search Files Command Palette** — Implement a `Ctrl+P` modal capable of searching through all 6000+ internal React file strings, and jumping the canvas directly to materialize the resulting matching node.
+- [x] ~~**Search Files Command Palette**~~ — ✅ DONE. `Ctrl+P` and `Cmd+P` now trigger a native GitMaps modal capable of searching through all repository internal file strings and paths seamlessly. It interfaces with the `galaxydraw` virtualized engine to seamlessly materialize off-canvas deferred nodes and teleport the user directly to the exact matched line when jumped to.
 - [x] ~~**Dual control modes**~~ — ✅ DONE. Toggle in top toolbar: "Simple" (drag=pan, scroll=zoom) vs "Advanced" (space+drag=pan, rect select). Persists to localStorage.
 - [x] ~~**Repo persistence**~~ — ✅ DONE. Auto-loads last repo from localStorage on bare URL visit. Sets hash so URL is shareable.
 - [x] ~~**Changed Files popup**~~ — ✅ DONE. Defaults to closed. State persists to localStorage. Toggle button in header opens it manually.
