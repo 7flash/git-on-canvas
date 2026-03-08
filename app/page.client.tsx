@@ -22,6 +22,7 @@ import { initLayers, renderLayersUI } from './lib/layers';
 import { setupAuth, updateFavoriteStar } from './lib/user';
 import { setupPerfOverlay } from './lib/perf-overlay';
 import { initGalaxyDrawState, initCardManager } from './lib/galaxydraw-bridge';
+import { initFilePreview, destroyFilePreview } from './lib/file-preview';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -59,6 +60,7 @@ export default function mount(): () => void {
             setupCanvasInteraction(ctx);
             setupEventListeners(ctx);
             setupPerfOverlay(ctx);
+            if (ctx.canvasViewport) initFilePreview(ctx.canvasViewport);
             await loadSavedPositions(ctx); // initial load (may be empty if no repo yet)
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);
@@ -182,6 +184,7 @@ export default function mount(): () => void {
         disposed = true;
         (window as any).__gitcanvas_cleanup__ = null;
         try { actor.stop(); } catch (_) { }
+        if (ctx.canvasViewport) destroyFilePreview(ctx.canvasViewport);
         clearCanvas(ctx);
     };
     (window as any).__gitcanvas_cleanup__ = cleanup;
