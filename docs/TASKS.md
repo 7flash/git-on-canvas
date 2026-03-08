@@ -21,6 +21,8 @@
 
 ## 🟢 Priority: Features  
 - [x] ~~**Git Diff Embed Viewer**~~ — ✅ DONE. Overrode the `dblclick` event handler within `cards.tsx` to automatically harvest its `WeakMap` cached `file` payload and invoke the `DiffCardPlugin` modal. This allows frictionless transition from a zoomed canvas node directly into an expanded `git diff` filesystem overlay without clicking tiny icons.
+- [ ] **Diff Header Action Bar** — Integrate a dedicated control layer at the top of the `DiffCardPlugin` to allow jumping to next/previous git diff files dynamically without exiting the modal.
+- [ ] **Command Palette Fuzzy Search** — The `Ctrl+P` native Command Palette modal currently does strict substring checking. Enhance its matching algorithm to support robust fuzzy-searching the entire repository for better resilience against typoes.
 
 ### galaxydraw Migration (GitMaps)
 Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine (~400 lines).
