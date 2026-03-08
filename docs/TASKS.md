@@ -21,7 +21,7 @@
 
 ## 🟢 Priority: Features  
 - [x] ~~**Git Diff Embed Viewer**~~ — ✅ DONE. Overrode the `dblclick` event handler within `cards.tsx` to automatically harvest its `WeakMap` cached `file` payload and invoke the `DiffCardPlugin` modal. This allows frictionless transition from a zoomed canvas node directly into an expanded `git diff` filesystem overlay without clicking tiny icons.
-- [ ] **Diff Header Action Bar** — Integrate a dedicated control layer at the top of the `DiffCardPlugin` to allow jumping to next/previous git diff files dynamically without exiting the modal.
+- [x] ~~**Diff Header Action Bar**~~ — ✅ DONE. Integrated a dedicated UI control layer `#modalDiffNav` injected straight into the core of `openFileModal` modal header. The layer maps implicit prev/next sibling jumps scoped natively by the current Git tree diff list. Buttons natively jump to the next changed diff payload and automatically wire to strict (j/k) keyboard navigation mappings when the popup is active, gracefully detached on close.
 - [x] ~~**Command Palette Fuzzy Search**~~ — ✅ DONE. Upgraded the `getMatches` subroutine of the `Ctrl+P` native Command Palette modal to use an implicit subsequence match `fuzzyScore` algorithm rather than strict strict `String.includes()`. Included a custom `highlightMatch` parser that correctly breaks and isolates `<mark>` injection per-character. To prevent deep-stalls on massive repositories (like react's 6800 files), internal limits bound the search space lazily.
 
 ### galaxydraw Migration (GitMaps)

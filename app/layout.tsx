@@ -308,6 +308,14 @@ export default function RootLayout({ children }: { children: any }) {
                                 <span className="modal-file-status" id="previewFileStatus"></span>
                             </div>
                             <div className="modal-header-right">
+                                <div className="modal-diff-nav" id="modalDiffNav" style={{ display: 'none', marginRight: '16px', gap: '4px', alignItems: 'center' }}>
+                                    <button className="btn-ghost btn-xs" id="diffNavPrev" title="Previous changed file (k)">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                                    </button>
+                                    <button className="btn-ghost btn-xs" id="diffNavNext" title="Next changed file (j)">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                                    </button>
+                                </div>
                                 <div className="modal-view-tabs" id="modalViewTabs">
                                     <button className="modal-tab active" data-view="full">
                                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
