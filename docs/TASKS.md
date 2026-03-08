@@ -7,7 +7,7 @@
 
 ## 🟢 Priority: Features
 - [ ] **Multi-repo workspace** — Currently one repo at a time. Support opening 2-3 repos side-by-side on the same canvas.
-- [ ] **File preview on hover** — Show a mini code preview tooltip when hovering over a file card at low zoom, without needing to double-click.
+- [x] **File preview on hover** — `file-preview.ts` shows glassmorphism tooltip at zoom < 35%: language badge, file name, directory path, first 12 lines of code. 180ms debounce, viewport-clamped positioning.
 - [ ] **Branch comparison view** — Side-by-side canvas of two branches, highlighting files that differ.
 
 ## 📝 Architecture Notes
