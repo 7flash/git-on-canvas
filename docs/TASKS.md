@@ -1,6 +1,7 @@
 # GitMaps Tasks & Ideas
 
 ## 🔴 Priority: Fix
+- [x] ~~**SVG Line Desync**~~ — ✅ DONE. Legacy SVG connection recalculations were not synced with the new `galaxydraw` virtualized layout engine. `card:move` and `card:resize` events on the `EventBus` inside `galaxydraw-bridge.ts` now properly trigger `scheduleRenderConnections(ctx)`, instantly repairing wire snapping when nodes are dragged.
 - [x] ~~**Virtualized rendering**~~ — ✅ DONE. `renderAllFilesOnCanvas` now defers cards outside the viewport. React repo (6833 files): 9 DOM cards created, 6824 deferred. ~35ms vs ~14s.
 - [x] ~~**Zoom LOD system**~~ — ✅ DONE. Below zoom 25%, cards render as lightweight colored "pill" placeholders (~3 DOM nodes vs ~100+) instead of full file cards. Throttled materialization (max 30 per frame) prevents frame drops when zooming back in. `viewport-culling.ts` manages LOD transitions.
 - [x] ~~**Rename to GitMaps**~~ — ✅ DONE. Header, title, meta, onboarding all say "GitMaps".
@@ -10,6 +11,7 @@
 - [x] ~~**Layer bar overlap**~~ — ✅ DONE. Layers bar centered at bottom, minimap at bottom-right, no overlap.
 
 ## 🟡 Priority: Improve
+- [ ] **Search Files Command Palette** — Implement a `Ctrl+P` modal capable of searching through all 6000+ internal React file strings, and jumping the canvas directly to materialize the resulting matching node.
 - [x] ~~**Dual control modes**~~ — ✅ DONE. Toggle in top toolbar: "Simple" (drag=pan, scroll=zoom) vs "Advanced" (space+drag=pan, rect select). Persists to localStorage.
 - [x] ~~**Repo persistence**~~ — ✅ DONE. Auto-loads last repo from localStorage on bare URL visit. Sets hash so URL is shareable.
 - [x] ~~**Changed Files popup**~~ — ✅ DONE. Defaults to closed. State persists to localStorage. Toggle button in header opens it manually.
@@ -18,6 +20,7 @@
 - [x] ~~**galaxydraw interactive demo**~~ — ✅ DONE. `demo/build-static.ts` generates a standalone `demo/index.html` (23.9KB, self-contained). Inlines bundled JS + CSS. Ready for GitHub Pages deployment. Run `bun run demo:build`.
 
 ## 🟢 Priority: Features  
+- [ ] **Git Diff Embed Viewer** — When double-clicking a file inside the canvas, open an expanded `DiffCardPlugin` modal natively rendering the real `git diff` payload bridging against the underlying filesystem.
 
 ### galaxydraw Migration (GitMaps)
 Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine (~400 lines).
