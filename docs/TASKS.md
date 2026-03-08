@@ -20,7 +20,7 @@
 - [x] ~~**galaxydraw interactive demo**~~ — ✅ DONE. `demo/build-static.ts` generates a standalone `demo/index.html` (23.9KB, self-contained). Inlines bundled JS + CSS. Ready for GitHub Pages deployment. Run `bun run demo:build`.
 
 ## 🟢 Priority: Features  
-- [ ] **Git Diff Embed Viewer** — When double-clicking a file inside the canvas, open an expanded `DiffCardPlugin` modal natively rendering the real `git diff` payload bridging against the underlying filesystem.
+- [x] ~~**Git Diff Embed Viewer**~~ — ✅ DONE. Overrode the `dblclick` event handler within `cards.tsx` to automatically harvest its `WeakMap` cached `file` payload and invoke the `DiffCardPlugin` modal. This allows frictionless transition from a zoomed canvas node directly into an expanded `git diff` filesystem overlay without clicking tiny icons.
 
 ### galaxydraw Migration (GitMaps)
 Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine (~400 lines).

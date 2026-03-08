@@ -226,37 +226,17 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 
     card.addEventListener('mousedown', onMouseDown);
 
-    // ── Double-click to zoom-to-fit card in viewport ──
+    // ── Double-click to open file embed viewer modal ──
     card.addEventListener('dblclick', (e) => {
         // Don't trigger on buttons
         if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
         e.preventDefault();
         e.stopPropagation();
 
-        const vpRect = ctx.canvasViewport.getBoundingClientRect();
-        const cardX = parseFloat(card.style.left) || 0;
-        const cardY = parseFloat(card.style.top) || 0;
-        const cardW = card.offsetWidth;
-        const cardH = card.offsetHeight;
-
-        // Calculate zoom to fit the card with some padding
-        const padding = 60;
-        const zoomX = (vpRect.width - padding * 2) / cardW;
-        const zoomY = (vpRect.height - padding * 2) / cardH;
-        const newZoom = Math.min(Math.max(0.3, Math.min(zoomX, zoomY)), 2);
-
-        // Center card in viewport
-        const newOffsetX = -(cardX + cardW / 2) * newZoom + vpRect.width / 2;
-        const newOffsetY = -(cardY + cardH / 2) * newZoom + vpRect.height / 2;
-
-        ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
-        ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
-        updateCanvasTransform(ctx);
-        updateZoomUI(ctx);
-        updateMinimap(ctx);
-
-        card.classList.add('card-flash');
-        setTimeout(() => card.classList.remove('card-flash'), 1500);
+        const file = cardFileData.get(card);
+        if (file) {
+            openFileModal(ctx, file);
+        }
     });
 
     // ── Right-click context menu ──
@@ -770,6 +750,8 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
         </>,
         card
     );
+
+    cardFileData.set(card, file);
 
     // When managed by CardManager, skip legacy drag/resize/z-order setup
     if (!skipInteraction) {
