@@ -1035,10 +1035,14 @@ export function openFileModal(ctx: CanvasContext, file: any) {
     const rendered = { full: '', diff: '' };
     // Default to diff view for changed files, full view for unchanged
     let currentView = hasDiff ? 'diff' : 'full';
+    let onNavKey: ((e: KeyboardEvent) => void) | null = null;
 
     function closeModal() {
+        if (!modal) return;
         modal.classList.remove('active');
         document.removeEventListener('keydown', onEsc);
+        if (onNavKey) document.removeEventListener('keydown', onNavKey);
+
         if (tabsEl) {
             tabsEl.querySelectorAll('.modal-tab').forEach(t => {
                 t.replaceWith(t.cloneNode(true));
@@ -1046,13 +1050,61 @@ export function openFileModal(ctx: CanvasContext, file: any) {
         }
     }
 
-    function onEsc(e) {
+    function onEsc(e: KeyboardEvent) {
         if (e.key === 'Escape') closeModal();
     }
 
     document.addEventListener('keydown', onEsc);
     document.getElementById('closePreview')?.addEventListener('click', closeModal, { once: true });
     modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal, { once: true });
+
+    // Diff navigation setup
+    const changedFiles = (ctx.allFilesData || []).filter(f => f.status);
+    const navEl = document.getElementById('modalDiffNav');
+
+    if (navEl && changedFiles.length > 1) {
+        navEl.style.display = 'flex';
+        const currentIndex = changedFiles.findIndex(f => f.path === file.path);
+
+        const prevBtn = document.getElementById('diffNavPrev');
+        const nextBtn = document.getElementById('diffNavNext');
+
+        if (prevBtn && nextBtn) {
+            const newPrev = prevBtn.cloneNode(true) as HTMLElement;
+            const newNext = nextBtn.cloneNode(true) as HTMLElement;
+            prevBtn.replaceWith(newPrev);
+            nextBtn.replaceWith(newNext);
+
+            const handlePrev = () => {
+                const targetIdx = currentIndex > 0 ? currentIndex - 1 : changedFiles.length - 1;
+                closeModal();
+                setTimeout(() => openFileModal(ctx, changedFiles[targetIdx]), 50);
+            };
+
+            const handleNext = () => {
+                const targetIdx = currentIndex < changedFiles.length - 1 ? currentIndex + 1 : 0;
+                closeModal();
+                setTimeout(() => openFileModal(ctx, changedFiles[targetIdx]), 50);
+            };
+
+            newPrev.addEventListener('click', handlePrev);
+            newNext.addEventListener('click', handleNext);
+
+            onNavKey = (e: KeyboardEvent) => {
+                if (modal!.classList.contains('active') && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+                    if (e.key === 'j') handleNext();
+                    if (e.key === 'k') handlePrev();
+                }
+            };
+            document.addEventListener('keydown', onNavKey);
+        }
+    } else if (navEl) {
+        navEl.style.display = 'none';
+        const prevBtn = document.getElementById('diffNavPrev');
+        const nextBtn = document.getElementById('diffNavNext');
+        if (prevBtn) prevBtn.replaceWith(prevBtn.cloneNode(true));
+        if (nextBtn) nextBtn.replaceWith(nextBtn.cloneNode(true));
+    }
 
     if (tabsEl) {
         const tabs = tabsEl.querySelectorAll('.modal-tab');
