@@ -1067,12 +1067,51 @@ function openFileSearch(ctx: CanvasContext) {
 
     function highlightMatch(text: string, q: string): string {
         if (!q) return escapeHtml(text);
-        const lp = text.toLowerCase();
-        const idx = lp.indexOf(q);
-        if (idx < 0) return escapeHtml(text);
-        return escapeHtml(text.substring(0, idx)) +
-            '<mark>' + escapeHtml(text.substring(idx, idx + q.length)) + '</mark>' +
-            escapeHtml(text.substring(idx + q.length));
+        const lowText = text.toLowerCase();
+        q = q.toLowerCase();
+
+        const exactIdx = lowText.indexOf(q);
+        if (exactIdx >= 0) {
+            return escapeHtml(text.substring(0, exactIdx)) +
+                '<mark>' + escapeHtml(text.substring(exactIdx, exactIdx + q.length)) + '</mark>' +
+                escapeHtml(text.substring(exactIdx + q.length));
+        }
+
+        let qIdx = 0;
+        let result = '';
+        for (let i = 0; i < text.length; i++) {
+            if (qIdx < q.length && lowText[i] === q[qIdx]) {
+                result += '<mark>' + escapeHtml(text[i]) + '</mark>';
+                qIdx++;
+            } else {
+                result += escapeHtml(text[i]);
+            }
+        }
+        return result;
+    }
+
+    function fuzzyScore(str: string, query: string): number {
+        const strictIdx = str.toLowerCase().indexOf(query);
+        if (strictIdx >= 0) return 1000 - strictIdx; // Exact matches are highly ranked
+
+        let qIdx = 0;
+        let sIdx = 0;
+        let score = 0;
+        let streak = 0;
+        const lowStr = str.toLowerCase();
+
+        while (sIdx < lowStr.length && qIdx < query.length) {
+            if (lowStr[sIdx] === query[qIdx]) {
+                score += 1 + (streak * 2);
+                streak++;
+                qIdx++;
+            } else {
+                streak = 0;
+            }
+            sIdx++;
+        }
+
+        return qIdx === query.length ? score : -Infinity;
     }
 
     function getMatches(): SearchMatch[] {
@@ -1090,35 +1129,44 @@ function openFileSearch(ctx: CanvasContext) {
             return files.slice(0, 15).map(f => ({ path: f.path, isContentMatch: false }));
         }
 
-        const results: SearchMatch[] = [];
+        const rawResults: { match: SearchMatch, score: number }[] = [];
+        let itemsScanned = 0;
 
         for (const f of files) {
-            if (results.length >= 50) break; // Hard limit to avoid freeze
+            if (itemsScanned > 5000) break; // Prevent deep-stall on massive repos
 
             // Path match check
-            if (f.path.toLowerCase().includes(actualQuery)) {
-                results.push({ path: f.path, isContentMatch: false });
+            const pathScore = fuzzyScore(f.path, actualQuery);
+            if (pathScore > -Infinity) {
+                rawResults.push({ match: { path: f.path, isContentMatch: false }, score: pathScore + 500 }); // Bonus for path
             }
+            itemsScanned++;
 
             // Content match check
             if (!pathOnlySearch && f.content) {
                 const lines = f.content.split('\n');
                 for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].toLowerCase().includes(actualQuery)) {
-                        results.push({
-                            path: f.path,
-                            line: i + 1,
-                            snippet: lines[i].trim().substring(0, 100), // Max 100 chars in preview
-                            isContentMatch: true
+                    const lineScore = fuzzyScore(lines[i], actualQuery);
+                    if (lineScore > -Infinity) {
+                        rawResults.push({
+                            match: {
+                                path: f.path,
+                                line: i + 1,
+                                snippet: lines[i].trim().substring(0, 100), // Max 100 chars in preview
+                                isContentMatch: true
+                            },
+                            score: lineScore
                         });
-                        if (results.length >= 50) break;
+                        itemsScanned++;
+                        if (rawResults.length > 500) break; // Hard limit pool
                     }
                 }
             }
         }
 
-        // Return top 15 matches to keep UI snappy
-        return results.slice(0, 15);
+        // Sort by score descending and return top 15
+        rawResults.sort((a, b) => b.score - a.score);
+        return rawResults.slice(0, 15).map(r => r.match);
     }
 
     function handleKeydown(e: KeyboardEvent) {

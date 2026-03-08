@@ -22,7 +22,7 @@
 ## 🟢 Priority: Features  
 - [x] ~~**Git Diff Embed Viewer**~~ — ✅ DONE. Overrode the `dblclick` event handler within `cards.tsx` to automatically harvest its `WeakMap` cached `file` payload and invoke the `DiffCardPlugin` modal. This allows frictionless transition from a zoomed canvas node directly into an expanded `git diff` filesystem overlay without clicking tiny icons.
 - [ ] **Diff Header Action Bar** — Integrate a dedicated control layer at the top of the `DiffCardPlugin` to allow jumping to next/previous git diff files dynamically without exiting the modal.
-- [ ] **Command Palette Fuzzy Search** — The `Ctrl+P` native Command Palette modal currently does strict substring checking. Enhance its matching algorithm to support robust fuzzy-searching the entire repository for better resilience against typoes.
+- [x] ~~**Command Palette Fuzzy Search**~~ — ✅ DONE. Upgraded the `getMatches` subroutine of the `Ctrl+P` native Command Palette modal to use an implicit subsequence match `fuzzyScore` algorithm rather than strict strict `String.includes()`. Included a custom `highlightMatch` parser that correctly breaks and isolates `<mark>` injection per-character. To prevent deep-stalls on massive repositories (like react's 6800 files), internal limits bound the search space lazily.
 
 ### galaxydraw Migration (GitMaps)
 Replace custom `canvas.ts` / `events.tsx` (2000+ lines) with `galaxydraw` engine (~400 lines).
