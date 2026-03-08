@@ -178,6 +178,8 @@ export function panToWorld(
  * - Selection (single, multi)
  * - Deferred rendering (virtualization)
  */
+import { scheduleRenderConnections } from './connections';
+
 export function initCardManager(ctx: CanvasContext): CardManager | null {
     if (!_gdState || !ctx.canvas) {
         console.warn('[galaxydraw-bridge] Cannot init CardManager: state or canvas not ready');
@@ -202,11 +204,13 @@ export function initCardManager(ctx: CanvasContext): CardManager | null {
     _eventBus.on('card:move', (ev) => {
         const { id, x, y } = ev;
         ctx.actor.send({ type: 'SAVE_POSITION', path: id, x, y });
+        scheduleRenderConnections(ctx);
     });
 
     _eventBus.on('card:resize', (ev) => {
         const { id, width, height } = ev;
         ctx.actor.send({ type: 'RESIZE_CARD', path: id, width, height });
+        scheduleRenderConnections(ctx);
     });
 
     console.log('[galaxydraw-bridge] CardManager initialized with file + diff plugins');
