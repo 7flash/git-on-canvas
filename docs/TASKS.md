@@ -14,7 +14,7 @@
 - [x] ~~**Repo persistence**~~ — ✅ DONE. Auto-loads last repo from localStorage on bare URL visit. Sets hash so URL is shareable.
 - [x] ~~**Changed Files popup**~~ — ✅ DONE. Defaults to closed. State persists to localStorage. Toggle button in header opens it manually.
 - [x] ~~**galaxydraw README polish**~~ — ✅ DONE. Banner image, centered badges (version/downloads/license), constructor options table, CardPlugin interface table, event bus reference table with all 8 events, output comments on every code example.
-- [ ] **galaxydraw npm publish** — Bump to `0.2.0` and publish. Current `0.1.0` was initial release. README is now polished. Blocked: npm token needs re-auth (`npm login`).
+- [x] ~~**galaxydraw npm publish**~~ — ✅ DONE. Bumped to `0.2.0` and successfully published securely over NPM.
 - [x] ~~**galaxydraw interactive demo**~~ — ✅ DONE. `demo/build-static.ts` generates a standalone `demo/index.html` (23.9KB, self-contained). Inlines bundled JS + CSS. Ready for GitHub Pages deployment. Run `bun run demo:build`.
 
 ## 🟢 Priority: Features  
