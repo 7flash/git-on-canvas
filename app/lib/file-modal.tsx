@@ -8,6 +8,7 @@ import type { CanvasContext } from './context';
 import { escapeHtml } from './utils';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { openFileChatInModal } from './chat';
+import { addClickableImports } from './goto-definition';
 
 // ─── File expand modal ──────────────────────────────────
 export function openFileModal(ctx: CanvasContext, file: any) {
@@ -371,6 +372,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                         contentEl.innerHTML = rendered.diff;
                     } else if (view === 'full' && rendered.full) {
                         contentEl.innerHTML = rendered.full;
+                        addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
                     }
                 }
             });
@@ -427,6 +429,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
             if (currentView === 'full') {
                 contentEl.innerHTML = rendered.full;
+                addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
             }
 
         } catch (err) {
@@ -437,6 +440,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 rendered.full_raw = file.content;
                 if (currentView === 'full') {
                     contentEl.innerHTML = rendered.full;
+                    addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
                 }
             } else {
                 contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${escapeHtml(err.message)}</span>`;
