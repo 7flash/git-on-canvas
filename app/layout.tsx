@@ -202,7 +202,7 @@ export default function RootLayout({ children }: { children: any }) {
                                         <line x1="12" y1="4" x2="12" y2="20" />
                                     </svg>
                                 </button>
-                                <button id="autoDetectImports" className="btn-ghost btn-sm" title="Auto-detect import connections" style={{ display: 'none' }}>
+                                <button id="autoDetectImports" className="btn-ghost btn-sm" title="Auto-detect import connections">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4" />
                                         <path d="M14 9l2 2-2 2" />
