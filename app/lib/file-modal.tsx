@@ -47,8 +47,20 @@ export function openFileModal(ctx: CanvasContext, file: any) {
     let onNavKey: ((e: KeyboardEvent) => void) | null = null;
     let originalContent = file.content || '';
 
-    function closeModal() {
+    function hasUnsavedChanges(): boolean {
+        if (currentView !== 'edit') return false;
+        const textarea = document.getElementById('modalEditTextarea') as HTMLTextAreaElement;
+        return textarea ? textarea.value !== originalContent : false;
+    }
+
+    function closeModal(force = false) {
         if (!modal) return;
+
+        // Warn about unsaved changes
+        if (!force && hasUnsavedChanges()) {
+            if (!confirm('You have unsaved changes. Discard them?')) return;
+        }
+
         modal.classList.remove('active');
         document.removeEventListener('keydown', onEsc);
         if (onNavKey) document.removeEventListener('keydown', onNavKey);
@@ -137,6 +149,11 @@ export function openFileModal(ctx: CanvasContext, file: any) {
             tab.addEventListener('click', () => {
                 const view = tab.dataset.view;
                 if (view === currentView) return;
+
+                // Warn when leaving edit mode with unsaved changes
+                if (currentView === 'edit' && hasUnsavedChanges()) {
+                    if (!confirm('You have unsaved changes. Discard them?')) return;
+                }
                 currentView = view;
                 tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
 
