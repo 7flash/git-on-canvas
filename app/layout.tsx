@@ -54,6 +54,7 @@ export default function RootLayout({ children }: { children: any }) {
                             </button>
                         </div>
 
+                        <div id="repoTabs" style={{ display: 'none', gap: '6px', padding: '0 12px 8px', flexWrap: 'wrap' }}></div>
 
                         <div className="commit-timeline" id="commitTimeline">
                             <div className="section-header">

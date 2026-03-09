@@ -15,6 +15,7 @@ import { createFileCard, createAllFileCard, debounceSaveScroll, expandCardByPath
 import { getActiveLayer } from './layers';
 import { renderConnections, buildConnectionMarkers } from './connections';
 import { renderAllFilesViaCardManager, materializeViewport } from './galaxydraw-bridge';
+import { registerRepo, renderRepoTabs, getNextRepoOffset, isMultiRepoLoad, getLoadedRepos } from './multi-repo';
 
 // Shared: reference to ctx for changed-files panel navigation
 let _panelCtx: CanvasContext | null = null;
@@ -99,6 +100,10 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             renderCommitTimeline(ctx);
 
             showToast(`Loaded ${data.commits.length} commits`, 'success');
+
+            // Register in multi-repo workspace
+            registerRepo(ctx, repoPath, data.commits, ctx.allFilesData || []);
+            renderRepoTabs(ctx);
 
             // Trigger onboarding for first-time users
             if (!localStorage.getItem('gitcanvas:onboarded')) {
@@ -465,8 +470,12 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
 // Remaining cards are deferred and materialized on-demand by viewport culling.
 export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
     measure('canvas:renderAllFiles', () => {
-        clearCanvas(ctx);
-        ctx.deferredCards.clear();
+        // In multi-repo mode, don't clear canvas if adding a second repo
+        const isAdditionalRepo = isMultiRepoLoad();
+        if (!isAdditionalRepo) {
+            clearCanvas(ctx);
+            ctx.deferredCards.clear();
+        }
 
         // ── Phase 4c: Try CardManager path first ──
         const handled = renderAllFilesViaCardManager(ctx, files);
@@ -527,6 +536,10 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         // Cache XState state once outside the loop — avoids N snapshots for N files
         const cachedCardSizes = ctx.snap().context.cardSizes || {};
 
+        // Multi-repo: offset grid origin to the right of existing repos
+        const gridOriginX = isAdditionalRepo ? getNextRepoOffset() : 50;
+        const gridOriginY = 50;
+
         layerFiles.forEach((f, index) => {
             const isChanged = ctx.changedFilePaths.has(f.path);
             const posKey = `allfiles:${f.path}`;
@@ -538,8 +551,8 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
             } else {
                 const col = index % cols;
                 const row = Math.floor(index / cols);
-                x = 50 + col * cellW;
-                y = 50 + row * cellH;
+                x = gridOriginX + col * cellW;
+                y = gridOriginY + row * cellH;
             }
 
             // Get saved size (from cached snapshot — no per-file ctx.snap() call)
