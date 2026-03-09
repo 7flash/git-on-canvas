@@ -1,0 +1,40 @@
+# Caddyfile for gitmaps.xyz
+#
+# Caddy handles:
+# - Automatic HTTPS (Let's Encrypt)
+# - Reverse proxy to GitMaps on port 3335
+# - WebSocket upgrade for real-time features
+# - Gzip compression
+# - Security headers
+#
+# Deploy:
+#   1. Install Caddy on your server
+#   2. Copy this file to /etc/caddy/Caddyfile
+#   3. sudo systemctl reload caddy
+#
+# Or run standalone:
+#   caddy run --config Caddyfile
+
+gitmaps.xyz {
+    reverse_proxy localhost:3335 {
+        # WebSocket support
+        header_up Connection {>Connection}
+        header_up Upgrade {>Upgrade}
+    }
+
+    # Compression
+    encode gzip zstd
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
+
+# Redirect www to apex
+www.gitmaps.xyz {
+    redir https://gitmaps.xyz{uri} permanent
+}
