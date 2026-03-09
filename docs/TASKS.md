@@ -2,7 +2,7 @@
 
 ## 🔴 Priority: Fix
 - [x] ~~**WARMAPS zoom propagation**~~ — ✅ Already fixed in starwar repo (engine checks `[data-card-type]` + `consumesWheel`).
-- [ ] **Canvas mode missing scrollbar** — Text rendering mode (canvas) has no scrollbar in the card body.
+- [x] ~~**Canvas mode missing scrollbar**~~ — ✅ Fixed: sticky canvas positioning, absolute scroll shim, scrollbar CSS for `.canvas-container`.
 - [x] ~~**Multi-file drag broken**~~ — ✅ CardManager syncs selected cards; multi-drag works.
 - [x] ~~**Commit graph HTML entity encoding**~~ — ✅ Removed double-escaping.
 - [x] ~~**Card duplication on scroll**~~ — ✅ `materializeViewport` now removes from `ctx.deferredCards` to prevent viewport-culling duplication.
