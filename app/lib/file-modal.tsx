@@ -12,6 +12,7 @@ import { addClickableImports } from './goto-definition';
 import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prevTab, onTabChange, onTabCloseRequest, setActiveTab, type FileTab } from './file-tabs';
 import { renderBreadcrumbs } from './breadcrumbs';
 import { renderSymbolOutline } from './symbol-outline';
+import { loadDraft, clearDraft, startAutoSave, stopAutoSave } from './auto-save';
 
 // ─── File expand modal ──────────────────────────────────
 export function openFileModal(ctx: CanvasContext, file: any, initialView?: string) {
@@ -75,6 +76,9 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
         modal.classList.remove('active');
         document.removeEventListener('keydown', onEsc);
         if (onNavKey) document.removeEventListener('keydown', onNavKey);
+
+        // Stop auto-save timer
+        stopAutoSave();
 
         // Clear all tabs
         clearTabs();
@@ -360,8 +364,19 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
         const saveBtn = document.getElementById('editSaveBtn');
 
         // Load current content
-        const editContent = rendered.full_raw || file.content || '';
+        let editContent = rendered.full_raw || file.content || '';
         originalContent = editContent;
+
+        // Check for auto-saved draft
+        const repoPath = ctx.snap().context.repoPath;
+        let restoredDraft = false;
+        if (repoPath && file.path) {
+            const draft = loadDraft(repoPath, file.path);
+            if (draft && draft.content !== editContent && draft.originalContent === editContent) {
+                editContent = draft.content;
+                restoredDraft = true;
+            }
+        }
 
         // Hide textarea (CodeMirror replaces it)
         if (textarea) textarea.style.display = 'none';
@@ -405,6 +420,24 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
             // Store editor reference for content access
             (editContainer as any)._cmEditor = editor;
             editor.focus();
+
+            // Show draft restored notification
+            if (restoredDraft && saveStatus) {
+                saveStatus.style.display = '';
+                saveStatus.innerHTML = '⟳ Draft restored <button id="discardDraft" style="margin-left:8px;background:none;border:1px solid rgba(239,68,68,0.4);color:#ef4444;border-radius:4px;padding:1px 8px;cursor:pointer;font-size:11px">Discard</button>';
+                saveStatus.className = 'modal-save-status modified';
+                const discardBtn = document.getElementById('discardDraft');
+                discardBtn?.addEventListener('click', () => {
+                    if (repoPath && file.path) clearDraft(repoPath, file.path);
+                    editor.setContent(originalContent);
+                    saveStatus.style.display = 'none';
+                });
+            }
+
+            // Start auto-save for this editor session
+            if (repoPath && file.path) {
+                startAutoSave(repoPath, file.path, () => editor.getContent(), originalContent);
+            }
         });
 
         // Save handler
@@ -441,6 +474,9 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
                     const ext = file.name?.split('.').pop()?.toLowerCase() || '';
                     rendered.full = highlightSyntax(content, ext);
                     rendered.full_raw = content;
+
+                    // Clear auto-save draft since we saved to disk
+                    if (repoPath && file.path) clearDraft(repoPath, file.path);
 
                     // Show commit section after save
                     const commitSection = document.getElementById('editCommitSection');

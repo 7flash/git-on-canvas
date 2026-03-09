@@ -669,6 +669,9 @@ export function setupEventListeners(ctx: CanvasContext) {
         // Apply saved settings on startup
         import('./settings-modal').then(({ applyAllSettings }) => applyAllSettings(ctx));
 
+        // Clean up expired auto-save drafts
+        import('./auto-save').then(({ cleanExpiredDrafts }) => cleanExpiredDrafts());
+
         // ── Keyboard shortcuts ──
         window.addEventListener('keydown', (e) => {
             // Space-bar canvas panning
