@@ -82,12 +82,15 @@ export async function POST(req: Request) {
             ]);
 
             if (!nameStatus.trim()) {
+                // Still fetch branches even when no diff
+                const branchSummary = await git.branchLocal();
                 return Response.json({
                     files: [],
                     totalChanged: 0,
                     base,
                     compare,
                     mergeBase: base,
+                    branches: branchSummary.all,
                 });
             }
 

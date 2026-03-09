@@ -671,6 +671,11 @@ export function setupEventListeners(ctx: CanvasContext) {
             import('./global-search').then(({ toggleGlobalSearch }) => toggleGlobalSearch(ctx));
         });
 
+        // Branch comparison
+        document.getElementById('openBranchCompare')?.addEventListener('click', () => {
+            import('./branch-compare').then(({ toggleDrawer }) => toggleDrawer(ctx));
+        });
+
         // Apply saved settings on startup
         import('./settings-modal').then(({ applyAllSettings }) => applyAllSettings(ctx));
 

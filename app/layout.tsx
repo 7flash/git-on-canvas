@@ -234,6 +234,13 @@ export default function RootLayout({ children }: { children: any }) {
                                         <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
                                 </button>
+                                <button id="openBranchCompare" className="btn-ghost btn-sm" title="Compare Branches">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" />
+                                        <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+                                        <path d="M6 9v12" />
+                                    </svg>
+                                </button>
                                 <button id="openSettings" className="btn-ghost btn-sm" title="Settings">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="12" cy="12" r="3" />

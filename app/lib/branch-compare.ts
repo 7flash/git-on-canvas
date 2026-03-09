@@ -74,7 +74,7 @@ function ensureDrawer(): HTMLElement {
     return _drawer;
 }
 
-function toggleDrawer(ctx: CanvasContext) {
+export function toggleDrawer(ctx: CanvasContext) {
     const drawer = ensureDrawer();
     _isOpen = !_isOpen;
 
