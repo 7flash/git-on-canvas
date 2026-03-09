@@ -32,6 +32,11 @@
 - [x] ~~**File editing: git integration**~~ — ✅ DONE. After saving, inline commit section slides in with pre-filled message, POST /api/repo/git-commit stages + commits, shows commit hash.
 - [x] ~~**File editing: unsaved changes warning**~~ — ✅ DONE. Confirm dialog when closing modal or switching tabs with unsaved edits.
 - [x] ~~**File editing: create new file**~~ — ✅ DONE. Ctrl+N opens dialog. Smart templates per extension. Auto-creates dirs and opens in edit mode.
+- [ ] **File operations: delete file** — Add "Delete File" to context menu. Confirmation dialog, POST to new `/api/repo/file-delete` endpoint, remove card from canvas, auto git-commit option.
+- [ ] **File operations: rename/move** — Add "Rename" to context menu. Inline rename input, `git mv` via API, update card path + position mapping.
+- [ ] **Go-to-definition** — Ctrl+Click or F12 on imports/symbols in preview mode. Parse `import` statements, resolve to file card, navigate + highlight the target definition.
+- [ ] **Code minimap in editor** — Add a minimap scrollbar to the CodeMirror editor for large files, using `@codemirror/view` extensions.
+- [ ] **Multi-tab editor** — Allow opening multiple files in tabs within the modal. Tab bar with close buttons, Ctrl+Tab to switch, remember open tabs per session.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.

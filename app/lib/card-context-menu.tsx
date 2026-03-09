@@ -63,6 +63,7 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
             )}
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('hide')} style="color: #f59e0b">🙈 Hide file</button>
+            <button className="ctx-item" onClick={() => onAction('delete')} style="color: #ef4444">🗑️ Delete file</button>
         </>
     );
 }
@@ -112,6 +113,8 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
             _fitScreenSize(ctx);
         } else if (action === 'history') {
             showFileHistory(ctx, filePath);
+        } else if (action === 'delete') {
+            deleteFile(ctx, filePath, card);
         }
     }
 
@@ -215,5 +218,68 @@ export async function showFileHistory(ctx: CanvasContext, filePath: string) {
         render(<FileHistoryContent fileName={fileName} commits={data.commits} loading={false} onClose={closePanel} onSelect={selectCommitHash} />, panel);
     } catch (err) {
         render(<FileHistoryContent fileName={fileName} commits={[]} error={err.message} loading={false} onClose={closePanel} onSelect={selectCommitHash} />, panel);
+    }
+}
+
+// ─── Delete file ────────────────────────────────────
+async function deleteFile(ctx: CanvasContext, filePath: string, card: HTMLElement) {
+    const fileName = filePath.split('/').pop() || filePath;
+    const state = ctx.snap().context;
+    if (!state.repoPath) {
+        showToast('No repository loaded', 'error');
+        return;
+    }
+
+    // Show confirmation dialog
+    const confirmed = window.confirm(
+        `Delete "${fileName}"?\n\nPath: ${filePath}\n\nThis will permanently delete the file from disk.`
+    );
+    if (!confirmed) return;
+
+    // Ask if they want git rm
+    const useGitRm = window.confirm(
+        `Stage deletion with git?\n\nClick OK to use "git rm" (stages for commit).\nClick Cancel to just delete the file.`
+    );
+
+    try {
+        const res = await fetch('/api/repo/file-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                path: state.repoPath,
+                filePath,
+                gitRm: useGitRm,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.text();
+            showToast(`Delete failed: ${err}`, 'error');
+            return;
+        }
+
+        // Remove card from DOM and data structures
+        card.remove();
+        ctx.fileCards.delete(filePath);
+        ctx.positions.delete(filePath);
+        if (ctx.deferredCards) ctx.deferredCards.delete(filePath);
+
+        // Deselect if selected
+        const selected = ctx.snap().context.selectedCards;
+        if (selected.includes(filePath)) {
+            ctx.actor.send({ type: 'DESELECT_ALL' });
+        }
+
+        // Remove from hidden files set if there
+        ctx.hiddenFiles.delete(filePath);
+
+        // Remove from allFilesData if present
+        if (ctx.allFilesData) {
+            ctx.allFilesData = ctx.allFilesData.filter(f => f.path !== filePath);
+        }
+
+        showToast(`Deleted ${fileName}${useGitRm ? ' (staged)' : ''}`, 'success');
+    } catch (err: any) {
+        showToast(`Delete error: ${err.message}`, 'error');
     }
 }
