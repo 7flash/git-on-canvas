@@ -10,7 +10,7 @@
 - [x] **"Press F" label removed** — Replaced with "double-click to zoom" since F-key expand is no longer primary.
 
 ## 🟢 Priority: Features
-- [ ] **Multi-repo workspace** — Currently one repo at a time. Support opening 2-3 repos side-by-side on the same canvas.
+- [x] ~~**Multi-repo workspace**~~ — ✅ DONE. `multi-repo.ts` supports 2-3 repos side-by-side. Additional repos auto-offset 800px right. Sidebar tabs switch commit timeline between repos. Zone labels (floating world-space badges with color dots) identify each repo's area. Color-coded: purple, blue, emerald, amber, red.
 - [x] **File preview on hover** — `file-preview.ts` shows glassmorphism tooltip at zoom < 35%: language badge, file name, directory path, first 12 lines of code. 180ms debounce, viewport-clamped positioning.
 - [x] ~~**Branch comparison view**~~ — ✅ ALREADY DONE. `branch-compare.ts` has full glassmorphism drawer with base/compare branch pickers, swap button, summary with status badges, and renders diff cards on canvas. Wired up via `initBranchCompare(ctx)` in `page.client.tsx`.
 - [x] ~~**GitHub import modal enhancement**~~ — ✅ DONE. Removed sidebar clone URL field. Modal now supports: (1) URL detection — paste a GitHub URL and it shows repo name + instant Clone & Open button, (2) username/org search with profile display, (3) live repo filter input to search within loaded results by name/description. Enter on URL auto-clones, Enter on username auto-searches.
