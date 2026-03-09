@@ -33,7 +33,7 @@
 - [x] ~~**File editing: unsaved changes warning**~~ — ✅ DONE. Confirm dialog when closing modal or switching tabs with unsaved edits.
 - [x] ~~**File editing: create new file**~~ — ✅ DONE. Ctrl+N opens dialog. Smart templates per extension. Auto-creates dirs and opens in edit mode.
 - [x] ~~**File operations: delete file**~~ — ✅ DONE. Context menu "🗑️ Delete file" with confirmation dialogs. POST /api/repo/file-delete with optional git rm. Auto-cleans empty dirs. Removes card from canvas.
-- [ ] **File operations: rename/move** — Add "Rename" to context menu. Inline rename input, `git mv` via API, update card path + position mapping.
+- [x] ~~**File operations: rename/move**~~ — ✅ DONE. Context menu "✏️ Rename / Move" with prompt. POST /api/repo/file-rename uses git mv (preserves history) with fs.rename fallback. Re-keys all internal maps.
 - [ ] **Go-to-definition** — Ctrl+Click or F12 on imports/symbols in preview mode. Parse `import` statements, resolve to file card, navigate + highlight the target definition.
 - [ ] **Code minimap in editor** — Add a minimap scrollbar to the CodeMirror editor for large files, using `@codemirror/view` extensions.
 - [ ] **Multi-tab editor** — Allow opening multiple files in tabs within the modal. Tab bar with close buttons, Ctrl+Tab to switch, remember open tabs per session.
