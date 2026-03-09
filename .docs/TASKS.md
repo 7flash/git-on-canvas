@@ -36,7 +36,10 @@
 - [x] ~~**File operations: rename/move**~~ — ✅ DONE. Context menu "✏️ Rename / Move" with prompt. POST /api/repo/file-rename uses git mv (preserves history) with fs.rename fallback. Re-keys all internal maps.
 - [x] ~~**Go-to-definition**~~ — ✅ DONE. Import paths in Full view are clickable (dashed underline). Click navigates to target file's card on canvas with green pulse highlight. Resolves relative paths with extension/index fallbacks. Ctrl+Click also works.
 - [ ] **Code minimap in editor** — Add a minimap scrollbar to the CodeMirror editor for large files, using `@codemirror/view` extensions.
-- [ ] **Multi-tab editor** — Allow opening multiple files in tabs within the modal. Tab bar with close buttons, Ctrl+Tab to switch, remember open tabs per session.
+- [x] ~~**Multi-tab editor**~~ — ✅ DONE. Tab bar with file icons, names, close buttons. Ctrl+Tab/Ctrl+Shift+Tab cycling, middle-click close, scroll position per tab. Go-to-definition opens as new tab.
+- [ ] **File breadcrumb navigation** — Show directory path as clickable breadcrumbs in modal header. Click a directory to filter/show sibling files.
+- [ ] **Git blame view** — Add a "Blame" tab to the modal showing per-line author/date/commit using `git blame` API.
+- [ ] **File diff between tabs** — Select two open tabs and diff them side-by-side.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.
