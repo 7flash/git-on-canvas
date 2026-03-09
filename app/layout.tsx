@@ -321,12 +321,36 @@ export default function RootLayout({ children }: { children: any }) {
                                         </svg>
                                         AI Chat
                                     </button>
+                                    <button className="modal-tab" data-view="edit">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                        Edit
+                                    </button>
                                 </div>
+                                <span className="modal-save-status" id="modalSaveStatus" style={{ display: 'none' }}></span>
                                 <button className="modal-close" id="closePreview">&times;</button>
                             </div>
                         </div>
                         <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
                         <div className="modal-chat-container" id="modalChatContainer" style={{ display: 'none' }}></div>
+                        <div className="modal-edit-container" id="modalEditContainer" style={{ display: 'none' }}>
+                            <textarea id="modalEditTextarea" className="modal-edit-textarea" spellCheck={false} autoComplete="off"></textarea>
+                            <div className="modal-edit-toolbar" id="modalEditToolbar">
+                                <span className="edit-line-info" id="editLineInfo">Line 1, Col 1</span>
+                                <div className="edit-toolbar-right">
+                                    <button className="btn-ghost btn-sm edit-save-btn" id="editSaveBtn" title="Save (Ctrl+S)">
+                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                                            <polyline points="17 21 17 13 7 13 7 21" />
+                                            <polyline points="7 3 7 8 15 8" />
+                                        </svg>
+                                        Save
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

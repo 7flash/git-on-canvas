@@ -41,16 +41,23 @@ export function openFileModal(ctx: CanvasContext, file: any) {
     }
 
     const hasDiff = !!(file.status && (file.hunks?.length > 0 || file.content));
-    const rendered = { full: '', diff: '' };
+    const rendered = { full: '', diff: '', full_raw: '' };
     // Default to diff view for changed files, full view for unchanged
     let currentView = hasDiff ? 'diff' : 'full';
     let onNavKey: ((e: KeyboardEvent) => void) | null = null;
+    let originalContent = file.content || '';
 
     function closeModal() {
         if (!modal) return;
         modal.classList.remove('active');
         document.removeEventListener('keydown', onEsc);
         if (onNavKey) document.removeEventListener('keydown', onNavKey);
+
+        // Reset edit state
+        const editContainer = document.getElementById('modalEditContainer');
+        const saveStatus = document.getElementById('modalSaveStatus');
+        if (editContainer) editContainer.style.display = 'none';
+        if (saveStatus) { saveStatus.style.display = 'none'; saveStatus.className = 'modal-save-status'; }
 
         if (tabsEl) {
             tabsEl.querySelectorAll('.modal-tab').forEach(t => {
@@ -133,12 +140,15 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
                 const modalPre = document.getElementById('modalBodyPre');
                 const chatContainer = document.getElementById('modalChatContainer');
+                const editContainer = document.getElementById('modalEditContainer');
+                const saveStatus = document.getElementById('modalSaveStatus');
 
                 if (view === 'chat') {
-                    // Show chat, hide code
+                    // Show chat, hide code + edit
                     if (modalPre) modalPre.style.display = 'none';
                     if (chatContainer) chatContainer.style.display = 'flex';
-                    // Build diff text for context
+                    if (editContainer) editContainer.style.display = 'none';
+                    if (saveStatus) saveStatus.style.display = 'none';
                     let diffText = '';
                     if (file.hunks) {
                         diffText = file.hunks.map(h => {
@@ -149,10 +159,123 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                         }).join('\n');
                     }
                     openFileChatInModal(file.path, file.content || '', file.status || '', diffText);
+                } else if (view === 'edit') {
+                    // Show edit mode
+                    if (modalPre) modalPre.style.display = 'none';
+                    if (chatContainer) chatContainer.style.display = 'none';
+                    if (editContainer) editContainer.style.display = 'flex';
+                    if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = ''; saveStatus.className = 'modal-save-status'; }
+
+                    const textarea = document.getElementById('modalEditTextarea') as HTMLTextAreaElement;
+                    const lineInfo = document.getElementById('editLineInfo');
+                    const saveBtn = document.getElementById('editSaveBtn');
+
+                    if (textarea) {
+                        // Load current content
+                        const editContent = rendered.full_raw || file.content || '';
+                        textarea.value = editContent;
+                        originalContent = editContent;
+
+                        // Cursor position tracking
+                        const updateLineInfo = () => {
+                            if (!lineInfo) return;
+                            const val = textarea.value;
+                            const pos = textarea.selectionStart;
+                            const lines = val.substring(0, pos).split('\n');
+                            const line = lines.length;
+                            const col = lines[lines.length - 1].length + 1;
+                            lineInfo.textContent = `Line ${line}, Col ${col}`;
+                        };
+                        textarea.addEventListener('click', updateLineInfo);
+                        textarea.addEventListener('keyup', updateLineInfo);
+                        textarea.addEventListener('input', () => {
+                            updateLineInfo();
+                            // Show modified indicator
+                            if (saveStatus && textarea.value !== originalContent) {
+                                saveStatus.style.display = '';
+                                saveStatus.textContent = '● Modified';
+                                saveStatus.className = 'modal-save-status modified';
+                            } else if (saveStatus) {
+                                saveStatus.style.display = 'none';
+                            }
+                        });
+                        updateLineInfo();
+
+                        // Tab key inserts actual tab
+                        textarea.addEventListener('keydown', (e) => {
+                            if (e.key === 'Tab') {
+                                e.preventDefault();
+                                const start = textarea.selectionStart;
+                                const end = textarea.selectionEnd;
+                                textarea.value = textarea.value.substring(0, start) + '\t' + textarea.value.substring(end);
+                                textarea.selectionStart = textarea.selectionEnd = start + 1;
+                                textarea.dispatchEvent(new Event('input'));
+                            }
+                            // Ctrl+S to save
+                            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                                e.preventDefault();
+                                saveFile();
+                            }
+                        });
+
+                        textarea.focus();
+                    }
+
+                    // Save handler
+                    const saveFile = async () => {
+                        if (!textarea) return;
+                        const state = ctx.snap().context;
+                        const repoPath = state.repoPath;
+                        if (!repoPath) {
+                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'No repo path'; saveStatus.className = 'modal-save-status error'; }
+                            return;
+                        }
+
+                        if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'Saving...'; saveStatus.className = 'modal-save-status saving'; }
+
+                        try {
+                            const res = await fetch('/api/repo/file-save', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    path: repoPath,
+                                    filePath: file.path,
+                                    content: textarea.value,
+                                }),
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                originalContent = textarea.value;
+                                // Update the in-memory file data
+                                file.content = textarea.value;
+                                file.lines = data.lines;
+                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Saved (${data.lines} lines)`; saveStatus.className = 'modal-save-status saved'; }
+                                // Also update the rendered full view for when they switch back
+                                const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+                                rendered.full = highlightSyntax(textarea.value, ext);
+                                rendered.full_raw = textarea.value;
+                                // Fade out status after 3s
+                                setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓')) { saveStatus.style.display = 'none'; } }, 3000);
+                            } else {
+                                const err = await res.text();
+                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err}`; saveStatus.className = 'modal-save-status error'; }
+                            }
+                        } catch (err: any) {
+                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err.message}`; saveStatus.className = 'modal-save-status error'; }
+                        }
+                    };
+
+                    if (saveBtn) {
+                        const newSaveBtn = saveBtn.cloneNode(true) as HTMLElement;
+                        saveBtn.replaceWith(newSaveBtn);
+                        newSaveBtn.addEventListener('click', saveFile);
+                    }
                 } else {
-                    // Show code, hide chat
+                    // Show code, hide chat + edit
                     if (modalPre) modalPre.style.display = '';
                     if (chatContainer) chatContainer.style.display = 'none';
+                    if (editContainer) editContainer.style.display = 'none';
+                    if (saveStatus) saveStatus.style.display = 'none';
                     if (view === 'diff' && rendered.diff) {
                         contentEl.innerHTML = rendered.diff;
                     } else if (view === 'full' && rendered.full) {
@@ -208,6 +331,8 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
             const ext = file.name?.split('.').pop()?.toLowerCase() || '';
             rendered.full = highlightSyntax(content, ext);
+            rendered.full_raw = content;
+            originalContent = content;
 
             if (currentView === 'full') {
                 contentEl.innerHTML = rendered.full;
@@ -218,6 +343,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
             if (file.content) {
                 const ext = file.name?.split('.').pop()?.toLowerCase() || '';
                 rendered.full = highlightSyntax(file.content, ext);
+                rendered.full_raw = file.content;
                 if (currentView === 'full') {
                     contentEl.innerHTML = rendered.full;
                 }

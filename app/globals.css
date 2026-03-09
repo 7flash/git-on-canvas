@@ -4018,6 +4018,141 @@ body {
     min-height: 400px;
 }
 
+/* ─── Edit tab styling ─────────────────────────────────── */
+.modal-tab[data-view="edit"] {
+    color: #22c55e;
+}
+
+.modal-tab[data-view="edit"].active {
+    background: rgba(34, 197, 94, 0.15);
+    color: #22c55e;
+}
+
+/* Edit container fills the modal body */
+.modal-edit-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-primary);
+}
+
+.modal-edit-textarea {
+    flex: 1;
+    width: 100%;
+    min-height: 300px;
+    padding: 16px 18px;
+    background: var(--bg-card, #0c0c1a);
+    border: none;
+    color: var(--text-primary);
+    font-family: 'JetBrains Mono', var(--font-mono, monospace);
+    font-size: 13px;
+    line-height: 1.5;
+    resize: none;
+    outline: none;
+    tab-size: 4;
+    -moz-tab-size: 4;
+    white-space: pre;
+    overflow: auto;
+    word-wrap: off;
+}
+
+.modal-edit-textarea:focus {
+    box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.2);
+}
+
+.modal-edit-textarea::selection {
+    background: rgba(124, 58, 237, 0.3);
+}
+
+.modal-edit-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    border-top: 1px solid var(--border-subtle);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.04), rgba(124, 58, 237, 0.04));
+    flex-shrink: 0;
+}
+
+.edit-line-info {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
+
+.edit-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.edit-save-btn {
+    display: flex !important;
+    align-items: center;
+    gap: 5px;
+    color: #22c55e !important;
+    font-weight: 600;
+    font-size: 0.78rem;
+    padding: 4px 12px !important;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+}
+
+.edit-save-btn:hover {
+    background: rgba(34, 197, 94, 0.12) !important;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
+}
+
+/* Save status indicator */
+.modal-save-status {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.03em;
+    transition: all 0.2s ease;
+}
+
+.modal-save-status.saving {
+    color: #eab308;
+    background: rgba(234, 179, 8, 0.1);
+}
+
+.modal-save-status.saved {
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.1);
+}
+
+.modal-save-status.error {
+    color: #ef4444;
+    background: rgba(239, 68, 68, 0.1);
+}
+
+.modal-save-status.modified {
+    color: #eab308;
+    background: rgba(234, 179, 8, 0.08);
+}
+
+@keyframes savePulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+.modal-save-status.saving {
+    animation: savePulse 0.8s ease infinite;
+}
+
 /* ─── File Search Overlay ─────────────────────────────── */
 .file-search-overlay {
     position: fixed;

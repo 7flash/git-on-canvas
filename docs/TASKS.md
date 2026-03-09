@@ -10,7 +10,7 @@
 
 ## 🟡 Priority: Improve
 - [x] ~~**`cards.tsx` refactored from 1790→833 lines**~~ — ✅ 5 modules extracted: `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`, `card-diff-markers.ts`, `card-expand.ts`.
-- [ ] **File hover in zoomed-out mode** — Should show the same card rendering (with diff markers, connections, etc.) as zoomed-in view, not a simplified tooltip. User wants exact same component rendered in the popup.
+- [x] ~~**File hover in zoomed-out mode**~~ — ✅ DONE. Full card clone preview (syntax highlighting, diff markers, status badges) at <35% zoom. Forces DOM rendering when canvas-text mode active. Debounced 180ms with smooth fade.
 - [x] ~~**File search not documented**~~ — ✅ Cross-card text search (`/` or `Ctrl+F`) documented.
 - [x] ~~**Performance profiling**~~ — ✅ 15 benchmarks. 10K cards: 27ms full pipeline.
 - [x] ~~**Connection line rendering optimization**~~ — ✅ `requestAnimationFrame` batching.
