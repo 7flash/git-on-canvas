@@ -2130,3 +2130,55 @@ body {
     color: var(--text-muted);
     font-style: italic;
 }
+
+/* Production Mode Notice */
+.production-notice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 60px 40px;
+    text-align: center;
+    height: 100%;
+    color: var(--text-secondary);
+}
+
+.production-notice-icon {
+    color: rgba(124, 58, 237, 0.5);
+    margin-bottom: 8px;
+}
+
+.production-notice-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.production-notice-desc {
+    font-size: 13px;
+    line-height: 1.6;
+    margin: 0;
+    max-width: 360px;
+    color: var(--text-secondary);
+}
+
+.production-notice-cmd {
+    display: inline-block;
+    padding: 10px 28px;
+    background: rgba(124, 58, 237, 0.12);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 8px;
+    font-size: 15px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-tertiary);
+    letter-spacing: 0.03em;
+    user-select: all;
+}
+
+.production-notice-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+}

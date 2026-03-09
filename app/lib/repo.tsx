@@ -427,6 +427,7 @@ export function renderFilesOnCanvas(ctx: CanvasContext, files: any[], commitHash
     measure('canvas:renderFiles', () => {
         clearCanvas(ctx);
 
+        const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
         let layerFiles = visibleFiles;
         const activeLayer = getActiveLayer();
         if (activeLayer) {

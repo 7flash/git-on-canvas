@@ -13,6 +13,7 @@ import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prev
 import { renderBreadcrumbs } from './breadcrumbs';
 import { renderSymbolOutline } from './symbol-outline';
 import { loadDraft, clearDraft, startAutoSave, stopAutoSave } from './auto-save';
+import { isEditingAllowed, getProductionEditorNotice } from './production-mode';
 
 // ─── File expand modal ──────────────────────────────────
 export function openFileModal(ctx: CanvasContext, file: any, initialView?: string) {
@@ -373,6 +374,16 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
         const modalPre = document.getElementById('modalBodyPre');
         const editContainer = document.getElementById('modalEditContainer');
         const saveStatus = document.getElementById('modalSaveStatus');
+
+        // Production mode: show read-only notice instead of editor
+        if (!isEditingAllowed()) {
+            if (modalPre) modalPre.style.display = 'none';
+            if (editContainer) {
+                editContainer.style.display = 'flex';
+                editContainer.innerHTML = getProductionEditorNotice();
+            }
+            return;
+        }
 
         if (modalPre) modalPre.style.display = 'none';
         if (editContainer) editContainer.style.display = 'flex';

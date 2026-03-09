@@ -21,6 +21,7 @@ let _isOpen = false;
 let _branches: string[] = [];
 let _currentBase = '';
 let _currentCompare = '';
+let _currentBranch = '';
 
 // ─── UI: Compare Button ──────────────────────────────────
 
@@ -94,18 +95,39 @@ async function fetchBranches(ctx: CanvasContext) {
     if (!state.repoPath) return;
 
     try {
-        const resp = await fetch('/api/repo/branch-diff', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                path: state.repoPath,
-                base: 'HEAD',
-                compare: 'HEAD',
-            }),
-        });
-        const data = await resp.json();
-        if (data.branches) {
-            _branches = data.branches;
+        // Try dedicated branches endpoint first (lightweight, no diff)
+        let branches: string[] = [];
+        let currentBranch = '';
+
+        try {
+            const resp = await fetch('/api/repo/branches', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: state.repoPath }),
+            });
+            if (resp.ok) {
+                const data = await resp.json();
+                branches = data.branches || [];
+                currentBranch = data.current || '';
+            }
+        } catch {
+            // Fall back to branch-diff API which also returns branches
+            const resp = await fetch('/api/repo/branch-diff', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: state.repoPath,
+                    base: 'HEAD',
+                    compare: 'HEAD',
+                }),
+            });
+            const data = await resp.json();
+            branches = data.branches || [];
+        }
+
+        if (branches.length > 0) {
+            _branches = branches;
+            _currentBranch = currentBranch;
             updateBranchSelects();
         }
     } catch (e) {
@@ -133,8 +155,9 @@ function updateBranchSelects() {
 
     // Default: base = main/master, compare = current branch (or first non-main)
     const mainBranch = _branches.find(b => b === 'main' || b === 'master') || _branches[0] || '';
-    const compareBranch = _branches.find(b => b.startsWith('* '))?.replace('* ', '')
-        || _branches.find(b => b !== mainBranch)
+    const compareBranch = _currentBranch && _currentBranch !== mainBranch
+        ? _currentBranch
+        : _branches.find(b => b !== mainBranch)
         || _branches[0] || '';
 
     buildOptions(baseSelect, _currentBase || mainBranch);
