@@ -63,6 +63,7 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
             )}
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('hide')} style="color: #f59e0b">🙈 Hide file</button>
+            <button className="ctx-item" onClick={() => onAction('rename')}>✏️ Rename / Move</button>
             <button className="ctx-item" onClick={() => onAction('delete')} style="color: #ef4444">🗑️ Delete file</button>
         </>
     );
@@ -115,6 +116,8 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
             showFileHistory(ctx, filePath);
         } else if (action === 'delete') {
             deleteFile(ctx, filePath, card);
+        } else if (action === 'rename') {
+            renameFile(ctx, filePath, card);
         }
     }
 
@@ -281,5 +284,78 @@ async function deleteFile(ctx: CanvasContext, filePath: string, card: HTMLElemen
         showToast(`Deleted ${fileName}${useGitRm ? ' (staged)' : ''}`, 'success');
     } catch (err: any) {
         showToast(`Delete error: ${err.message}`, 'error');
+    }
+}
+
+// ─── Rename / move file ─────────────────────────────
+async function renameFile(ctx: CanvasContext, filePath: string, card: HTMLElement) {
+    const state = ctx.snap().context;
+    if (!state.repoPath) {
+        showToast('No repository loaded', 'error');
+        return;
+    }
+
+    const newPath = window.prompt('Rename / Move file to:', filePath);
+    if (!newPath || newPath === filePath) return;
+
+    // Basic validation
+    if (newPath.includes('..') || newPath.startsWith('/')) {
+        showToast('Invalid path', 'error');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/repo/file-rename', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                path: state.repoPath,
+                oldPath: filePath,
+                newPath,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.text();
+            showToast(`Rename failed: ${err}`, 'error');
+            return;
+        }
+
+        // Update card DOM
+        card.dataset.path = newPath;
+        const nameEl = card.querySelector('.file-name, .card-filename');
+        if (nameEl) nameEl.textContent = newPath.split('/').pop() || newPath;
+
+        // Re-key internal data structures
+        const pos = ctx.positions.get(filePath);
+        if (pos) {
+            ctx.positions.delete(filePath);
+            ctx.positions.set(newPath, pos);
+        }
+
+        ctx.fileCards.delete(filePath);
+        ctx.fileCards.set(newPath, card);
+
+        if (ctx.deferredCards) {
+            const deferred = ctx.deferredCards.get(filePath);
+            if (deferred) {
+                ctx.deferredCards.delete(filePath);
+                ctx.deferredCards.set(newPath, deferred);
+            }
+        }
+
+        // Update allFilesData
+        if (ctx.allFilesData) {
+            const fileData = ctx.allFilesData.find(f => f.path === filePath);
+            if (fileData) {
+                fileData.path = newPath;
+                fileData.name = newPath.split('/').pop() || newPath;
+            }
+        }
+
+        const newName = newPath.split('/').pop() || newPath;
+        showToast(`Renamed → ${newName}`, 'success');
+    } catch (err: any) {
+        showToast(`Rename error: ${err.message}`, 'error');
     }
 }
