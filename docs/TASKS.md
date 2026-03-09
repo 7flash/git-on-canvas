@@ -9,7 +9,7 @@
 - [x] ~~**Hide file doesn't work**~~ — ✅ Hidden files now excluded from viewport-culling materialization and deferredCards.
 
 ## 🟡 Priority: Improve
-- [ ] **`cards.tsx` is 1128 lines** (down from 1790) — Extracted `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`. Remaining: diff components, card expand, interaction could still be extracted.
+- [x] ~~**`cards.tsx` refactored from 1790→833 lines**~~ — ✅ 5 modules extracted: `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`, `card-diff-markers.ts`, `card-expand.ts`.
 - [ ] **File hover in zoomed-out mode** — Should show the same card rendering (with diff markers, connections, etc.) as zoomed-in view, not a simplified tooltip. User wants exact same component rendered in the popup.
 - [x] ~~**File search not documented**~~ — ✅ Cross-card text search (`/` or `Ctrl+F`) documented.
 - [x] ~~**Performance profiling**~~ — ✅ 15 benchmarks. 10K cards: 27ms full pipeline.
@@ -52,4 +52,4 @@
 - **Dev**: `bgrun --restart galaxy-canvas` (port 3335)
 - **Import**: Relative `../../packages/galaxydraw/src/core/...` (not package name)
 - **Bridge**: `galaxydraw-bridge.ts` — adapter between CanvasState and CanvasContext
-- **Key files**: `cards.tsx` (1128 LOC), `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`, `events.tsx`, `canvas.ts`, `repo.tsx`
+- **Key files**: `cards.tsx` (833 LOC), `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`, `card-diff-markers.ts`, `card-expand.ts`, `events.tsx`, `canvas.ts`, `repo.tsx`
