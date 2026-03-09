@@ -157,8 +157,10 @@ export function openFileModal(ctx: CanvasContext, file: any) {
         // Switch view
         const modalPre = document.getElementById('modalBodyPre');
         const chatContainer = document.getElementById('modalChatContainer');
+        const blameContainer = document.getElementById('modalBlameContainer');
         if (editContainer) editContainer.style.display = 'none';
         if (chatContainer) chatContainer.style.display = 'none';
+        if (blameContainer) blameContainer.style.display = 'none';
 
         if (currentView === 'full' && rendered.full) {
             if (modalPre) modalPre.style.display = '';
@@ -462,12 +464,25 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                         saveBtn.replaceWith(newSaveBtn);
                         newSaveBtn.addEventListener('click', saveFile);
                     }
+                } else if (view === 'blame') {
+                    // Show blame view
+                    if (modalPre) modalPre.style.display = 'none';
+                    if (chatContainer) chatContainer.style.display = 'none';
+                    if (editContainer) editContainer.style.display = 'none';
+                    if (saveStatus) saveStatus.style.display = 'none';
+                    const blameContainer = document.getElementById('modalBlameContainer');
+                    if (blameContainer) {
+                        blameContainer.style.display = '';
+                        loadBlameView(ctx, file, blameContainer);
+                    }
                 } else {
-                    // Show code, hide chat + edit
+                    // Show code, hide chat + edit + blame
                     if (modalPre) modalPre.style.display = '';
                     if (chatContainer) chatContainer.style.display = 'none';
                     if (editContainer) editContainer.style.display = 'none';
                     if (saveStatus) saveStatus.style.display = 'none';
+                    const blameContainer = document.getElementById('modalBlameContainer');
+                    if (blameContainer) blameContainer.style.display = 'none';
                     if (view === 'diff' && rendered.diff) {
                         contentEl.innerHTML = rendered.diff;
                     } else if (view === 'full' && rendered.full) {
@@ -608,4 +623,121 @@ async function loadTabContent(ctx: CanvasContext, tab: FileTab) {
     } catch (err: any) {
         contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${err.message}</span>`;
     }
+}
+
+// ─── Blame view ─────────────────────────────────────
+const blameCache = new Map<string, any[]>();
+
+const BLAME_COLORS = [
+    '#c4b5fd', '#93c5fd', '#86efac', '#fde68a', '#fca5a5',
+    '#f9a8d4', '#a5b4fc', '#67e8f9', '#d9f99d', '#fdba74',
+];
+
+function getAuthorColor(author: string, authorMap: Map<string, string>): string {
+    if (authorMap.has(author)) return authorMap.get(author)!;
+    const color = BLAME_COLORS[authorMap.size % BLAME_COLORS.length];
+    authorMap.set(author, color);
+    return color;
+}
+
+function timeAgo(ts: number): string {
+    const diff = Date.now() / 1000 - ts;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
+    if (diff < 604800) return `${Math.floor(diff / 86400)}d`;
+    if (diff < 2592000) return `${Math.floor(diff / 604800)}w`;
+    if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo`;
+    return `${Math.floor(diff / 31536000)}y`;
+}
+
+async function loadBlameView(ctx: CanvasContext, file: any, container: HTMLElement) {
+    const state = ctx.snap().context;
+    if (!state.repoPath) return;
+
+    const cacheKey = `${state.repoPath}:${file.path}:${state.currentCommitHash || 'HEAD'}`;
+
+    // Check cache
+    if (blameCache.has(cacheKey)) {
+        renderBlame(blameCache.get(cacheKey)!, container, file);
+        return;
+    }
+
+    container.innerHTML = '<div class="blame-loading">Loading blame data...</div>';
+
+    try {
+        const res = await fetch('/api/repo/git-blame', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                path: state.repoPath,
+                filePath: file.path,
+                commit: state.currentCommitHash || undefined,
+            }),
+        });
+
+        if (!res.ok) {
+            const err = await res.text();
+            container.innerHTML = `<div class="blame-error">Blame failed: ${escapeHtml(err)}</div>`;
+            return;
+        }
+
+        const data = await res.json();
+        blameCache.set(cacheKey, data.entries);
+        renderBlame(data.entries, container, file);
+    } catch (err: any) {
+        container.innerHTML = `<div class="blame-error">Error: ${escapeHtml(err.message)}</div>`;
+    }
+}
+
+function renderBlame(entries: any[], container: HTMLElement, file: any) {
+    const authorMap = new Map<string, string>();
+    const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+
+    let html = '<div class="blame-scroll"><table class="blame-table"><tbody>';
+
+    let prevHash = '';
+    for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        const isNewGroup = e.hash !== prevHash;
+        prevHash = e.hash;
+
+        const color = getAuthorColor(e.author, authorMap);
+        const authorName = e.author.length > 12 ? e.author.slice(0, 11) + '…' : e.author;
+        const age = timeAgo(e.authorTime);
+        const escapedContent = escapeHtml(e.content);
+        const groupClass = isNewGroup ? ' blame-group-start' : '';
+
+        html += `<tr class="blame-row${groupClass}">`;
+
+        // Blame gutter
+        if (isNewGroup) {
+            html += `<td class="blame-gutter" style="border-left: 3px solid ${color}">`;
+            html += `<span class="blame-hash" title="${escapeHtml(e.summary)}">${e.shortHash}</span>`;
+            html += `<span class="blame-author" style="color: ${color}" title="${escapeHtml(e.author)}">${escapeHtml(authorName)}</span>`;
+            html += `<span class="blame-age">${age}</span>`;
+            html += '</td>';
+        } else {
+            html += `<td class="blame-gutter blame-gutter-empty" style="border-left: 3px solid ${color}"></td>`;
+        }
+
+        // Line number
+        html += `<td class="blame-lineno">${e.line}</td>`;
+
+        // Code
+        html += `<td class="blame-code"><code>${escapedContent || ' '}</code></td>`;
+        html += '</tr>';
+    }
+
+    html += '</tbody></table></div>';
+
+    // Author legend
+    if (authorMap.size > 1) {
+        html += '<div class="blame-legend">';
+        for (const [author, color] of authorMap) {
+            html += `<span class="blame-legend-item"><span class="blame-legend-dot" style="background:${color}"></span>${escapeHtml(author)}</span>`;
+        }
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
 }

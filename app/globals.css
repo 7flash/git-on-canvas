@@ -4208,6 +4208,131 @@ body {
     color: #ef4444;
 }
 
+/* ─── Blame view ─── */
+.modal-blame-container {
+    flex: 1;
+    overflow: auto;
+    background: var(--card-bg, #0f0f1e);
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 0.75rem;
+    line-height: 1.6;
+}
+
+.blame-scroll {
+    min-width: 100%;
+}
+
+.blame-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.blame-row {
+    transition: background 0.1s ease;
+}
+
+.blame-row:hover {
+    background: rgba(124, 58, 237, 0.06);
+}
+
+.blame-group-start {
+    border-top: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+.blame-gutter {
+    padding: 1px 10px 1px 8px;
+    white-space: nowrap;
+    vertical-align: top;
+    min-width: 200px;
+    max-width: 240px;
+}
+
+.blame-gutter-empty {
+    padding: 1px 10px 1px 8px;
+}
+
+.blame-hash {
+    color: #7c3aed;
+    font-size: 0.68rem;
+    margin-right: 8px;
+    cursor: default;
+    opacity: 0.7;
+}
+
+.blame-hash:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.blame-author {
+    font-size: 0.68rem;
+    margin-right: 6px;
+    font-weight: 500;
+}
+
+.blame-age {
+    color: var(--text-muted, #6b7280);
+    font-size: 0.62rem;
+    opacity: 0.7;
+}
+
+.blame-lineno {
+    padding: 1px 12px 1px 8px;
+    color: var(--text-muted, #6b7280);
+    text-align: right;
+    user-select: none;
+    white-space: nowrap;
+    opacity: 0.5;
+    font-size: 0.68rem;
+    min-width: 35px;
+    border-right: 1px solid rgba(124, 58, 237, 0.08);
+}
+
+.blame-code {
+    padding: 1px 16px 1px 12px;
+    white-space: pre;
+}
+
+.blame-code code {
+    color: var(--text-primary, #e5e7eb);
+}
+
+.blame-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 8px 16px;
+    border-top: 1px solid rgba(124, 58, 237, 0.15);
+    background: rgba(15, 15, 30, 0.6);
+    font-size: 0.68rem;
+    color: var(--text-muted, #9ca3af);
+}
+
+.blame-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.blame-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.blame-loading,
+.blame-error {
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.8rem;
+}
+
+.blame-error {
+    color: var(--error, #ef4444);
+}
+
 .modal-edit-textarea:focus {
     box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.2);
 }

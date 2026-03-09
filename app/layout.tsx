@@ -330,12 +330,22 @@ export default function RootLayout({ children }: { children: any }) {
                                         </svg>
                                         Edit
                                     </button>
+                                    <button className="modal-tab" data-view="blame">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                                            <circle cx="9" cy="7" r="4" />
+                                            <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                                            <path d="M16 3.13a4 4 0 010 7.75" />
+                                        </svg>
+                                        Blame
+                                    </button>
                                 </div>
                                 <span className="modal-save-status" id="modalSaveStatus" style={{ display: 'none' }}></span>
                                 <button className="modal-close" id="closePreview">&times;</button>
                             </div>
                         </div>
                         <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
+                        <div className="modal-blame-container" id="modalBlameContainer" style={{ display: 'none' }}></div>
                         <div className="modal-chat-container" id="modalChatContainer" style={{ display: 'none' }}></div>
                         <div className="modal-edit-container" id="modalEditContainer" style={{ display: 'none' }}>
                             <textarea id="modalEditTextarea" className="modal-edit-textarea" spellCheck={false} autoComplete="off"></textarea>
