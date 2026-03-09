@@ -14,7 +14,7 @@
 - [x] **File preview on hover** — `file-preview.ts` shows glassmorphism tooltip at zoom < 35%: language badge, file name, directory path, first 12 lines of code. 180ms debounce, viewport-clamped positioning.
 - [ ] **Branch comparison view** — Side-by-side canvas of two branches, highlighting files that differ.
 - [x] ~~**GitHub import modal enhancement**~~ — ✅ DONE. Removed sidebar clone URL field. Modal now supports: (1) URL detection — paste a GitHub URL and it shows repo name + instant Clone & Open button, (2) username/org search with profile display, (3) live repo filter input to search within loaded results by name/description. Enter on URL auto-clones, Enter on username auto-searches.
-- [ ] **Production security** — Disable "open new repo" path-based access in production. Only allow GitHub-cloned repos.
+- [x] ~~**Production security**~~ — ✅ DONE. Created `validate-path.ts` with `validateRepoPath()` and `blockInProduction()`. In SaaS mode, only `git-canvas/repos/` and `.data/uploads/` paths are allowed. Applied to all 7 repo API routes. Folder browser endpoint completely blocked in production.
 - [ ] **Smooth LOD transition** — Improve visual transition between pill placeholders and full file cards.
 - [ ] **Multi-file drag** — When multiple files are selected, dragging should move all selected files.
 
