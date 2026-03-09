@@ -18,25 +18,25 @@
 - [x] ~~**Multi-tab editor modal**~~ — ✅ DONE. Double-click opens CodeMirror editor directly. Modal has Edit (default) + Diff tabs. Import links open as new tabs. Blame/Chat removed from modal, accessible via context menu. "Open in Editor" context menu action.
 - [x] ~~**Canvas text garbled after resize**~~ — ✅ DONE. DPR scaling was compounding in ResizeObserver (`ctx.scale()` → `ctx.setTransform()` reset).
 - [x] ~~**Pill dblclick opens zoom instead of editor**~~ — ✅ DONE. viewport-culling.ts now opens editor modal on pill double-click, consistent with card behavior.
-- [x] ~~**Settings modal**~~ — ✅ DONE. Gear icon in toolbar opens premium dark-themed modal. Sections: Rendering (text mode, font size, card width), Interface (control mode, minimap, connections, auto-imports), Advanced (max visible lines). CSS in globals.css, inline positioning for reliability. All changes auto-saved to localStorage.
-- [x] ~~**Positions stored in localStorage**~~ — ✅ Already implemented. Dual storage: localStorage (instant) + server sync (if logged in). Debounced 300ms persist.
-- [x] ~~**Editor auto-save**~~ — ✅ DONE. Saves editor content every 3s to localStorage. Draft recovered on file reopen with "⟳ Draft restored" notification + Discard button. Cleared on explicit save. Expired drafts (>7 days) cleaned up on startup.
-- [x] ~~**Tab persistence**~~ — ✅ DONE. Open tab paths saved to localStorage on every tab change. Restored as stub tabs on modal reopen. Content loaded lazily on tab switch.
-
-## 🟡 Priority: Improve
-- [ ] **Search across files** — Ctrl+Shift+F to search for text across all files in the repo
+- [x] ~~**Settings modal**~~ — ✅ DONE. Gear icon in toolbar. Sections: Rendering, Interface, Advanced. CSS in globals.css. Auto-saved to localStorage.
+- [x] ~~**Positions stored in localStorage**~~ — ✅ Already implemented. Dual storage: localStorage + server sync.
+- [x] ~~**Editor auto-save**~~ — ✅ DONE. Saves drafts every 3s to localStorage. "⟳ Draft restored" + Discard on reopen. Cleared on explicit save.
+- [x] ~~**Tab persistence**~~ — ✅ DONE. Tab paths saved to localStorage. Restored as stubs on reopen. Lazy content loading.
+- [x] ~~**Search across files**~~ — ✅ DONE. Ctrl+Shift+F opens slide-in panel. `git grep` backend via `/api/repo/search`. Results grouped by file with yellow highlights. Click → opens editor at matching line.
 
 ## 🟢 Priority: Features
-- [ ] **File creation from canvas** — right-click canvas background → "New File" to create + edit
+- [ ] **File creation from canvas** — ~~right-click canvas background → "New File"~~ ✅ Already implemented (`new-file-dialog.tsx`, wired to Ctrl+N)
 - [ ] **Branch switching** — dropdown to switch branches and see diff against different branches
 
 ## 📝 Architecture Notes
 - **Canvas text = default** for main cards (performance + virtual scrolling)
 - **DOM rendering = popup previews only** (hover/link peek)
 - **Editor modal** = CodeMirror 6 with Edit (default) + Diff views. activateEditView() handles initialization.
-- **Auto-save** = `auto-save.ts` — saves drafts to localStorage every 3s. Key format: `gitcanvas:draft:<repo>:<file>`. Integrated into file-modal.tsx editor lifecycle.
-- **Tab persistence** = `file-tabs.ts` — saves open tab paths to localStorage. Restored on modal reopen with lazy content loading.
-- **Settings** = `settings.ts` (localStorage persistence + custom events) + `settings-modal.tsx` (UI). CSS must go in `globals.css` (not `main.css` — that file is dead/not bundled).
+- **Auto-save** = `auto-save.ts` — drafts to localStorage every 3s. Key: `gitcanvas:draft:<repo>:<file>`.
+- **Tab persistence** = `file-tabs.ts` — tab paths to localStorage. Lazy content loading on switch.
+- **Global search** = `global-search.ts` (UI) + `/api/repo/search` (git grep backend). Ctrl+Shift+F.
+- **Settings** = `settings.ts` + `settings-modal.tsx`. CSS in `globals.css` only (main.css is dead).
+- **New file** = `new-file-dialog.tsx` — Ctrl+N. Template content by extension.
 - **Framework**: galaxydraw in `packages/galaxydraw/`
 - **Dev**: `bgrun --restart galaxy-canvas` (port 3335)
 - **Bridge**: `galaxydraw-bridge.ts` — adapter between CanvasState and CanvasContext
