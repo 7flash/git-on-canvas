@@ -29,7 +29,8 @@
 
 ## 🟡 Open Tasks
 - [ ] **File editing: syntax highlighting** — Use CodeMirror or Monaco for the edit textarea instead of plain textarea for proper syntax highlighting while editing.
-- [ ] **File editing: git integration** — After saving a file, option to stage + commit the change directly from the modal.
+- [x] ~~**File editing: git integration**~~ — ✅ DONE. After saving, inline commit section slides in with pre-filled message, POST /api/repo/git-commit stages + commits, shows commit hash.
+- [ ] **File editing: unsaved changes warning** — Warn user when closing modal or switching tabs with unsaved changes.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.
