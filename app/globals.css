@@ -1790,6 +1790,46 @@ body {
     pointer-events: none;
 }
 
+/* ─── Directory labels (world-space canvas elements) ─── */
+.dir-label {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    background: rgba(30, 30, 50, 0.65);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    color: var(--text-secondary, #94a3b8);
+    font-size: 11px;
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    pointer-events: none;
+    z-index: 1;
+    user-select: none;
+    opacity: 0.85;
+    transition: opacity 0.2s;
+}
+
+.dir-label-icon {
+    font-size: 12px;
+    filter: grayscale(0.3);
+}
+
+.dir-label-count {
+    margin-left: 4px;
+    padding: 1px 6px;
+    background: rgba(124, 58, 237, 0.25);
+    border-radius: 8px;
+    font-size: 10px;
+    color: var(--accent-primary, #a78bfa);
+    font-weight: 600;
+}
+
 .minimap-dot {
     position: absolute;
     width: 4px;

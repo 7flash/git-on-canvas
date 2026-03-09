@@ -666,10 +666,65 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
 
         renderConnections(ctx);
         buildConnectionMarkers(ctx);
+        renderDirectoryLabels(ctx);
         forceMinimapRebuild(ctx);
         // Cull off-screen cards after browser layout (needs rAF for valid dimensions)
         requestAnimationFrame(() => performViewportCulling(ctx));
     });
+}
+
+// ─── Directory labels on canvas ──────────────────────────
+// Groups visible file cards by parent directory and renders
+// a world-space label above each directory cluster.
+function renderDirectoryLabels(ctx: CanvasContext) {
+    // Remove existing labels
+    ctx.canvas?.querySelectorAll('.dir-label').forEach(el => el.remove());
+
+    // Group cards by parent directory
+    const groups = new Map<string, { minX: number; minY: number; maxX: number; count: number }>();
+
+    const processCard = (path: string, x: number, y: number, w: number) => {
+        const dir = path.includes('/') ? path.substring(0, path.lastIndexOf('/')) : '.';
+        const g = groups.get(dir);
+        if (g) {
+            g.minX = Math.min(g.minX, x);
+            g.minY = Math.min(g.minY, y);
+            g.maxX = Math.max(g.maxX, x + w);
+            g.count++;
+        } else {
+            groups.set(dir, { minX: x, minY: y, maxX: x + w, count: 1 });
+        }
+    };
+
+    // Created cards (in DOM)
+    ctx.fileCards.forEach((card, path) => {
+        const x = parseFloat(card.style.left) || 0;
+        const y = parseFloat(card.style.top) || 0;
+        const w = card.offsetWidth || 580;
+        processCard(path, x, y, w);
+    });
+
+    // Deferred cards (not yet in DOM)
+    ctx.deferredCards.forEach((info, path) => {
+        const w = info.size?.width || 580;
+        processCard(path, info.x, info.y, w);
+    });
+
+    // Only show labels if we have multiple directories
+    if (groups.size <= 1) return;
+
+    const frag = document.createDocumentFragment();
+    for (const [dir, g] of groups) {
+        const label = document.createElement('div');
+        label.className = 'dir-label';
+        const centerX = (g.minX + g.maxX) / 2;
+        label.style.left = `${centerX}px`;
+        label.style.top = `${g.minY - 36}px`;
+        label.style.transform = 'translateX(-50%)';
+        label.innerHTML = `<span class="dir-label-icon">📁</span> ${dir}<span class="dir-label-count">${g.count}</span>`;
+        frag.appendChild(label);
+    }
+    ctx.canvas?.appendChild(frag);
 }
 
 // ─── Highlight changed files without re-rendering ────────
