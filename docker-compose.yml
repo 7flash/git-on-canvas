@@ -1,0 +1,28 @@
+# GitMaps Docker Compose — production deploy
+#
+# Usage:
+#   docker compose up -d
+#   docker compose logs -f gitmaps
+
+services:
+  gitmaps:
+    build: .
+    container_name: gitmaps
+    ports:
+      - "3335:3335"
+    volumes:
+      # Persist cloned repositories across restarts
+      - gitmaps-repos:/repos
+    environment:
+      - NODE_ENV=production
+      - PORT=3335
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3335/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  gitmaps-repos:
