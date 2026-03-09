@@ -37,9 +37,11 @@
 - [x] ~~**Go-to-definition**~~ — ✅ DONE. Import paths in Full view are clickable (dashed underline). Click navigates to target file's card on canvas with green pulse highlight. Resolves relative paths with extension/index fallbacks. Ctrl+Click also works.
 - [ ] **Code minimap in editor** — Add a minimap scrollbar to the CodeMirror editor for large files, using `@codemirror/view` extensions.
 - [x] ~~**Multi-tab editor**~~ — ✅ DONE. Tab bar with file icons, names, close buttons. Ctrl+Tab/Ctrl+Shift+Tab cycling, middle-click close, scroll position per tab. Go-to-definition opens as new tab.
-- [ ] **File breadcrumb navigation** — Show directory path as clickable breadcrumbs in modal header. Click a directory to filter/show sibling files.
+- [x] ~~**File breadcrumb navigation**~~ — ✅ DONE. Clickable directory segments in modal header. Click opens dropdown with sibling files/dirs. Drill into subdirs. Opens files as new tabs.
 - [x] ~~**Git blame view**~~ — ✅ DONE. "Blame" tab with porcelain API. Color-coded authors, grouped commits, relative timestamps, author legend, cached data.
 - [ ] **File diff between tabs** — Select two open tabs and diff them side-by-side.
+- [ ] **Symbol outline panel** — Side panel showing functions/classes/exports extracted from file content. Click to scroll to symbol.
+- [ ] **Keyboard shortcuts overlay** — Press `?` to show all available keyboard shortcuts in a modal overlay.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.
