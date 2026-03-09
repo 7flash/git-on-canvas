@@ -6,7 +6,8 @@
 import { measure } from 'measure-fn';
 import { render } from 'melina/client';
 import type { CanvasContext } from './context';
-import { escapeHtml, getFileIcon, getFileIconClass } from './utils';
+import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
+import { hideSelectedFiles } from './hidden-files';
 import { savePosition, getPositionKey, isPathExpandedInPositions, setPathExpandedInPositions } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI, jumpToFile } from './canvas';
 import { renderConnections, scheduleRenderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
@@ -252,6 +253,14 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
     const customLayers = layerState.layers.filter(l => l.id !== 'default');
     return (
         <>
+            <button className="ctx-item" onClick={() => onAction('copy-path')}>📋 Copy path</button>
+            <button className="ctx-item" onClick={() => onAction('select')}>☑️ Select</button>
+            <div className="ctx-divider"></div>
+            <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
+            <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
+            <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
+            <div className="ctx-divider"></div>
+            <button className="ctx-item" onClick={() => onAction('history')}>🕰️ File history</button>
             <div className="ctx-item ctx-dropdown">
                 <span>✨ Add to Layer ▸</span>
                 <div className="ctx-dropdown-content">
@@ -274,11 +283,7 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
                 </button>
             )}
             <div className="ctx-divider"></div>
-            <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
-            <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
-            <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
-            <div className="ctx-divider"></div>
-            <button className="ctx-item" onClick={() => onAction('history')}>🕰️ File history</button>
+            <button className="ctx-item" onClick={() => onAction('hide')} style="color: #f59e0b">� Hide file</button>
         </>
     );
 }
@@ -298,7 +303,17 @@ function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y
 
     function handleAction(action: string) {
         menu.remove();
-        if (action === 'remove-from-layer') {
+        if (action === 'copy-path') {
+            navigator.clipboard.writeText(filePath).then(() => {
+                showToast(`Copied: ${filePath}`, 'info');
+            });
+        } else if (action === 'select') {
+            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+            updateSelectionHighlights(ctx);
+            updateArrangeToolbar(ctx);
+        } else if (action === 'hide') {
+            hideSelectedFiles(ctx, [filePath]);
+        } else if (action === 'remove-from-layer') {
             removeFileFromLayer(ctx, layerState.activeLayerId, filePath);
         } else if (action === 'expand') {
             const state = ctx.snap().context;
