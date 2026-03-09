@@ -2877,6 +2877,74 @@ body {
     background: rgba(124, 58, 237, 0.1);
 }
 
+/* Folder bulk-hide section */
+.hidden-section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    padding: 8px 12px 4px;
+}
+
+.hidden-folder-list {
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 4px;
+}
+
+.hidden-folder-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    transition: background var(--transition-fast);
+}
+
+.hidden-folder-row:hover {
+    background: var(--bg-tertiary);
+}
+
+.hidden-folder-path {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+}
+
+.hidden-folder-count {
+    color: var(--text-muted);
+    font-size: 0.68rem;
+    margin-left: 6px;
+}
+
+.btn-hide-folder {
+    background: none;
+    border: 1px solid var(--border-default);
+    color: var(--text-muted);
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all var(--transition-fast);
+}
+
+.btn-hide-folder:hover:not(.btn-disabled) {
+    color: var(--warning);
+    border-color: var(--warning);
+    background: rgba(234, 179, 8, 0.1);
+}
+
+.btn-hide-folder.btn-disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
 /* Selected card highlight */
 .file-card.selected {
     border-color: var(--accent-primary);

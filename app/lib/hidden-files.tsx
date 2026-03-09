@@ -1,6 +1,6 @@
 // @ts-nocheck
 /**
- * Hidden files management — hide/restore/modal.
+ * Hidden files management — hide/restore/modal with folder bulk-hide.
  * Uses melina/client JSX + render instead of innerHTML.
  */
 import { measure } from 'measure-fn';
@@ -49,10 +49,11 @@ export function hideSelectedFiles(ctx: CanvasContext, paths: string[]) {
                 card.remove();
                 ctx.fileCards.delete(p);
             }
+            // Also remove from deferred so viewport-culling doesn't re-create
+            ctx.deferredCards.delete(p);
         });
 
         updateHiddenUI(ctx);
-
     });
 }
 
@@ -70,28 +71,83 @@ export function restoreAllHidden(ctx: CanvasContext) {
     updateHiddenUI(ctx);
 }
 
+// ─── Get unique folder paths from file list ─────────────
+function getFolders(allFiles: string[]): string[] {
+    const folders = new Set<string>();
+    for (const f of allFiles) {
+        const parts = f.split('/');
+        // Build all ancestor folder paths
+        for (let i = 1; i < parts.length; i++) {
+            folders.add(parts.slice(0, i).join('/'));
+        }
+    }
+    return [...folders].sort();
+}
+
 // ─── Hidden files modal (JSX) ───────────────────────────
 function HiddenFilesModalContent({
-    files, onRestore, onRestoreAll, onClose
+    hiddenFiles, allFiles, onRestore, onRestoreAll, onHideFolder, onClose
 }: {
-    files: string[];
+    hiddenFiles: string[];
+    allFiles: string[];
     onRestore: (path: string) => void;
     onRestoreAll: () => void;
+    onHideFolder: (folder: string) => void;
     onClose: () => void;
 }) {
+    const folders = getFolders(allFiles);
+
     return (
         <>
             <div className="hidden-modal-backdrop" onClick={onClose}></div>
             <div className="hidden-modal-content">
                 <div className="hidden-modal-header">
-                    <h3>Hidden Files ({files.length})</h3>
+                    <h3>Hidden Files ({hiddenFiles.length})</h3>
                     <div className="hidden-modal-actions">
                         <button className="btn-secondary btn-sm" onClick={onRestoreAll}>Restore All</button>
                         <button className="hidden-modal-close" onClick={onClose}>&times;</button>
                     </div>
                 </div>
                 <div className="hidden-modal-body">
-                    {files.map(f => (
+                    {/* Folder bulk-hide section */}
+                    {folders.length > 0 && (
+                        <div className="hidden-folder-section">
+                            <div className="hidden-section-label">Hide by folder</div>
+                            <div className="hidden-folder-list">
+                                {folders.map(folder => {
+                                    const filesInFolder = allFiles.filter(f => f.startsWith(folder + '/'));
+                                    const hiddenInFolder = filesInFolder.filter(f => hiddenFiles.includes(f));
+                                    const allHidden = hiddenInFolder.length === filesInFolder.length;
+                                    return (
+                                        <div key={folder} className="hidden-folder-row">
+                                            <span className="hidden-folder-path">
+                                                📁 {folder}/
+                                                <span className="hidden-folder-count">
+                                                    {hiddenInFolder.length}/{filesInFolder.length}
+                                                </span>
+                                            </span>
+                                            <button
+                                                className={`btn-hide-folder ${allHidden ? 'btn-disabled' : ''}`}
+                                                title={allHidden ? 'All files already hidden' : `Hide ${filesInFolder.length - hiddenInFolder.length} files in ${folder}/`}
+                                                disabled={allHidden}
+                                                onClick={() => onHideFolder(folder)}
+                                            >
+                                                {allHidden ? '✓' : '🙈'}
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Individual hidden files */}
+                    {hiddenFiles.length > 0 && (
+                        <div className="hidden-section-label" style={{ marginTop: '12px' }}>
+                            Currently hidden
+                        </div>
+                    )}
+                    {hiddenFiles.map(f => (
                         <div key={f} className="hidden-file-row" data-path={f}>
                             <span className="hidden-file-path">{f}</span>
                             <button className="btn-restore" title="Restore this file" onClick={() => onRestore(f)}>
@@ -108,11 +164,7 @@ function HiddenFilesModalContent({
 // ─── Show the hidden files modal ────────────────────────
 export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: () => void) {
     measure('modal:hiddenFiles', () => {
-        if (ctx.hiddenFiles.size === 0) {
-
-            return;
-        }
-
+        // Allow opening even with 0 hidden files (to use folder bulk-hide)
         let modal = document.getElementById('hiddenFilesModal');
         if (modal) modal.remove();
 
@@ -121,16 +173,21 @@ export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: ()
         modal.className = 'hidden-files-modal';
         document.body.appendChild(modal);
 
+        // Get all file paths from fileCards + deferredCards + hiddenFiles
+        const allFiles = [
+            ...ctx.fileCards.keys(),
+            ...ctx.deferredCards.keys(),
+            ...ctx.hiddenFiles,
+        ];
+        // Deduplicate
+        const uniqueFiles = [...new Set(allFiles)];
+
         function rerender() {
-            const files = [...ctx.hiddenFiles];
-            if (files.length === 0) {
-                render(null, modal);
-                modal.remove();
-                return;
-            }
+            const hiddenFiles = [...ctx.hiddenFiles];
             render(
                 <HiddenFilesModalContent
-                    files={files}
+                    hiddenFiles={hiddenFiles}
+                    allFiles={uniqueFiles}
                     onRestore={(path) => {
                         restoreFile(ctx, path);
                         rerenderCurrentView();
@@ -141,7 +198,15 @@ export function showHiddenFilesModal(ctx: CanvasContext, rerenderCurrentView: ()
                         render(null, modal);
                         modal.remove();
                         rerenderCurrentView();
-
+                    }}
+                    onHideFolder={(folder) => {
+                        const toHide = uniqueFiles
+                            .filter(f => f.startsWith(folder + '/'))
+                            .filter(f => !ctx.hiddenFiles.has(f));
+                        if (toHide.length > 0) {
+                            hideSelectedFiles(ctx, toHide);
+                            rerender();
+                        }
                     }}
                     onClose={() => {
                         render(null, modal);

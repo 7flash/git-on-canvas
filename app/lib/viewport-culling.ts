@@ -405,6 +405,8 @@ export function performViewportCulling(ctx: CanvasContext) {
 
         for (const [path, entry] of ctx.deferredCards) {
             if (materialized >= MAX_MATERIALIZE_PER_FRAME) break;
+            // Skip hidden files — don't materialize them
+            if (ctx.hiddenFiles.has(path)) { toRemove.push(path); continue; }
 
             const { file, x, y, size, isChanged } = entry;
             const cardW = size?.width || 580;
@@ -492,6 +494,8 @@ export function uncullAllCards(ctx: CanvasContext) {
     if (ctx.deferredCards.size > 0) {
         const { createAllFileCard } = require('./cards');
         for (const [path, entry] of ctx.deferredCards) {
+            // Skip hidden files
+            if (ctx.hiddenFiles.has(path)) continue;
             const { file, x, y, size, isChanged } = entry;
             const card = createAllFileCard(ctx, file, x, y, size);
             if (isChanged) {

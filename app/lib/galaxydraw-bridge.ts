@@ -446,11 +446,14 @@ export function materializeViewport(ctx: CanvasContext): number {
     const count = _cardManager.materializeInRect(rect);
 
     // Sync newly materialized cards to ctx.fileCards for minimap/fitAll
+    // AND remove from ctx.deferredCards so viewport-culling doesn't re-create them
     if (count > 0) {
         for (const [id, card] of _cardManager.cards) {
             if (!ctx.fileCards.has(id)) {
                 ctx.fileCards.set(id, card);
             }
+            // Remove from deferredCards to prevent duplicate creation by viewport-culling
+            ctx.deferredCards.delete(id);
         }
     }
 
