@@ -38,7 +38,7 @@
 - [ ] **Code minimap in editor** — Add a minimap scrollbar to the CodeMirror editor for large files, using `@codemirror/view` extensions.
 - [x] ~~**Multi-tab editor**~~ — ✅ DONE. Tab bar with file icons, names, close buttons. Ctrl+Tab/Ctrl+Shift+Tab cycling, middle-click close, scroll position per tab. Go-to-definition opens as new tab.
 - [ ] **File breadcrumb navigation** — Show directory path as clickable breadcrumbs in modal header. Click a directory to filter/show sibling files.
-- [ ] **Git blame view** — Add a "Blame" tab to the modal showing per-line author/date/commit using `git blame` API.
+- [x] ~~**Git blame view**~~ — ✅ DONE. "Blame" tab with porcelain API. Color-coded authors, grouped commits, relative timestamps, author legend, cached data.
 - [ ] **File diff between tabs** — Select two open tabs and diff them side-by-side.
 
 ## 🔴 Priority: Performance
