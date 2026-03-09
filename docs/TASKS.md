@@ -20,7 +20,9 @@
 - [x] ~~**Smooth LOD transition**~~ — ✅ Fade in with scale + opacity animation.
 
 ## 🟢 Priority: Features
-- [ ] **Inline file editing** — Allow editing file content directly on canvas cards.
+- [x] ~~**Inline file editing**~~ — ✅ DONE. Edit tab in file preview modal with textarea, Ctrl+S save via POST /api/repo/file-save, cursor tracking, modified/saved status indicators. Path traversal protection.
+- [ ] **File editing: syntax highlighting in textarea** — Use CodeMirror or Monaco for the edit textarea instead of plain textarea for proper syntax highlighting while editing.
+- [ ] **File editing: git integration** — After saving a file, option to stage + commit the change directly from the modal.
 - [x] ~~**Card grouping / folders**~~ — ✅ `card-groups.ts`. Click 📁 dir-labels to collapse/expand. Group cards show file count, line count, change markers, mini file list. State persisted per repo.
 - [x] ~~**Export canvas as PNG/SVG**~~ — ✅ `canvas-export.ts`. Ctrl+Shift+E (full canvas) / Ctrl+Shift+V (viewport). Renders cards with file names, language colors, diff markers, branded header, timestamp.
 - [x] ~~**Multi-repo workspace**~~ — ✅ `multi-repo.ts` supports 2-3 repos side-by-side.
