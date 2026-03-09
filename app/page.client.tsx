@@ -26,6 +26,7 @@ import { initGalaxyDrawState, initCardManager } from './lib/galaxydraw-bridge';
 import { initFilePreview, destroyFilePreview } from './lib/file-preview';
 import { initBranchCompare } from './lib/branch-compare';
 import { initCommandPalette } from './lib/command-palette';
+import { initShortcutsPanel } from './lib/shortcuts-panel';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -67,6 +68,7 @@ export default function mount(): () => void {
             if (ctx.canvasViewport) initFilePreview(ctx.canvasViewport);
             initBranchCompare(ctx);
             initCommandPalette(ctx);
+            initShortcutsPanel();
             await loadSavedPositions(ctx); // initial load (may be empty if no repo yet)
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);

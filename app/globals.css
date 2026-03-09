@@ -5638,3 +5638,136 @@ body {
     font-family: 'Inter', sans-serif;
     margin-right: 3px;
 }
+
+/* ─── Shortcuts Panel ─────────────────────────────────── */
+#shortcuts-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99998;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    animation: cpFadeIn 120ms ease-out;
+}
+
+#shortcuts-panel {
+    width: min(680px, 92vw);
+    max-height: 80vh;
+    overflow-y: auto;
+    background: rgba(18, 18, 28, 0.94);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 16px;
+    box-shadow:
+        0 24px 80px rgba(0, 0, 0, 0.5),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    animation: cpSlideDown 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(139, 92, 246, 0.3) transparent;
+}
+
+.sp-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sp-header h2 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #f0f0f0;
+    letter-spacing: 0.01em;
+}
+
+.sp-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.3);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: all 120ms;
+}
+
+.sp-close:hover {
+    color: #f0f0f0;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.sp-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+    padding: 8px 0;
+}
+
+.sp-category {
+    padding: 12px 24px;
+}
+
+.sp-category h3 {
+    margin: 0 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(139, 92, 246, 0.7);
+}
+
+.sp-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 0;
+}
+
+.sp-keys {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    min-width: 120px;
+    justify-content: flex-end;
+}
+
+.sp-keys kbd {
+    font-size: 11px;
+    font-family: 'Inter', sans-serif;
+    padding: 2px 7px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.4;
+    min-width: 18px;
+    text-align: center;
+}
+
+.sp-key--text {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.5);
+    font-family: 'Inter', sans-serif;
+}
+
+.sp-sep {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.2);
+    margin: 0 1px;
+}
+
+.sp-desc {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.55);
+    white-space: nowrap;
+}
+
+@media (max-width: 600px) {
+    .sp-grid {
+        grid-template-columns: 1fr;
+    }
+}
