@@ -2,7 +2,10 @@
 /**
  * Multi-tab file management for the modal.
  * Allows opening multiple files that persist as tabs.
+ * Tab paths are saved to localStorage for session persistence.
  */
+
+const TAB_STORAGE_KEY = 'gitcanvas:openTabs';
 
 export interface FileTab {
     path: string;
@@ -76,6 +79,7 @@ export function addTab(file: any): number {
     openTabs.push(tab);
     activeTabIndex = openTabs.length - 1;
     renderTabBar();
+    _persistTabPaths();
     return activeTabIndex;
 }
 
@@ -106,6 +110,7 @@ export function closeTab(index: number, hasUnsavedChanges?: () => boolean): numb
     }
 
     renderTabBar();
+    _persistTabPaths();
     return activeTabIndex;
 }
 
@@ -140,11 +145,45 @@ export function prevTab(): number {
 
 /**
  * Clear all tabs (on modal close).
+ * Keeps saved tab paths in localStorage for session restore.
  */
 export function clearTabs(): void {
+    // Persist current tab paths before clearing in-memory state
+    _persistTabPaths();
     openTabs = [];
     activeTabIndex = -1;
     renderTabBar();
+}
+
+/** Fully clear tabs AND remove from localStorage (discard all) */
+export function clearTabsAndStorage(): void {
+    openTabs = [];
+    activeTabIndex = -1;
+    renderTabBar();
+    try { localStorage.removeItem(TAB_STORAGE_KEY); } catch { }
+}
+
+/** Get previously saved tab paths for session restore */
+export function getSavedTabPaths(): { paths: string[]; activeIndex: number } {
+    try {
+        const raw = localStorage.getItem(TAB_STORAGE_KEY);
+        if (!raw) return { paths: [], activeIndex: -1 };
+        return JSON.parse(raw);
+    } catch {
+        return { paths: [], activeIndex: -1 };
+    }
+}
+
+/** Save current tab paths to localStorage */
+function _persistTabPaths(): void {
+    try {
+        if (openTabs.length === 0) return; // Don't overwrite with empty on close
+        const data = {
+            paths: openTabs.map(t => t.path),
+            activeIndex: activeTabIndex,
+        };
+        localStorage.setItem(TAB_STORAGE_KEY, JSON.stringify(data));
+    } catch { }
 }
 
 // ─── Tab change callback ────────────────────────────

@@ -9,7 +9,7 @@ import { escapeHtml } from './utils';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { openFileChatInModal } from './chat';
 import { addClickableImports } from './goto-definition';
-import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prevTab, onTabChange, onTabCloseRequest, setActiveTab, type FileTab } from './file-tabs';
+import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prevTab, onTabChange, onTabCloseRequest, setActiveTab, getSavedTabPaths, type FileTab } from './file-tabs';
 import { renderBreadcrumbs } from './breadcrumbs';
 import { renderSymbolOutline } from './symbol-outline';
 import { loadDraft, clearDraft, startAutoSave, stopAutoSave } from './auto-save';
@@ -31,6 +31,25 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
     // Initialize tab bar and add file as tab
     initTabBar();
     const tabIndex = addTab(file);
+
+    // Restore previously saved tabs (from last session)
+    const saved = getSavedTabPaths();
+    if (saved.paths.length > 0) {
+        const state = ctx.snap().context;
+        for (const savedPath of saved.paths) {
+            if (savedPath === file.path) continue; // Already opened
+            // Create a minimal file stub — content will be loaded on tab switch
+            const stubFile = {
+                path: savedPath,
+                name: savedPath.split('/').pop() || savedPath,
+                content: '',
+                lines: 0,
+            };
+            addTab(stubFile);
+        }
+        // Re-activate the current file's tab
+        setActiveTab(tabIndex);
+    }
 
     if (statusEl) {
         const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
