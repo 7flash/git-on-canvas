@@ -4039,22 +4039,33 @@ body {
 
 .modal-edit-textarea {
     flex: 1;
-    width: 100%;
-    min-height: 300px;
-    padding: 16px 18px;
-    background: var(--bg-card, #0c0c1a);
-    border: none;
-    color: var(--text-primary);
-    font-family: 'JetBrains Mono', var(--font-mono, monospace);
-    font-size: 13px;
-    line-height: 1.5;
     resize: none;
+    background: transparent;
+    color: var(--text-primary);
+    border: none;
     outline: none;
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
     tab-size: 4;
-    -moz-tab-size: 4;
     white-space: pre;
     overflow: auto;
-    word-wrap: off;
+}
+
+/* CodeMirror editor mount */
+.cm-editor-mount {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+}
+
+.cm-editor-mount .cm-editor {
+    height: 100%;
+}
+
+.cm-editor-mount .cm-scroller {
+    overflow: auto !important;
 }
 
 .modal-edit-textarea:focus {

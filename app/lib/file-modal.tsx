@@ -49,6 +49,9 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
     function hasUnsavedChanges(): boolean {
         if (currentView !== 'edit') return false;
+        const editContainer = document.getElementById('modalEditContainer');
+        const editor = (editContainer as any)?._cmEditor;
+        if (editor) return editor.getContent() !== originalContent;
         const textarea = document.getElementById('modalEditTextarea') as HTMLTextAreaElement;
         return textarea ? textarea.value !== originalContent : false;
     }
@@ -69,6 +72,13 @@ export function openFileModal(ctx: CanvasContext, file: any) {
         const editContainer = document.getElementById('modalEditContainer');
         const saveStatus = document.getElementById('modalSaveStatus');
         const commitSection = document.getElementById('editCommitSection');
+
+        // Destroy CodeMirror editor
+        const editor = (editContainer as any)?._cmEditor;
+        if (editor) { editor.destroy(); (editContainer as any)._cmEditor = null; }
+        const cmMount = document.getElementById('cmEditorMount');
+        if (cmMount) cmMount.innerHTML = '';
+
         if (editContainer) editContainer.style.display = 'none';
         if (saveStatus) { saveStatus.style.display = 'none'; saveStatus.className = 'modal-save-status'; }
         if (commitSection) commitSection.style.display = 'none';
@@ -189,60 +199,58 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                     const lineInfo = document.getElementById('editLineInfo');
                     const saveBtn = document.getElementById('editSaveBtn');
 
-                    if (textarea) {
-                        // Load current content
-                        const editContent = rendered.full_raw || file.content || '';
-                        textarea.value = editContent;
-                        originalContent = editContent;
+                    // Load current content
+                    const editContent = rendered.full_raw || file.content || '';
+                    originalContent = editContent;
 
-                        // Cursor position tracking
-                        const updateLineInfo = () => {
-                            if (!lineInfo) return;
-                            const val = textarea.value;
-                            const pos = textarea.selectionStart;
-                            const lines = val.substring(0, pos).split('\n');
-                            const line = lines.length;
-                            const col = lines[lines.length - 1].length + 1;
-                            lineInfo.textContent = `Line ${line}, Col ${col}`;
-                        };
-                        textarea.addEventListener('click', updateLineInfo);
-                        textarea.addEventListener('keyup', updateLineInfo);
-                        textarea.addEventListener('input', () => {
-                            updateLineInfo();
-                            // Show modified indicator
-                            if (saveStatus && textarea.value !== originalContent) {
-                                saveStatus.style.display = '';
-                                saveStatus.textContent = '● Modified';
-                                saveStatus.className = 'modal-save-status modified';
-                            } else if (saveStatus) {
-                                saveStatus.style.display = 'none';
-                            }
-                        });
-                        updateLineInfo();
+                    // Hide textarea (CodeMirror replaces it)
+                    if (textarea) textarea.style.display = 'none';
 
-                        // Tab key inserts actual tab
-                        textarea.addEventListener('keydown', (e) => {
-                            if (e.key === 'Tab') {
-                                e.preventDefault();
-                                const start = textarea.selectionStart;
-                                const end = textarea.selectionEnd;
-                                textarea.value = textarea.value.substring(0, start) + '\t' + textarea.value.substring(end);
-                                textarea.selectionStart = textarea.selectionEnd = start + 1;
-                                textarea.dispatchEvent(new Event('input'));
-                            }
-                            // Ctrl+S to save
-                            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                                e.preventDefault();
-                                saveFile();
-                            }
-                        });
-
-                        textarea.focus();
+                    // Mount CodeMirror into the edit container
+                    let editorMountEl = document.getElementById('cmEditorMount');
+                    if (!editorMountEl) {
+                        editorMountEl = document.createElement('div');
+                        editorMountEl.id = 'cmEditorMount';
+                        editorMountEl.className = 'cm-editor-mount';
+                        // Insert before the toolbar
+                        const toolbar = document.getElementById('modalEditToolbar');
+                        if (toolbar && editContainer) {
+                            editContainer.insertBefore(editorMountEl, toolbar);
+                        } else if (editContainer) {
+                            editContainer.appendChild(editorMountEl);
+                        }
                     }
+                    editorMountEl.innerHTML = '';
+
+                    // Create CodeMirror editor
+                    const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+                    import('./code-editor').then(({ createCodeEditor }) => {
+                        const editor = createCodeEditor(editorMountEl!, editContent, ext, {
+                            onSave: () => saveFile(),
+                            onChange: (content) => {
+                                // Show modified indicator
+                                if (saveStatus && content !== originalContent) {
+                                    saveStatus.style.display = '';
+                                    saveStatus.textContent = '● Modified';
+                                    saveStatus.className = 'modal-save-status modified';
+                                } else if (saveStatus && content === originalContent) {
+                                    saveStatus.style.display = 'none';
+                                }
+                            },
+                            onCursorMove: (line, col) => {
+                                if (lineInfo) lineInfo.textContent = `Line ${line}, Col ${col}`;
+                            },
+                        });
+
+                        // Store editor reference for content access
+                        (editContainer as any)._cmEditor = editor;
+                        editor.focus();
+                    });
 
                     // Save handler
                     const saveFile = async () => {
-                        if (!textarea) return;
+                        const editor = (editContainer as any)?._cmEditor;
+                        const content = editor ? editor.getContent() : textarea?.value || '';
                         const state = ctx.snap().context;
                         const repoPath = state.repoPath;
                         if (!repoPath) {
@@ -259,20 +267,20 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                                 body: JSON.stringify({
                                     path: repoPath,
                                     filePath: file.path,
-                                    content: textarea.value,
+                                    content,
                                 }),
                             });
                             if (res.ok) {
                                 const data = await res.json();
-                                originalContent = textarea.value;
+                                originalContent = content;
                                 // Update the in-memory file data
-                                file.content = textarea.value;
+                                file.content = content;
                                 file.lines = data.lines;
                                 if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Saved (${data.lines} lines)`; saveStatus.className = 'modal-save-status saved'; }
                                 // Also update the rendered full view for when they switch back
                                 const ext = file.name?.split('.').pop()?.toLowerCase() || '';
-                                rendered.full = highlightSyntax(textarea.value, ext);
-                                rendered.full_raw = textarea.value;
+                                rendered.full = highlightSyntax(content, ext);
+                                rendered.full_raw = content;
 
                                 // Show commit section after save
                                 const commitSection = document.getElementById('editCommitSection');
@@ -326,14 +334,14 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                                     // Enter key in input triggers commit
                                     commitInput.addEventListener('keydown', (e) => {
                                         if (e.key === 'Enter') { e.preventDefault(); doCommit(); }
-                                        if (e.key === 'Escape') { commitSection.style.display = 'none'; textarea?.focus(); }
+                                        if (e.key === 'Escape') { commitSection.style.display = 'none'; editor?.focus(); }
                                     });
 
                                     // Cancel button
                                     if (commitCancel) {
                                         const newCancelBtn = commitCancel.cloneNode(true) as HTMLElement;
                                         commitCancel.replaceWith(newCancelBtn);
-                                        newCancelBtn.addEventListener('click', () => { commitSection.style.display = 'none'; textarea?.focus(); });
+                                        newCancelBtn.addEventListener('click', () => { commitSection.style.display = 'none'; editor?.focus(); });
                                     }
                                 }
 
