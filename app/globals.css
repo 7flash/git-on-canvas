@@ -4114,6 +4114,100 @@ body {
     }
 }
 
+/* ─── Multi-tab file bar ─── */
+.modal-file-tab-bar {
+    display: none;
+    gap: 2px;
+    padding: 4px 16px;
+    background: rgba(15, 15, 30, 0.8);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+    flex-shrink: 0;
+}
+
+.file-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px;
+    border-radius: 6px 6px 0 0;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid transparent;
+    border-bottom: none;
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.72rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+    max-width: 180px;
+    min-width: 80px;
+    position: relative;
+}
+
+.file-tab:hover {
+    background: rgba(124, 58, 237, 0.08);
+    color: var(--text-primary, #e5e7eb);
+}
+
+.file-tab.active {
+    background: rgba(124, 58, 237, 0.12);
+    border-color: rgba(124, 58, 237, 0.3);
+    color: #c4b5fd;
+}
+
+.file-tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #7c3aed;
+    border-radius: 2px 2px 0 0;
+}
+
+.file-tab-icon {
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.file-tab-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-tab-modified {
+    color: #eab308;
+    font-size: 0.6rem;
+    flex-shrink: 0;
+}
+
+.file-tab-close {
+    opacity: 0;
+    background: none;
+    border: none;
+    color: #9ca3af;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 0 2px;
+    line-height: 1;
+    border-radius: 3px;
+    flex-shrink: 0;
+    transition: all 0.1s ease;
+}
+
+.file-tab:hover .file-tab-close {
+    opacity: 0.6;
+}
+
+.file-tab-close:hover {
+    opacity: 1 !important;
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
 .modal-edit-textarea:focus {
     box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.2);
 }

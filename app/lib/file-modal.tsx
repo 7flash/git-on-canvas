@@ -9,6 +9,7 @@ import { escapeHtml } from './utils';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { openFileChatInModal } from './chat';
 import { addClickableImports } from './goto-definition';
+import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prevTab, onTabChange, onTabCloseRequest, setActiveTab, type FileTab } from './file-tabs';
 
 // ─── File expand modal ──────────────────────────────────
 export function openFileModal(ctx: CanvasContext, file: any) {
@@ -23,6 +24,10 @@ export function openFileModal(ctx: CanvasContext, file: any) {
     pathEl.textContent = file.path;
     contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Loading...</span>';
     modal.classList.add('active');
+
+    // Initialize tab bar and add file as tab
+    initTabBar();
+    const tabIndex = addTab(file);
 
     if (statusEl) {
         const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
@@ -69,6 +74,9 @@ export function openFileModal(ctx: CanvasContext, file: any) {
         document.removeEventListener('keydown', onEsc);
         if (onNavKey) document.removeEventListener('keydown', onNavKey);
 
+        // Clear all tabs
+        clearTabs();
+
         // Reset edit state
         const editContainer = document.getElementById('modalEditContainer');
         const saveStatus = document.getElementById('modalSaveStatus');
@@ -93,11 +101,103 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
     function onEsc(e: KeyboardEvent) {
         if (e.key === 'Escape') closeModal();
+        // Ctrl+Tab / Ctrl+Shift+Tab to cycle tabs
+        if (e.key === 'Tab' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            const newIdx = e.shiftKey ? prevTab() : nextTab();
+            if (newIdx >= 0) {
+                const tab = getOpenTabs()[newIdx];
+                if (tab) switchToTab(ctx, tab);
+            }
+        }
     }
 
     document.addEventListener('keydown', onEsc);
     document.getElementById('closePreview')?.addEventListener('click', closeModal, { once: true });
     modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal, { once: true });
+
+    // ─── Tab switching helper ─────────────────────────
+    function switchToTab(ctx: CanvasContext, tab: FileTab) {
+        // Update modal header
+        if (pathEl) pathEl.textContent = tab.path;
+        if (lineCountEl) {
+            const lines = tab.rendered.full_raw?.split('\n').length || tab.file.lines || 0;
+            lineCountEl.textContent = lines ? `${lines.toLocaleString()} lines` : '';
+        }
+
+        // Update status badge
+        if (statusEl) {
+            const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
+            const statusLabels = { added: 'ADDED', modified: 'MODIFIED', deleted: 'DELETED' };
+            if (tab.file.status && statusColors[tab.file.status]) {
+                statusEl.textContent = statusLabels[tab.file.status];
+                statusEl.style.display = '';
+                statusEl.style.background = statusColors[tab.file.status] + '20';
+                statusEl.style.color = statusColors[tab.file.status];
+            } else {
+                statusEl.style.display = 'none';
+            }
+        }
+
+        // Destroy existing CodeMirror
+        const editContainer = document.getElementById('modalEditContainer');
+        const editor = (editContainer as any)?._cmEditor;
+        if (editor) { editor.destroy(); (editContainer as any)._cmEditor = null; }
+        const cmMount = document.getElementById('cmEditorMount');
+        if (cmMount) cmMount.innerHTML = '';
+
+        // Update content
+        file = tab.file;
+        rendered.full = tab.rendered.full;
+        rendered.diff = tab.rendered.diff;
+        rendered.full_raw = tab.rendered.full_raw;
+        originalContent = tab.originalContent;
+        currentView = tab.currentView || 'full';
+
+        // Switch view
+        const modalPre = document.getElementById('modalBodyPre');
+        const chatContainer = document.getElementById('modalChatContainer');
+        if (editContainer) editContainer.style.display = 'none';
+        if (chatContainer) chatContainer.style.display = 'none';
+
+        if (currentView === 'full' && rendered.full) {
+            if (modalPre) modalPre.style.display = '';
+            contentEl.innerHTML = rendered.full;
+            addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
+        } else if (currentView === 'diff' && rendered.diff) {
+            if (modalPre) modalPre.style.display = '';
+            contentEl.innerHTML = rendered.diff;
+        } else {
+            if (modalPre) modalPre.style.display = '';
+            contentEl.innerHTML = rendered.full || '<span style="color: var(--text-muted);">Loading...</span>';
+        }
+
+        // Restore scroll
+        if (modalPre) {
+            requestAnimationFrame(() => {
+                modalPre.scrollTop = tab.scrollTop || 0;
+            });
+        }
+
+        // Update view tabs
+        if (tabsEl) {
+            tabsEl.querySelectorAll('.modal-tab').forEach(t => {
+                t.classList.toggle('active', t.dataset.view === currentView);
+            });
+        }
+
+        // If content not loaded yet, fetch it
+        if (!rendered.full && !rendered.diff) {
+            loadTabContent(ctx, tab);
+        }
+    }
+
+    // Wire up tab change callback
+    onTabChange((tab, index) => switchToTab(ctx, tab));
+    onTabCloseRequest((index) => {
+        // Return false to prevent close if unsaved changes
+        return true; // For now, allow close
+    });
 
     // Diff navigation setup
     const changedFiles = (ctx.allFilesData || []).filter(f => f.status);
@@ -432,6 +532,13 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
             }
 
+            // Sync rendered data to the active tab
+            const activeTab = getActiveTab();
+            if (activeTab && activeTab.path === file.path) {
+                activeTab.rendered = { ...rendered };
+                activeTab.originalContent = originalContent;
+            }
+
         } catch (err) {
             measure('modal:fetchError', () => err);
             if (file.content) {
@@ -447,4 +554,58 @@ export function openFileModal(ctx: CanvasContext, file: any) {
             }
         }
     });
+}
+
+// ─── Load content for a tab (used when switching to an unloaded tab) ──
+async function loadTabContent(ctx: CanvasContext, tab: FileTab) {
+    const contentEl = document.getElementById('previewContent');
+    const lineCountEl = document.getElementById('previewLineCount');
+    if (!contentEl) return;
+
+    contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Loading...</span>';
+
+    try {
+        const state = ctx.snap().context;
+        let content = '';
+
+        if (state.currentCommitHash && tab.path) {
+            const response = await fetch('/api/repo/file-content', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    path: state.repoPath,
+                    commit: state.currentCommitHash,
+                    filePath: tab.path
+                })
+            });
+            if (response.ok) {
+                const data = await response.json();
+                content = data.content || '';
+            }
+        }
+
+        if (!content && tab.file.content) content = tab.file.content;
+        if (!content) {
+            contentEl.innerHTML = '<span style="color: var(--text-muted);">No content available</span>';
+            return;
+        }
+
+        const ext = tab.name?.split('.').pop()?.toLowerCase() || '';
+        tab.rendered.full = highlightSyntax(content, ext);
+        tab.rendered.full_raw = content;
+        tab.originalContent = content;
+
+        if (lineCountEl) {
+            lineCountEl.textContent = `${content.split('\n').length.toLocaleString()} lines`;
+        }
+
+        // Check if this tab is still active
+        const activeTab = getActiveTab();
+        if (activeTab && activeTab.path === tab.path) {
+            contentEl.innerHTML = tab.rendered.full;
+            addClickableImports(ctx, contentEl, tab.path, tab.rendered.full_raw);
+        }
+    } catch (err: any) {
+        contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${err.message}</span>`;
+    }
 }

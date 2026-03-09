@@ -204,59 +204,21 @@ export function addClickableImports(ctx: CanvasContext, contentEl: HTMLElement, 
 }
 
 /**
- * Navigate to a file card on the canvas.
+ * Navigate to a file — opens it as a new tab in the modal.
  */
 function navigateToFile(ctx: CanvasContext, filePath: string) {
-    // Close the modal first
-    const modal = document.getElementById('filePreviewModal');
-    if (modal) modal.classList.remove('active');
-
-    // Find the card
-    const card = ctx.fileCards.get(filePath);
-    if (!card) {
-        // File exists but card might not be visible — try to open the modal for it
-        const fileData = ctx.allFilesData?.find(f => f.path === filePath);
-        if (fileData) {
-            showToast(`Opening ${filePath.split('/').pop()}...`, 'info');
-            // Re-open modal with the target file
-            setTimeout(() => {
-                import('./file-modal').then(({ openFileModal }) => {
-                    openFileModal(ctx, fileData);
-                });
-            }, 300);
-        } else {
-            showToast(`File not found on canvas: ${filePath}`, 'error');
-        }
+    // Find the file data
+    const fileData = ctx.allFilesData?.find(f => f.path === filePath);
+    if (!fileData) {
+        showToast(`File not found: ${filePath}`, 'error');
         return;
     }
 
-    // Pan to the card
-    const engine = ctx.engine;
-    if (engine) {
-        const rect = card.getBoundingClientRect();
-        const cardX = parseFloat(card.style.left) || 0;
-        const cardY = parseFloat(card.style.top) || 0;
-        const cardW = card.offsetWidth || 300;
-        const cardH = card.offsetHeight || 200;
-
-        // Center the card in the viewport
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const targetZoom = Math.min(1.0, Math.max(0.5, vw / (cardW + 100)));
-
-        engine.panTo(
-            cardX + cardW / 2 - vw / (2 * targetZoom),
-            cardY + cardH / 2 - vh / (2 * targetZoom),
-            targetZoom
-        );
-    }
-
-    // Highlight the card briefly
-    card.classList.add('goto-highlight');
-    setTimeout(() => card.classList.remove('goto-highlight'), 2000);
-
-    // Select it
-    ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
-
     showToast(`→ ${filePath.split('/').pop()}`, 'info');
+
+    // Open the file as a new tab in the current modal
+    import('./file-modal').then(({ openFileModal }) => {
+        openFileModal(ctx, fileData);
+    });
 }
+
