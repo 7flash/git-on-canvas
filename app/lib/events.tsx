@@ -30,6 +30,7 @@ import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hi
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
+import { exportCanvasAsPNG, exportViewportAsPNG } from './canvas-export';
 import { cancelPendingConnection, hasPendingConnection } from './connections';
 import { promptAddSection } from './layers';
 
@@ -781,6 +782,18 @@ export function setupEventListeners(ctx: CanvasContext) {
             if (e.key === '/' || ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
                 e.preventDefault();
                 openFileSearch(ctx);
+            }
+
+            // Ctrl+Shift+E = Export canvas as PNG
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
+                e.preventDefault();
+                exportCanvasAsPNG(ctx);
+            }
+
+            // Ctrl+Shift+V = Export viewport as PNG
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'v') {
+                e.preventDefault();
+                exportViewportAsPNG(ctx);
             }
         });
 

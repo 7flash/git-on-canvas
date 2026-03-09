@@ -42,6 +42,8 @@ const SHORTCUTS = [
         category: 'Tools', items: [
             { keys: ['I'], description: 'Toggle AI chat' },
             { keys: ['Shift + Click line'], description: 'Start connection' },
+            { keys: ['Ctrl', 'Shift', 'E'], description: 'Export canvas as PNG' },
+            { keys: ['Ctrl', 'Shift', 'V'], description: 'Export viewport as PNG' },
             { keys: ['Esc'], description: 'Deselect / cancel / close' },
             { keys: ['?'], description: 'Show this panel' },
         ]
