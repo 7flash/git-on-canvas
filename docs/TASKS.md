@@ -22,7 +22,7 @@
 ## 🟢 Priority: Features
 - [ ] **Inline file editing** — Allow editing file content directly on canvas cards.
 - [ ] **Card grouping / folders** — Collapse entire directories into a single group card.
-- [ ] **Export canvas as PNG/SVG** — Screenshot current canvas for docs/sharing.
+- [x] ~~**Export canvas as PNG/SVG**~~ — ✅ `canvas-export.ts`. Ctrl+Shift+E (full canvas) / Ctrl+Shift+V (viewport). Renders cards with file names, language colors, diff markers, branded header, timestamp.
 - [x] ~~**Multi-repo workspace**~~ — ✅ `multi-repo.ts` supports 2-3 repos side-by-side.
 - [x] ~~**Branch comparison view**~~ — ✅ `branch-compare.ts` glassmorphism drawer.
 - [x] ~~**Command Palette (Ctrl+K)**~~ — ✅ Fuzzy file search overlay.
