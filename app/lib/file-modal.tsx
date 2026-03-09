@@ -56,8 +56,10 @@ export function openFileModal(ctx: CanvasContext, file: any) {
         // Reset edit state
         const editContainer = document.getElementById('modalEditContainer');
         const saveStatus = document.getElementById('modalSaveStatus');
+        const commitSection = document.getElementById('editCommitSection');
         if (editContainer) editContainer.style.display = 'none';
         if (saveStatus) { saveStatus.style.display = 'none'; saveStatus.className = 'modal-save-status'; }
+        if (commitSection) commitSection.style.display = 'none';
 
         if (tabsEl) {
             tabsEl.querySelectorAll('.modal-tab').forEach(t => {
@@ -254,8 +256,72 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                                 const ext = file.name?.split('.').pop()?.toLowerCase() || '';
                                 rendered.full = highlightSyntax(textarea.value, ext);
                                 rendered.full_raw = textarea.value;
-                                // Fade out status after 3s
-                                setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓')) { saveStatus.style.display = 'none'; } }, 3000);
+
+                                // Show commit section after save
+                                const commitSection = document.getElementById('editCommitSection');
+                                const commitInput = document.getElementById('editCommitMsg') as HTMLInputElement;
+                                const commitBtn = document.getElementById('editCommitBtn');
+                                const commitCancel = document.getElementById('editCommitCancel');
+
+                                if (commitSection && commitInput) {
+                                    commitSection.style.display = 'flex';
+                                    const fileName = file.name || file.path?.split('/').pop() || 'file';
+                                    commitInput.value = `edit: ${fileName}`;
+                                    commitInput.focus();
+                                    commitInput.select();
+
+                                    const doCommit = async () => {
+                                        const msg = commitInput.value.trim();
+                                        if (!msg) { commitInput.focus(); return; }
+                                        if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'Committing...'; saveStatus.className = 'modal-save-status saving'; }
+                                        try {
+                                            const cRes = await fetch('/api/repo/git-commit', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({
+                                                    path: repoPath,
+                                                    filePath: file.path,
+                                                    message: msg,
+                                                }),
+                                            });
+                                            if (cRes.ok) {
+                                                const cData = await cRes.json();
+                                                const shortHash = cData.hash ? cData.hash.substring(0, 7) : '';
+                                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Committed ${shortHash}`; saveStatus.className = 'modal-save-status saved'; }
+                                                commitSection.style.display = 'none';
+                                                setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓')) { saveStatus.style.display = 'none'; } }, 4000);
+                                            } else {
+                                                const err = await cRes.text();
+                                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Commit err: ${err}`; saveStatus.className = 'modal-save-status error'; }
+                                            }
+                                        } catch (err: any) {
+                                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Commit err: ${err.message}`; saveStatus.className = 'modal-save-status error'; }
+                                        }
+                                    };
+
+                                    // Wire commit button
+                                    if (commitBtn) {
+                                        const newCommitBtn = commitBtn.cloneNode(true) as HTMLElement;
+                                        commitBtn.replaceWith(newCommitBtn);
+                                        newCommitBtn.addEventListener('click', doCommit);
+                                    }
+
+                                    // Enter key in input triggers commit
+                                    commitInput.addEventListener('keydown', (e) => {
+                                        if (e.key === 'Enter') { e.preventDefault(); doCommit(); }
+                                        if (e.key === 'Escape') { commitSection.style.display = 'none'; textarea?.focus(); }
+                                    });
+
+                                    // Cancel button
+                                    if (commitCancel) {
+                                        const newCancelBtn = commitCancel.cloneNode(true) as HTMLElement;
+                                        commitCancel.replaceWith(newCancelBtn);
+                                        newCancelBtn.addEventListener('click', () => { commitSection.style.display = 'none'; textarea?.focus(); });
+                                    }
+                                }
+
+                                // Fade out save status after 3s (only if no commit action is pending)
+                                setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓ Saved')) { saveStatus.style.display = 'none'; } }, 3000);
                             } else {
                                 const err = await res.text();
                                 if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err}`; saveStatus.className = 'modal-save-status error'; }

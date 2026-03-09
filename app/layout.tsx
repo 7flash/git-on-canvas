@@ -340,6 +340,30 @@ export default function RootLayout({ children }: { children: any }) {
                             <div className="modal-edit-toolbar" id="modalEditToolbar">
                                 <span className="edit-line-info" id="editLineInfo">Line 1, Col 1</span>
                                 <div className="edit-toolbar-right">
+                                    <div className="edit-commit-section" id="editCommitSection" style={{ display: 'none' }}>
+                                        <input
+                                            type="text"
+                                            id="editCommitMsg"
+                                            className="edit-commit-input"
+                                            placeholder="Commit message..."
+                                            spellCheck={false}
+                                            autoComplete="off"
+                                        />
+                                        <button className="btn-ghost btn-sm edit-commit-btn" id="editCommitBtn" title="Commit this file">
+                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <circle cx="12" cy="12" r="4" />
+                                                <line x1="1.05" y1="12" x2="7" y2="12" />
+                                                <line x1="17.01" y1="12" x2="22.96" y2="12" />
+                                            </svg>
+                                            Commit
+                                        </button>
+                                        <button className="btn-ghost btn-xs edit-commit-cancel" id="editCommitCancel" title="Cancel">
+                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                                <line x1="18" y1="6" x2="6" y2="18" />
+                                                <line x1="6" y1="6" x2="18" y2="18" />
+                                            </svg>
+                                        </button>
+                                    </div>
                                     <button className="btn-ghost btn-sm edit-save-btn" id="editSaveBtn" title="Save (Ctrl+S)">
                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                             <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />

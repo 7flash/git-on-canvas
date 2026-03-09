@@ -4153,6 +4153,90 @@ body {
     animation: savePulse 0.8s ease infinite;
 }
 
+/* ─── Git commit section in edit toolbar ─────────────── */
+.edit-commit-section {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    animation: slideInLeft 0.2s ease;
+}
+
+@keyframes slideInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.edit-commit-input {
+    width: 220px;
+    padding: 4px 10px;
+    background: var(--bg-tertiary, #1a1a2e);
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    border-radius: 5px;
+    color: var(--text-primary);
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.edit-commit-input:focus {
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.1);
+}
+
+.edit-commit-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.edit-commit-btn {
+    display: flex !important;
+    align-items: center;
+    gap: 4px;
+    color: #22c55e !important;
+    font-weight: 600;
+    font-size: 0.75rem;
+    padding: 3px 10px !important;
+    border-radius: 5px;
+    background: rgba(34, 197, 94, 0.08) !important;
+    border: 1px solid rgba(34, 197, 94, 0.2) !important;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.edit-commit-btn:hover {
+    background: rgba(34, 197, 94, 0.15) !important;
+    box-shadow: 0 0 10px rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+.edit-commit-cancel {
+    opacity: 0.5;
+    transition: opacity 0.15s ease;
+}
+
+.edit-commit-cancel:hover {
+    opacity: 1;
+    color: #ef4444 !important;
+}
+
+/* Separator between commit section and save button */
+.edit-commit-section+.edit-save-btn::before {
+    content: '';
+    display: inline-block;
+    width: 1px;
+    height: 16px;
+    background: var(--border-default, rgba(255, 255, 255, 0.1));
+    margin-right: 8px;
+}
+
 /* ─── File Search Overlay ─────────────────────────────── */
 .file-search-overlay {
     position: fixed;
