@@ -8,6 +8,7 @@
 - [x] **Minimap: show all files** — Minimap now includes deferred cards in bounds + dots. Previously only showed files with DOM elements (viewport-visible).
 - [x] **Fit All: include deferred cards** — `fitAllFiles` now accounts for deferred card positions in its bounding box calculation.
 - [x] **"Press F" label removed** — Replaced with "double-click to zoom" since F-key expand is no longer primary.
+- [x] **Pill card label disambiguation** — Pills for common filenames (route.ts, page.tsx, index.ts etc.) now show parent directory: `messages/route.ts` instead of just `route.ts`. Massively improves readability in API-heavy repos.
 
 ## 🟢 Priority: Features
 - [x] ~~**Multi-repo workspace**~~ — ✅ DONE. `multi-repo.ts` supports 2-3 repos side-by-side. Additional repos auto-offset 800px right. Sidebar tabs switch commit timeline between repos. Zone labels (floating world-space badges with color dots) identify each repo's area. Color-coded: purple, blue, emerald, amber, red.
