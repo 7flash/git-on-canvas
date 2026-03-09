@@ -20,10 +20,10 @@
 - [x] ~~**Pill dblclick opens zoom instead of editor**~~ — ✅ DONE. viewport-culling.ts now opens editor modal on pill double-click, consistent with card behavior.
 - [x] ~~**Settings modal**~~ — ✅ DONE. Gear icon in toolbar opens premium dark-themed modal. Sections: Rendering (text mode, font size, card width), Interface (control mode, minimap, connections, auto-imports), Advanced (max visible lines). CSS in globals.css, inline positioning for reliability. All changes auto-saved to localStorage.
 - [x] ~~**Positions stored in localStorage**~~ — ✅ Already implemented. Dual storage: localStorage (instant) + server sync (if logged in). Debounced 300ms persist.
+- [x] ~~**Editor auto-save**~~ — ✅ DONE. Saves editor content every 3s to localStorage. Draft recovered on file reopen with "⟳ Draft restored" notification + Discard button. Cleared on explicit save. Expired drafts (>7 days) cleaned up on startup.
+- [x] ~~**Tab persistence**~~ — ✅ DONE. Open tab paths saved to localStorage on every tab change. Restored as stub tabs on modal reopen. Content loaded lazily on tab switch.
 
 ## 🟡 Priority: Improve
-- [ ] **Editor auto-save** — periodically auto-save unsaved changes in the editor modal
-- [ ] **Tab persistence** — remember open tabs across modal close/reopen
 - [ ] **Search across files** — Ctrl+Shift+F to search for text across all files in the repo
 
 ## 🟢 Priority: Features
@@ -34,6 +34,8 @@
 - **Canvas text = default** for main cards (performance + virtual scrolling)
 - **DOM rendering = popup previews only** (hover/link peek)
 - **Editor modal** = CodeMirror 6 with Edit (default) + Diff views. activateEditView() handles initialization.
+- **Auto-save** = `auto-save.ts` — saves drafts to localStorage every 3s. Key format: `gitcanvas:draft:<repo>:<file>`. Integrated into file-modal.tsx editor lifecycle.
+- **Tab persistence** = `file-tabs.ts` — saves open tab paths to localStorage. Restored on modal reopen with lazy content loading.
 - **Settings** = `settings.ts` (localStorage persistence + custom events) + `settings-modal.tsx` (UI). CSS must go in `globals.css` (not `main.css` — that file is dead/not bundled).
 - **Framework**: galaxydraw in `packages/galaxydraw/`
 - **Dev**: `bgrun --restart galaxy-canvas` (port 3335)
