@@ -120,9 +120,13 @@ function createPillCard(path: string, x: number, y: number, w: number, h: number
         });
     }
 
-    // File name label - rotated text (rotate approach renders full strings, unlike writing-mode)
-    // Font size is in world-space px — at 16% zoom, 48px renders as ~7.7px on screen
-    const name = path.split('/').pop() || path;
+    // File name label — show parent dir for common ambiguous filenames
+    const parts = path.split('/');
+    const filename = parts.pop() || path;
+    const AMBIGUOUS = ['route.ts', 'route.tsx', 'page.tsx', 'page.ts', 'index.ts', 'index.tsx', 'index.js', 'layout.tsx', 'middleware.ts'];
+    const name = AMBIGUOUS.includes(filename) && parts.length > 0
+        ? `${parts[parts.length - 1]}/${filename}`
+        : filename;
     const label = document.createElement('span');
     label.className = 'file-pill-label';
     label.textContent = name;
