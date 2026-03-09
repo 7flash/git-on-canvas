@@ -1,5 +1,6 @@
 import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
+import { validateRepoPath } from '../validate-path';
 
 /**
  * POST /api/repo/branch-diff
@@ -69,6 +70,9 @@ export async function POST(req: Request) {
             if (!repoPath || !base || !compare) {
                 return new Response('path, base, and compare are required', { status: 400 });
             }
+
+            const blocked = validateRepoPath(repoPath);
+            if (blocked) return blocked;
 
             const git = simpleGit(repoPath);
 

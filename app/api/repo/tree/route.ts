@@ -2,6 +2,7 @@ import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
 import { readFileSync, existsSync } from 'fs';
 import path from 'path';
+import { validateRepoPath } from '../validate-path';
 
 const BINARY_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'bmp', 'ico', 'svg', 'webp', 'mp3', 'mp4', 'wav', 'ogg', 'avi', 'mov', 'zip', 'tar', 'gz', 'rar', '7z', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'exe', 'dll', 'so', 'dylib', 'woff', 'woff2', 'ttf', 'eot', 'otf', 'lock']);
 
@@ -13,6 +14,9 @@ export async function POST(req: Request) {
             if (!repoPath) {
                 return new Response('Repository path is required', { status: 400 });
             }
+
+            const blocked = validateRepoPath(repoPath);
+            if (blocked) return blocked;
 
             const git = simpleGit(repoPath);
 

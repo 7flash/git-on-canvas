@@ -1,5 +1,6 @@
 import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
+import { validateRepoPath } from '../validate-path';
 
 export async function POST(req: Request) {
     return measure('api:repo:files', async () => {
@@ -9,6 +10,9 @@ export async function POST(req: Request) {
             if (!repoPath || !commit) {
                 return new Response('Repository path and commit are required', { status: 400 });
             }
+
+            const blocked = validateRepoPath(repoPath);
+            if (blocked) return blocked;
 
             const git = simpleGit(repoPath);
 

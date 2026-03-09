@@ -1,10 +1,14 @@
 import { measure } from 'measure-fn';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { blockInProduction } from '../validate-path';
 
 const execAsync = promisify(exec);
 
 export async function POST(req: Request) {
+    const blocked = blockInProduction('Folder browser');
+    if (blocked) return blocked;
+
     return measure('api:repo:browse', async () => {
         try {
             // Use PowerShell with -EncodedCommand to avoid quoting issues
