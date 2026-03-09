@@ -569,7 +569,7 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
 // ─── Build file content HTML with optional line limiting ─
 // When isExpanded=false, only render VISIBLE_LINE_LIMIT lines to keep DOM small.
 // When isExpanded=true (F key), render all lines for full scrolling.
-function _buildFileContentHTML(
+export function _buildFileContentHTML(
     content: string,
     layerSections: any,
     addedLines: Set<number>,

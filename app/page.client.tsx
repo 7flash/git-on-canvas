@@ -66,7 +66,7 @@ export default function mount(): () => void {
             setupEventListeners(ctx);
             setupPillInteraction(ctx);
             setupPerfOverlay(ctx);
-            if (ctx.canvasViewport) initFilePreview(ctx.canvasViewport);
+            if (ctx.canvasViewport) initFilePreview(ctx.canvasViewport, ctx);
             initBranchCompare(ctx);
             initCommandPalette(ctx);
             initShortcutsPanel();

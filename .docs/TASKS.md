@@ -24,6 +24,7 @@
 - [x] ~~**Canvas search / find**~~ — ✅ DONE. Upgraded `Ctrl+F` global search from simple path-matching to deep content-matching across all active files. Implemented inline snippet previews with highlighting and scroll-to-line navigation.
 - [x] ~~**Commit tree visualization**~~ — ✅ DONE. Implemented a visual Git commit/branch graph overlay, replacing the simple standard commit dropdown menu for better project archaeology. Added topological lane sorting and SVG drawing inside the commit timeline.
 - [x] ~~**Multi-select & bulk operations**~~ — ✅ DONE. Dragging a selection box over multiple cards brings up the Arrange toolbar. Bulk actions (collapse, resize) already work. Wired up "Explain with AI" to automatically ingest *only* the selected file cards into the AI context for batch processing.
+- [x] ~~**File hover preview in zoomed-out mode**~~ — ✅ DONE. When zoomed out to pill/LOD mode (<35% zoom), hovering over a pill card shows a full-fidelity file card preview popup. The preview clones the exact card component (syntax highlighting, diff markers, status badges) and forces DOM rendering even when canvas-text mode is active. Debounced 180ms with smooth fade animation.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.
