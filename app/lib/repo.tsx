@@ -510,6 +510,15 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         if (activeLayer) {
             layerFiles = visibleFiles.filter(f => !!activeLayer.files[f.path]);
         }
+        // Sort by directory to group files spatially (makes dir-labels coherent)
+        layerFiles.sort((a, b) => {
+            const dirA = a.path.includes('/') ? a.path.substring(0, a.path.lastIndexOf('/')) : '.';
+            const dirB = b.path.includes('/') ? b.path.substring(0, b.path.lastIndexOf('/')) : '.';
+            if (dirA !== dirB) return dirA.localeCompare(dirB);
+            const nameA = a.path.split('/').pop() || a.path;
+            const nameB = b.path.split('/').pop() || b.path;
+            return nameA.localeCompare(nameB);
+        });
 
         // Square-ish grid: use ceil(sqrt(n)) columns for a dense rectangle
         const count = layerFiles.length;
