@@ -59,10 +59,9 @@ export function createLayer(ctx: CanvasContext, name: string) {
         files: {}
     };
     layerState.layers.push(newLayer);
-    layerState.activeLayerId = newLayer.id;
+    // Don't auto-switch to the new layer — stay on the current one
     saveLayers(ctx);
     renderLayersUI(ctx);
-    applyLayer(ctx);
 }
 
 export function renameLayer(ctx: CanvasContext, id: string, newName: string) {
@@ -75,6 +74,19 @@ export function renameLayer(ctx: CanvasContext, id: string, newName: string) {
 
 export function deleteLayer(ctx: CanvasContext, id: string) {
     if (id === 'default') return;
+
+    // Return files from deleted layer back to default visibility
+    const layer = layerState.layers.find(l => l.id === id);
+    if (layer) {
+        const defaultLayer = layerState.layers.find(l => l.id === 'default');
+        if (defaultLayer) {
+            // Remove exclusions for files that were in this layer
+            for (const path of Object.keys(layer.files)) {
+                delete defaultLayer.files[path]; // Remove from moved-out tracking
+            }
+        }
+    }
+
     layerState.layers = layerState.layers.filter(l => l.id !== id);
     if (layerState.activeLayerId === id) {
         setActiveLayer(ctx, 'default');
@@ -84,15 +96,43 @@ export function deleteLayer(ctx: CanvasContext, id: string) {
     }
 }
 
-export function addFileToLayer(ctx: CanvasContext, layerId: string, path: string) {
+/**
+ * Move a file to a layer — this REMOVES it from the default layer's visible set.
+ * When a file is moved to a non-default layer, the default layer tracks it as "moved out"
+ * so it won't show on the default canvas.
+ */
+export function moveFileToLayer(ctx: CanvasContext, layerId: string, path: string) {
+    if (layerId === 'default') return; // Can't "move" to default — use removeFileFromLayer instead
+
     const layer = layerState.layers.find(l => l.id === layerId);
-    if (!layer || layer.id === 'default') return;
+    if (!layer) return;
+
+    // Add file to target layer
     if (!layer.files[path]) {
         layer.files[path] = { sections: [] };
-        saveLayers(ctx);
-        renderLayersUI(ctx);
-        if (layer.id === layerState.activeLayerId) applyLayer(ctx);
     }
+
+    // Track in default layer that this file has been moved out
+    const defaultLayer = layerState.layers.find(l => l.id === 'default');
+    if (defaultLayer) {
+        if (!defaultLayer.files[path]) {
+            defaultLayer.files[path] = { sections: [] };
+        }
+        // Mark as moved-out by adding a special marker
+        (defaultLayer.files[path] as any).__movedTo = layerId;
+    }
+
+    saveLayers(ctx);
+    renderLayersUI(ctx);
+    // Re-render current layer to hide the moved file
+    if (layerState.activeLayerId === 'default') {
+        applyLayer(ctx);
+    }
+}
+
+/** Backwards-compatible addFileToLayer that now delegates to moveFileToLayer */
+export function addFileToLayer(ctx: CanvasContext, layerId: string, path: string) {
+    moveFileToLayer(ctx, layerId, path);
 }
 
 export function removeFileFromLayer(ctx: CanvasContext, layerId: string, path: string) {
@@ -100,6 +140,13 @@ export function removeFileFromLayer(ctx: CanvasContext, layerId: string, path: s
     if (!layer || layer.id === 'default') return;
     if (layer.files[path]) {
         delete layer.files[path];
+
+        // Remove the moved-out tracking from default layer
+        const defaultLayer = layerState.layers.find(l => l.id === 'default');
+        if (defaultLayer && defaultLayer.files[path]) {
+            delete defaultLayer.files[path];
+        }
+
         saveLayers(ctx);
         renderLayersUI(ctx);
         if (layer.id === layerState.activeLayerId) applyLayer(ctx);
@@ -129,6 +176,41 @@ export function getActiveLayer(): LayerData | null {
     return layerState.layers.find(l => l.id === layerState.activeLayerId) || null;
 }
 
+/**
+ * Get which layer a file belongs to (returns null if it's only in default/visible everywhere)
+ */
+export function getFileLayer(path: string): { layerId: string; layerName: string } | null {
+    for (const layer of layerState.layers) {
+        if (layer.id === 'default') continue;
+        if (layer.files[path]) {
+            return { layerId: layer.id, layerName: layer.name };
+        }
+    }
+    return null;
+}
+
+/**
+ * Check if a file has been moved out of the default layer to another layer
+ */
+export function isFileMovedFromDefault(path: string): boolean {
+    const defaultLayer = layerState.layers.find(l => l.id === 'default');
+    if (!defaultLayer) return false;
+    return !!(defaultLayer.files[path] && (defaultLayer.files[path] as any).__movedTo);
+}
+
+/**
+ * Navigate to a file that might be in another layer.
+ * Switches to the correct layer and returns true if found.
+ */
+export function navigateToFileInLayer(ctx: CanvasContext, path: string): boolean {
+    const fileLayer = getFileLayer(path);
+    if (fileLayer && fileLayer.layerId !== layerState.activeLayerId) {
+        setActiveLayer(ctx, fileLayer.layerId);
+        return true; // Layer was switched
+    }
+    return false; // No layer switch needed
+}
+
 export function applyLayer(ctx: CanvasContext) {
     const state = ctx.snap().context;
     const commitHash = state.currentCommitHash || 'allfiles';
@@ -147,6 +229,12 @@ export function applyLayer(ctx: CanvasContext) {
 
 function LayerItem({ layer, activeId, ctx }: { layer: LayerData; activeId: string; ctx: CanvasContext }) {
     const isActive = layer.id === activeId;
+    const fileCount = Object.keys(layer.files).filter(k => {
+        // Don't count moved-out tracking entries in default layer
+        if (layer.id === 'default') return !(layer.files[k] as any).__movedTo;
+        return true;
+    }).length;
+
     return (
         <div
             className={`layers-bar-item ${isActive ? 'active' : ''}`}
@@ -169,8 +257,8 @@ function LayerItem({ layer, activeId, ctx }: { layer: LayerData; activeId: strin
             title={layer.id === 'default' ? 'Default Layer' : 'Double-click to rename, Right-click to delete'}
         >
             <span className="layer-name">{layer.name}</span>
-            {layer.id !== 'default' && (
-                <span className="layer-badge">{Object.keys(layer.files).length}</span>
+            {layer.id !== 'default' && fileCount > 0 && (
+                <span className="layer-badge">{fileCount}</span>
             )}
         </div>
     );

@@ -70,11 +70,11 @@ export function openSettingsModal(ctx?: any) {
                     <div class="settings-row">
                         <div class="settings-label">
                             <span class="settings-label-text">Card Width</span>
-                            <span class="settings-label-desc">Default width for file cards</span>
+                            <span class="settings-label-desc">Character columns per card (like editors)</span>
                         </div>
                         <div class="settings-slider-group">
-                            <input type="range" id="settingCardWidth" class="settings-slider" min="300" max="900" step="20" value="${settings.cardWidth}" />
-                            <span class="settings-slider-value" id="cardWidthValue">${settings.cardWidth}px</span>
+                            <input type="range" id="settingCardWidth" class="settings-slider" min="40" max="120" step="5" value="${Math.round(settings.cardWidth / 7.2)}" />
+                            <span class="settings-slider-value" id="cardWidthValue">${Math.round(settings.cardWidth / 7.2)} cols</span>
                         </div>
                     </div>
                 </div>
@@ -190,8 +190,11 @@ export function openSettingsModal(ctx?: any) {
     const cardWidthSlider = _modal.querySelector('#settingCardWidth') as HTMLInputElement;
     const cardWidthValue = _modal.querySelector('#cardWidthValue')!;
     cardWidthSlider?.addEventListener('input', () => {
-        cardWidthValue.textContent = `${cardWidthSlider.value}px`;
-        updateSettings({ cardWidth: parseInt(cardWidthSlider.value) });
+        const cols = parseInt(cardWidthSlider.value);
+        const px = Math.round(cols * 7.2); // char width * columns
+        cardWidthValue.textContent = `${cols} cols`;
+        updateSettings({ cardWidth: px });
+        applyCardWidth(px);
     });
 
     const maxLinesSlider = _modal.querySelector('#settingMaxLines') as HTMLInputElement;
@@ -255,13 +258,27 @@ function applyMinimap(show: boolean) {
     if (minimap) (minimap as HTMLElement).style.display = show ? '' : 'none';
 }
 
+function applyCardWidth(width: number) {
+    document.documentElement.style.setProperty('--card-width', `${width}px`);
+    // Update all existing file cards that don't have manual widths
+    document.querySelectorAll('.file-card').forEach(card => {
+        const el = card as HTMLElement;
+        // Only update cards that weren't manually resized (no explicit height)
+        if (!el.style.height || el.style.height === '') {
+            el.style.width = `${width}px`;
+        }
+    });
+}
+
 /** Apply all settings on startup */
 export function applyAllSettings(ctx?: any) {
     const s = getSettings();
     applyFontSize(s.fontSize);
+    applyCardWidth(s.cardWidth);
     if (ctx) {
         ctx.useCanvasText = s.renderMode === 'canvas';
     }
     // Minimap: delay slightly to wait for DOM
     requestAnimationFrame(() => applyMinimap(s.showMinimap));
 }
+

@@ -788,24 +788,31 @@ body {
 /* Canvas text mode scrollbar */
 .canvas-container {
     scrollbar-width: thin;
-    scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+    scrollbar-color: rgba(124, 58, 237, 0.35) transparent;
+    overflow: auto !important;
+    overscroll-behavior: contain;
 }
 
 .canvas-container::-webkit-scrollbar {
-    width: 6px;
+    width: 8px;
+    height: 8px;
 }
 
 .canvas-container::-webkit-scrollbar-track {
-    background: transparent;
+    background: rgba(255, 255, 255, 0.02);
 }
 
 .canvas-container::-webkit-scrollbar-thumb {
-    background: rgba(124, 58, 237, 0.3);
-    border-radius: 3px;
+    background: rgba(124, 58, 237, 0.35);
+    border-radius: 4px;
 }
 
 .canvas-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(124, 58, 237, 0.5);
+    background: rgba(124, 58, 237, 0.55);
+}
+
+.canvas-container::-webkit-scrollbar-corner {
+    background: transparent;
 }
 
 .file-path {

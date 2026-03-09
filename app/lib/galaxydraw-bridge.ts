@@ -273,6 +273,10 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
     const activeLayer = getActiveLayer();
     if (activeLayer) {
         layerFiles = visibleFiles.filter(f => !!activeLayer.files[f.path]);
+    } else {
+        // Default layer: exclude files that have been moved to other layers
+        const { isFileMovedFromDefault } = require('./layers');
+        layerFiles = visibleFiles.filter(f => !isFileMovedFromDefault(f.path));
     }
 
     // Grid layout: square-ish

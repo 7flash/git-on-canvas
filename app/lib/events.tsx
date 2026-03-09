@@ -767,11 +767,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 changeCardsFontSize(ctx, -1);
             }
 
-            // I = Toggle AI chat sidebar
-            if (e.key === 'i' || e.key === 'I') {
-                e.preventDefault();
-                toggleCanvasChat(ctx);
-            }
+            // Removed: I key AI chat toggle (conflicts with typing, not useful in production)
 
             // ← → = Navigate commits
             if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
@@ -792,10 +788,18 @@ export function setupEventListeners(ctx: CanvasContext) {
                 if (commitEl) commitEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
-            // /, Ctrl+F, or Ctrl+P = Open file search / command palette
-            if (e.key === '/' || ((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'f' || e.key.toLowerCase() === 'p'))) {
+            // Ctrl+F = Global search sidebar
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                import('./global-search').then(m => m.toggleGlobalSearch(ctx));
+                return;
+            }
+
+            // Ctrl+O or Ctrl+K = File search / command palette
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key.toLowerCase() === 'o' || e.key.toLowerCase() === 'k')) {
                 e.preventDefault();
                 openFileSearch(ctx);
+                return;
             }
 
             // Ctrl+Shift+E = Export canvas as PNG
@@ -816,11 +820,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 import('./new-file-dialog').then(m => m.showNewFileDialog(ctx));
             }
 
-            // Ctrl+Shift+F = Global search across files
-            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
-                e.preventDefault();
-                import('./global-search').then(m => m.toggleGlobalSearch(ctx));
-            }
+            // Ctrl+Shift+F removed — Ctrl+F now opens global search directly
         });
 
         // ── Prevent browser page zoom (Ctrl+scroll, Ctrl+0) ──

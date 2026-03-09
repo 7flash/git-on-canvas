@@ -10,6 +10,24 @@ import { escapeHtml } from './utils';
 
 // ─── Scroll to line helper ──────────────────────────────
 export function scrollToLine(body: HTMLElement, lineNum: number, totalLines: number) {
+    // Canvas-text mode: container has .canvas-container class, no .diff-line elements
+    const canvasContainer = body.querySelector('.canvas-container') as HTMLElement;
+    if (canvasContainer) {
+        // Read font size from settings for accurate line height calculation
+        let lineHeight = 20; // default
+        try {
+            const stored = localStorage.getItem('gitcanvas:settings');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed.fontSize) lineHeight = parsed.fontSize + 8;
+            }
+        } catch { }
+        const targetScroll = (lineNum - 1) * lineHeight - canvasContainer.clientHeight / 4;
+        canvasContainer.scrollTop = Math.max(0, targetScroll);
+        return;
+    }
+
+    // DOM mode: find the actual line element
     const lineEl = body.querySelector(`.diff-line[data-line="${lineNum}"]`) as HTMLElement;
     const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
     if (!pre) return;

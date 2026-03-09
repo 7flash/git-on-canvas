@@ -15,20 +15,45 @@ export class CanvasTextRenderer {
     private lineHeight: number = 20;
     private charWidth: number = 7.2;
     private scrollTop: number = 0;
+    private scrollLeft: number = 0;
     private viewportHeight: number = 0;
+    private viewportWidth: number = 0;
     private options: CanvasTextOptions;
     private container: HTMLElement;
     private hunkRanges: { startIdx: number; endIdx: number; type: 'add' | 'del' }[] = [];
+    private maxLineWidth: number = 0;
+    private fontSize: number = 12;
+    private hoverPopup: HTMLElement | null = null;
 
     constructor(container: HTMLElement, options: CanvasTextOptions) {
         this.options = options;
         this.container = container;
         this.lines = options.content.split('\n');
 
+        // Read font size from settings
+        try {
+            const stored = localStorage.getItem('gitcanvas:settings');
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed.fontSize) this.fontSize = parsed.fontSize;
+            }
+        } catch { }
+
+        // Compute char width based on font size
+        this.charWidth = this.fontSize * 0.6;
+        this.lineHeight = this.fontSize + 8;
+
         // Pre-compute visible drawn lines
         for (let i = 0; i < this.lines.length; i++) {
             if (options.visibleLineIndices && !options.visibleLineIndices.has(i)) continue;
             this.drawnLines.push({ index: i, content: this.lines[i], num: i + 1 });
+        }
+
+        // Compute max line width for horizontal scroll
+        const gutterW = 6 + 42; // left gutter + line numbers
+        for (const dl of this.drawnLines) {
+            const w = gutterW + dl.content.length * this.charWidth + 20;
+            if (w > this.maxLineWidth) this.maxLineWidth = w;
         }
 
         // Pre-compute hunk ranges (contiguous blocks of added/deleted lines)
@@ -55,7 +80,7 @@ export class CanvasTextRenderer {
         this.ctx.scale(dpr, dpr);
 
         // Setup font
-        this.ctx.font = '12px "JetBrains Mono", Consolas, monospace';
+        this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
         this.ctx.textBaseline = 'top';
 
         // Ensure container is a positioned scroll parent
@@ -64,22 +89,32 @@ export class CanvasTextRenderer {
         container.appendChild(this.canvas);
 
         this.viewportHeight = rect.height;
+        this.viewportWidth = rect.width;
 
-        // Scroll shim — tall div giving the container scrollable height (for native scrollbar)
+        // Scroll shim — tall div giving the container scrollable height AND width
         const scrollShim = document.createElement('div');
         scrollShim.className = 'canvas-scroll-shim';
         scrollShim.style.height = `${this.drawnLines.length * this.lineHeight}px`;
-        scrollShim.style.width = '100%';
+        scrollShim.style.width = `${Math.max(this.maxLineWidth, rect.width)}px`;
         scrollShim.style.pointerEvents = 'none';
         container.appendChild(scrollShim);
+
+        // Custom scrollbar track for vertical position indicator
+        this._buildScrollTrack(container);
 
         // Change markers gutter (scrollbar-like overlay on right side)
         this._buildChangeGutter(container);
 
+        // Hover popup for long lines and diff markers
+        this._setupHoverPopup(container);
+
         container.addEventListener('scroll', () => {
             this.scrollTop = container.scrollTop;
+            this.scrollLeft = container.scrollLeft;
             // Pin canvas to the visible area of the scrolling container
             this.canvas.style.top = `${this.scrollTop}px`;
+            this.canvas.style.left = `${this.scrollLeft}px`;
+            this._updateScrollTrack();
             this.render();
         });
 
@@ -90,9 +125,19 @@ export class CanvasTextRenderer {
             if (e.ctrlKey || e.metaKey) return;
             e.preventDefault();
             e.stopPropagation();
-            const maxScroll = (this.drawnLines.length * this.lineHeight) - this.viewportHeight;
-            this.scrollTop = Math.max(0, Math.min(maxScroll, this.scrollTop + e.deltaY));
+            const maxScrollY = (this.drawnLines.length * this.lineHeight) - this.viewportHeight;
+            const maxScrollX = Math.max(0, this.maxLineWidth - this.viewportWidth);
+
+            // Shift+wheel = horizontal scroll
+            if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                this.scrollLeft = Math.max(0, Math.min(maxScrollX, this.scrollLeft + (e.deltaX || e.deltaY)));
+            } else {
+                this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
+            }
+
             container.scrollTop = this.scrollTop;
+            container.scrollLeft = this.scrollLeft;
+            this._updateScrollTrack();
             this.render();
         }, { passive: false });
 
@@ -104,17 +149,127 @@ export class CanvasTextRenderer {
                 this.canvas.style.width = `${r.width}px`;
                 this.canvas.style.height = `${r.height}px`;
                 this.viewportHeight = r.height;
+                this.viewportWidth = r.width;
                 // Reset transform to identity before re-applying DPR scale
                 // (prevents compounding on repeated resize events)
                 this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-                this.ctx.font = '12px "JetBrains Mono", Consolas, monospace';
+                this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
                 this.ctx.textBaseline = 'top';
+                this._updateScrollTrack();
                 this.render();
             }
         });
         resizeObserver.observe(container);
 
+        // Listen for settings changes
+        window.addEventListener('gitcanvas:settings-changed', ((e: CustomEvent) => {
+            const newSize = e.detail?.fontSize;
+            if (newSize && newSize !== this.fontSize) {
+                this.fontSize = newSize;
+                this.charWidth = this.fontSize * 0.6;
+                this.lineHeight = this.fontSize + 8;
+                this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
+                // Recompute max line width
+                const gW = 6 + 42;
+                this.maxLineWidth = 0;
+                for (const dl of this.drawnLines) {
+                    const w = gW + dl.content.length * this.charWidth + 20;
+                    if (w > this.maxLineWidth) this.maxLineWidth = w;
+                }
+                // Update scroll shim
+                const shim = container.querySelector('.canvas-scroll-shim') as HTMLElement;
+                if (shim) {
+                    shim.style.height = `${this.drawnLines.length * this.lineHeight}px`;
+                    shim.style.width = `${Math.max(this.maxLineWidth, this.viewportWidth)}px`;
+                }
+                this._updateScrollTrack();
+                this.render();
+            }
+        }) as EventListener);
+
         this.render();
+    }
+
+    /** Build a custom scrollbar track on the right side */
+    private _buildScrollTrack(container: HTMLElement) {
+        const track = document.createElement('div');
+        track.className = 'canvas-scroll-track';
+        track.style.cssText = `
+            position: absolute; top: 0; right: 0; width: 8px;
+            height: 100%; z-index: 10; pointer-events: auto;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 4px; opacity: 0;
+            transition: opacity 0.2s;
+        `;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'canvas-scroll-thumb';
+        thumb.style.cssText = `
+            position: absolute; right: 1px; width: 6px;
+            min-height: 24px; border-radius: 3px;
+            background: rgba(124, 58, 237, 0.4);
+            transition: background 0.15s;
+            cursor: pointer;
+        `;
+
+        track.appendChild(thumb);
+        container.appendChild(track);
+
+        // Show scrollbar on hover and while scrolling
+        let hideTimeout: any = null;
+        const showTrack = () => {
+            track.style.opacity = '1';
+            if (hideTimeout) clearTimeout(hideTimeout);
+            hideTimeout = setTimeout(() => { track.style.opacity = '0'; }, 1500);
+        };
+
+        container.addEventListener('scroll', showTrack);
+        container.addEventListener('mouseenter', showTrack);
+        track.addEventListener('mouseenter', () => {
+            track.style.opacity = '1';
+            thumb.style.background = 'rgba(124, 58, 237, 0.6)';
+            if (hideTimeout) clearTimeout(hideTimeout);
+        });
+        track.addEventListener('mouseleave', () => {
+            thumb.style.background = 'rgba(124, 58, 237, 0.4)';
+            hideTimeout = setTimeout(() => { track.style.opacity = '0'; }, 800);
+        });
+
+        // Click on track to jump
+        track.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const trackRect = track.getBoundingClientRect();
+            const clickY = e.clientY - trackRect.top;
+            const totalContent = this.drawnLines.length * this.lineHeight;
+            const scrollPct = clickY / trackRect.height;
+            container.scrollTop = scrollPct * (totalContent - this.viewportHeight);
+        });
+
+        // Pin track on scroll
+        container.addEventListener('scroll', () => {
+            track.style.top = `${container.scrollTop}px`;
+        });
+
+        this._updateScrollTrack();
+    }
+
+    /** Update custom scrollbar thumb position and size */
+    private _updateScrollTrack() {
+        const thumb = this.container.querySelector('.canvas-scroll-thumb') as HTMLElement;
+        if (!thumb) return;
+
+        const totalContent = this.drawnLines.length * this.lineHeight;
+        if (totalContent <= this.viewportHeight) {
+            thumb.style.display = 'none';
+            return;
+        }
+
+        thumb.style.display = 'block';
+        const thumbHeight = Math.max(24, (this.viewportHeight / totalContent) * this.viewportHeight);
+        const thumbTop = (this.scrollTop / (totalContent - this.viewportHeight)) * (this.viewportHeight - thumbHeight);
+        thumb.style.height = `${thumbHeight}px`;
+        thumb.style.top = `${thumbTop}px`;
     }
 
     /** Compute contiguous hunk ranges from addedLines/deletedBeforeLine */
@@ -166,7 +321,7 @@ export class CanvasTextRenderer {
         const gutter = document.createElement('div');
         gutter.className = 'canvas-change-gutter';
         gutter.style.cssText = `
-            position: absolute; top: 0; right: 0; bottom: 0;
+            position: absolute; top: 0; right: 10px; bottom: 0;
             width: 10px; z-index: 5; pointer-events: auto;
         `;
 
@@ -220,7 +375,7 @@ export class CanvasTextRenderer {
         if (this.hunkRanges.length > 1) {
             const navContainer = document.createElement('div');
             navContainer.style.cssText = `
-                position: absolute; bottom: 4px; right: 14px;
+                position: absolute; bottom: 4px; right: 24px;
                 display: flex; flex-direction: column; gap: 2px;
                 z-index: 6; pointer-events: auto;
             `;
@@ -263,6 +418,123 @@ export class CanvasTextRenderer {
         }
 
         container.appendChild(gutter);
+    }
+
+    /** Setup hover popup for long lines and diff markers */
+    private _setupHoverPopup(container: HTMLElement) {
+        let hideTimeout: any = null;
+
+        container.addEventListener('mousemove', (e) => {
+            const rect = container.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left + this.scrollLeft;
+            const mouseY = e.clientY - rect.top + this.scrollTop;
+
+            // Which line is under the cursor?
+            const lineIdx = Math.floor(mouseY / this.lineHeight);
+            if (lineIdx < 0 || lineIdx >= this.drawnLines.length) {
+                this._hideHoverPopup();
+                return;
+            }
+
+            const lineData = this.drawnLines[lineIdx];
+            const gutterW = 6 + 42;
+            const linePixelWidth = gutterW + lineData.content.length * this.charWidth;
+
+            // Show popup for long lines that extend beyond viewport
+            const isLongLine = linePixelWidth > this.viewportWidth + this.scrollLeft;
+            // Or show popup for diff markers (deleted-before lines)
+            const hasDelBefore = this.options.deletedBeforeLine?.has(lineData.num);
+
+            if (!isLongLine && !hasDelBefore) {
+                this._hideHoverPopup();
+                return;
+            }
+
+            if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+
+            // Build popup content
+            if (!this.hoverPopup) {
+                this.hoverPopup = document.createElement('div');
+                this.hoverPopup.className = 'canvas-text-hover-popup';
+                this.hoverPopup.style.cssText = `
+                    position: fixed; z-index: 10000;
+                    background: rgba(15, 15, 25, 0.95);
+                    border: 1px solid rgba(124, 58, 237, 0.3);
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    max-width: 700px;
+                    max-height: 300px;
+                    overflow: auto;
+                    font-family: "JetBrains Mono", Consolas, monospace;
+                    font-size: ${this.fontSize}px;
+                    line-height: 1.4;
+                    color: #c9d1d9;
+                    backdrop-filter: blur(8px);
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(124, 58, 237, 0.15);
+                    white-space: pre-wrap;
+                    word-break: break-all;
+                    pointer-events: auto;
+                `;
+                document.body.appendChild(this.hoverPopup);
+
+                this.hoverPopup.addEventListener('mouseenter', () => {
+                    if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+                });
+                this.hoverPopup.addEventListener('mouseleave', () => {
+                    this._hideHoverPopup();
+                });
+            }
+
+            let popupHTML = '';
+
+            if (hasDelBefore) {
+                const delLines = this.options.deletedBeforeLine!.get(lineData.num)!;
+                popupHTML += `<div style="color: #f87171; font-size: 10px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${delLines.length} deleted line${delLines.length > 1 ? 's' : ''}</div>`;
+                popupHTML += delLines.map(l =>
+                    `<div style="color: #ffa198; background: rgba(248,81,73,0.1); padding: 1px 4px; border-radius: 2px;">− ${l.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+                ).join('');
+                if (isLongLine) {
+                    popupHTML += `<div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">`;
+                }
+            }
+
+            if (isLongLine) {
+                const isAdded = this.options.isAllAdded || (this.options.addedLines?.has(lineData.num));
+                const lineColor = isAdded ? '#7ee787' : this.options.isAllDeleted ? '#ffa198' : '#c9d1d9';
+                popupHTML += `<div style="color: rgba(110,118,129,0.7); font-size: 10px; margin-bottom: 2px;">Line ${lineData.num} (${lineData.content.length} chars)</div>`;
+                popupHTML += `<div style="color: ${lineColor};">${lineData.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+                if (hasDelBefore) popupHTML += `</div>`;
+            }
+
+            this.hoverPopup.innerHTML = popupHTML;
+            this.hoverPopup.style.display = 'block';
+
+            // Position popup near cursor
+            let px = e.clientX + 12;
+            let py = e.clientY + 12;
+            if (px + 700 > window.innerWidth) px = e.clientX - 400;
+            if (py + 300 > window.innerHeight) py = e.clientY - 200;
+            this.hoverPopup.style.left = `${px}px`;
+            this.hoverPopup.style.top = `${py}px`;
+        });
+
+        container.addEventListener('mouseleave', () => {
+            hideTimeout = setTimeout(() => this._hideHoverPopup(), 300);
+        });
+    }
+
+    private _hideHoverPopup() {
+        if (this.hoverPopup) {
+            this.hoverPopup.style.display = 'none';
+        }
+    }
+
+    /** Scroll to a specific line number */
+    public scrollToLine(lineNum: number) {
+        const idx = this.drawnLines.findIndex(dl => dl.num === lineNum);
+        if (idx < 0) return;
+        const targetScroll = idx * this.lineHeight - this.viewportHeight / 4;
+        this.container.scrollTop = Math.max(0, targetScroll);
     }
 
     private render() {
@@ -311,14 +583,28 @@ export class CanvasTextRenderer {
                 this.ctx.fillRect(gutterW, y, w - gutterW, 1);
             }
 
-            // Line numbers
+            // Line numbers (fixed position, not affected by horizontal scroll)
             this.ctx.fillStyle = '#6e7681'; // muted text
             const numStr = String(lineData.num).padStart(4, ' ');
             this.ctx.fillText(numStr, gutterW + 6, y + 4);
 
-            // Content
+            // Content (offset by horizontal scroll)
             this.ctx.fillStyle = isAdded ? '#7ee787' : isDeleted ? '#ffa198' : '#c9d1d9';
-            this.ctx.fillText(lineData.content, gutterW + 42, y + 4);
+            this.ctx.fillText(lineData.content, gutterW + 42 - this.scrollLeft, y + 4);
+
+            // Long line indicator (fade gradient at right edge)
+            const contentWidth = gutterW + 42 + lineData.content.length * this.charWidth - this.scrollLeft;
+            if (contentWidth > w) {
+                const grad = this.ctx.createLinearGradient(w - 30, 0, w, 0);
+                grad.addColorStop(0, 'transparent');
+                grad.addColorStop(1, 'rgba(15, 15, 25, 0.8)');
+                this.ctx.fillStyle = grad;
+                this.ctx.fillRect(w - 30, y, 30, this.lineHeight);
+
+                // Right-edge tick to signal more content
+                this.ctx.fillStyle = 'rgba(124, 58, 237, 0.4)';
+                this.ctx.fillRect(w - 3, y + 3, 2, this.lineHeight - 6);
+            }
         }
     }
 }

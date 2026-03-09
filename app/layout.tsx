@@ -111,8 +111,8 @@ export default function RootLayout({ children }: { children: any }) {
                                         <div className="hk"><kbd>V</kbd> Arrange column</div>
                                         <div className="hk"><kbd>G</kbd> Arrange grid</div>
                                         <div className="hk"><kbd>W</kbd> Fit to screen</div>
-                                        <div className="hk"><kbd>I</kbd> AI Chat</div>
-                                        <div className="hk"><kbd>/</kbd> Search files</div>
+                                        <div className="hk"><kbd>Ctrl+F</kbd> Search across files</div>
+                                        <div className="hk"><kbd>Ctrl+O</kbd> Find file</div>
                                         <div className="hk"><kbd>Ctrl +/-</kbd> Text zoom</div>
                                         <div className="hk"><kbd>Dbl-click</kbd> Open editor</div>
                                         <div className="hk"><kbd>Alt+Click</kbd> Connect lines</div>
@@ -229,7 +229,7 @@ export default function RootLayout({ children }: { children: any }) {
                                         <line x1="18" y1="12" x2="22" y2="12" />
                                     </svg>
                                 </button>
-                                <button id="openGlobalSearch" className="btn-ghost btn-sm" title="Search Files (Ctrl+Shift+F)">
+                                <button id="openGlobalSearch" className="btn-ghost btn-sm" title="Search Files (Ctrl+F)">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
                                     </svg>
@@ -247,7 +247,7 @@ export default function RootLayout({ children }: { children: any }) {
                                         <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
                                     </svg>
                                 </button>
-                                <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat (I)">
+                                <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                                     </svg>

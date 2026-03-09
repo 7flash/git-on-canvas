@@ -7,7 +7,7 @@ import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { showToast } from './utils';
 import { hideSelectedFiles } from './hidden-files';
-import { layerState, createLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
+import { layerState, createLayer, moveFileToLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
 
 // These are imported lazily to avoid circular deps
 let _updateSelectionHighlights: any;
@@ -43,7 +43,7 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('history')}>🕰️ File history</button>
             <div className="ctx-item ctx-dropdown">
-                <span>✨ Add to Layer ▸</span>
+                <span>📦 Move to Layer ▸</span>
                 <div className="ctx-dropdown-content">
                     {customLayers.length === 0 ? (
                         <div className="ctx-item" style="opacity: 0.5; pointer-events: none">No custom layers</div>
@@ -141,9 +141,11 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
             const name = prompt('Enter a name for the new layer:');
             if (!name) return;
             createLayer(ctx, name);
-            addFileToLayer(ctx, layerState.activeLayerId, filePath);
+            // Use the last created layer's ID (createLayer pushes to end)
+            const newLayerId = layerState.layers[layerState.layers.length - 1].id;
+            moveFileToLayer(ctx, newLayerId, filePath);
         } else {
-            addFileToLayer(ctx, layerId, filePath);
+            moveFileToLayer(ctx, layerId, filePath);
         }
     }
 
