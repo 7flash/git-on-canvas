@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bun run server.ts",
     "start": "bun run server.ts",
-    "test": "bun test app/lib/"
+    "test": "bun test app/lib/galaxydraw.test.ts packages/galaxydraw/perf.test.ts"
   },
   "keywords": [
     "git",

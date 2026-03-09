@@ -1,3 +1,4 @@
 [test]
 # Only run tests from app/ and packages/ — prevent bun test from
-# scanning node_modules (React internal tests cause 10 false failures)
+# scanning git-canvas/repos/ (cloned repos with their own test suites)
+root = "."
