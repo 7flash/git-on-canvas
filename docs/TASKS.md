@@ -22,6 +22,7 @@
 - [x] ~~**Smooth LOD transition**~~ — ✅ DONE. Pills now fade in with `scale(0.92)→scale(1)` + `opacity 0→0.9` animation (250ms). Pill→Full: pills fade out before removal. Full→Pill: cards fade out then hide. Cards entering viewport from culled state also fade in. All CSS transition-based for GPU acceleration.
 - [x] ~~**Multi-file drag**~~ — ✅ ALREADY DONE. `setupCardInteraction` collects all `selectedCards` on drag start and moves them as a group. Pill mode also supports multi-drag via `pillMoveInfos`. Ctrl/Shift+click to multi-select, then drag any selected card.
 - [x] **Directory labels** — `renderDirectoryLabels()` in `repo.tsx` groups file cards by parent directory and renders glassmorphism world-space headers (📁 dir/path + count badge) above each cluster. Labels include both DOM-created and deferred cards. Only shown when 2+ directories exist.
+- [x] **Status bar** — `status-bar.ts`: Fixed bottom bar (VS Code-style) showing repo name, commit hash, mode, selection count, file count, and zoom %. Hooked into `updateZoomUI`, `updateSelectionHighlights`, `loadRepository`, and `selectCommit` for live updates.
 
 ## 🔴 Priority: Fix
 - [x] ~~**Repeated "Loaded 100 commits" toasts**~~ — ✅ DONE. Added `_loadingRepo` dedup guard in `repo.tsx` that prevents concurrent/duplicate `loadRepository` calls for the same path.
