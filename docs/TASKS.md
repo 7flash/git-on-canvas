@@ -16,7 +16,7 @@
 - [x] ~~**GitHub import modal enhancement**~~ — ✅ DONE. Removed sidebar clone URL field. Modal now supports: (1) URL detection — paste a GitHub URL and it shows repo name + instant Clone & Open button, (2) username/org search with profile display, (3) live repo filter input to search within loaded results by name/description. Enter on URL auto-clones, Enter on username auto-searches.
 - [x] ~~**Production security**~~ — ✅ DONE. Created `validate-path.ts` with `validateRepoPath()` and `blockInProduction()`. In SaaS mode, only `git-canvas/repos/` and `.data/uploads/` paths are allowed. Applied to all 7 repo API routes. Folder browser endpoint completely blocked in production.
 - [x] ~~**Smooth LOD transition**~~ — ✅ DONE. Pills now fade in with `scale(0.92)→scale(1)` + `opacity 0→0.9` animation (250ms). Pill→Full: pills fade out before removal. Full→Pill: cards fade out then hide. Cards entering viewport from culled state also fade in. All CSS transition-based for GPU acceleration.
-- [ ] **Multi-file drag** — When multiple files are selected, dragging should move all selected files.
+- [x] ~~**Multi-file drag**~~ — ✅ ALREADY DONE. `setupCardInteraction` collects all `selectedCards` on drag start and moves them as a group. Pill mode also supports multi-drag via `pillMoveInfos`. Ctrl/Shift+click to multi-select, then drag any selected card.
 
 ## 🔴 Priority: Fix
 - [x] ~~**Repeated "Loaded 100 commits" toasts**~~ — ✅ DONE. Added `_loadingRepo` dedup guard in `repo.tsx` that prevents concurrent/duplicate `loadRepository` calls for the same path.
