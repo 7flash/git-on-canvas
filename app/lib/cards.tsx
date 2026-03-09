@@ -654,7 +654,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
                 isAllDeleted,
                 visibleLineIndices: filterFileContentByLayer(file.content, file.layerSections).visibleLineIndices
             };
-            contentHTML = `<div class="file-content-preview canvas-container" style="position:relative; height: 100%; overflow: auto; background: var(--bg-card); display: block -webkit-box;"></div>`;
+            contentHTML = `<div class="file-content-preview canvas-container" style="position:relative; height: 100%; overflow: auto; background: var(--bg-card);"></div>`;
         } else {
             contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, wasExpanded, file.lines);
         }

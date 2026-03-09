@@ -784,6 +784,29 @@ body {
     background: rgba(124, 58, 237, 0.5);
 }
 
+/* Canvas text mode scrollbar */
+.canvas-container {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+}
+
+.canvas-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.canvas-container::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.canvas-container::-webkit-scrollbar-thumb {
+    background: rgba(124, 58, 237, 0.3);
+    border-radius: 3px;
+}
+
+.canvas-container::-webkit-scrollbar-thumb:hover {
+    background: rgba(124, 58, 237, 0.5);
+}
+
 .file-path {
     font-family: var(--font-mono);
     font-size: 0.7rem;

@@ -31,11 +31,13 @@ export class CanvasTextRenderer {
         // Create canvas
         this.canvas = document.createElement('canvas');
         this.canvas.className = 'canvas-text-layer';
-        this.canvas.style.position = 'absolute';
+        this.canvas.style.position = 'sticky';
         this.canvas.style.top = '0';
         this.canvas.style.left = '0';
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
+        this.canvas.style.display = 'block';
+        this.canvas.style.flexShrink = '0';
         this.canvas.style.pointerEvents = 'none';
 
         // High DPI support
@@ -55,10 +57,15 @@ export class CanvasTextRenderer {
 
         this.viewportHeight = rect.height;
 
-        // Add scroll shim for native scrolling
+        // Add scroll shim for native scrolling — must have full content height
         const scrollShim = document.createElement('div');
+        scrollShim.className = 'canvas-scroll-shim';
         scrollShim.style.height = `${this.drawnLines.length * this.lineHeight}px`;
         scrollShim.style.width = '1px';
+        scrollShim.style.position = 'absolute';
+        scrollShim.style.top = '0';
+        scrollShim.style.left = '0';
+        scrollShim.style.pointerEvents = 'none';
         container.appendChild(scrollShim);
 
         container.addEventListener('scroll', () => {
