@@ -21,10 +21,10 @@
 
 ## 🟢 Priority: Features
 - [x] ~~**Inline file editing**~~ — ✅ DONE. Edit tab in file preview modal with textarea, Ctrl+S save via POST /api/repo/file-save, cursor tracking, modified/saved status indicators. Path traversal protection.
-- [ ] **File editing: syntax highlighting in textarea** — Use CodeMirror or Monaco for the edit textarea instead of plain textarea for proper syntax highlighting while editing.
+- [x] ~~**File editing: syntax highlighting in textarea**~~ — ✅ DONE. CodeMirror 6 replaces textarea with full syntax highlighting, dark theme, fold gutters, bracket matching, search.
 - [x] ~~**File editing: unsaved changes warning**~~ — ✅ DONE. Confirm dialog when closing modal or switching tabs with unsaved edits. `hasUnsavedChanges()` compares textarea vs originalContent.
 - [x] ~~**File editing: create new file**~~ — ✅ DONE. Ctrl+N opens dialog with path input. Smart templates per extension (.ts, .py, .html, .css, .json, .md, .yaml). Auto-creates dirs and opens in edit mode.
-- [ ] **File editing: syntax highlighting** — Use CodeMirror or Monaco for the edit textarea for proper syntax highlighting while editing.
+- [x] ~~**File editing: syntax highlighting**~~ — ✅ DONE (see above).
 - [x] ~~**Card grouping / folders**~~ — ✅ `card-groups.ts`. Click 📁 dir-labels to collapse/expand. Group cards show file count, line count, change markers, mini file list. State persisted per repo.
 - [x] ~~**Export canvas as PNG/SVG**~~ — ✅ `canvas-export.ts`. Ctrl+Shift+E (full canvas) / Ctrl+Shift+V (viewport). Renders cards with file names, language colors, diff markers, branded header, timestamp.
 - [x] ~~**Multi-repo workspace**~~ — ✅ `multi-repo.ts` supports 2-3 repos side-by-side.

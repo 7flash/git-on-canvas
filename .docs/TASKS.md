@@ -28,7 +28,7 @@
 - [x] ~~**Inline file editing**~~ — ✅ DONE. Edit tab in file preview modal with textarea, Ctrl+S save via POST /api/repo/file-save, cursor tracking, modified/saved status indicators. Path traversal protection.
 
 ## 🟡 Open Tasks
-- [ ] **File editing: syntax highlighting** — Use CodeMirror or Monaco for the edit textarea instead of plain textarea for proper syntax highlighting while editing.
+- [x] ~~**File editing: syntax highlighting**~~ — ✅ DONE. CodeMirror 6 replaces textarea. Custom dark theme, language support for JS/TS/JSX/TSX/CSS/HTML/JSON/MD/Python/YAML. Line numbers, fold gutters, bracket matching, search, cursor tracking.
 - [x] ~~**File editing: git integration**~~ — ✅ DONE. After saving, inline commit section slides in with pre-filled message, POST /api/repo/git-commit stages + commits, shows commit hash.
 - [x] ~~**File editing: unsaved changes warning**~~ — ✅ DONE. Confirm dialog when closing modal or switching tabs with unsaved edits.
 - [x] ~~**File editing: create new file**~~ — ✅ DONE. Ctrl+N opens dialog. Smart templates per extension. Auto-creates dirs and opens in edit mode.
