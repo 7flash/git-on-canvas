@@ -5811,3 +5811,72 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
+/* ─── Status Bar ─────────────────────────────────────── */
+#status-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 12px;
+    background: rgba(18, 18, 28, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 11px;
+    color: var(--text-muted, #64748b);
+    z-index: 9999;
+    user-select: none;
+}
+
+.sb-left,
+.sb-right {
+    display: flex;
+    align-items: center;
+    gap: 0;
+}
+
+.sb-item {
+    padding: 0 10px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+
+.sb-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary, #e2e8f0);
+}
+
+.sb-repo {
+    color: var(--accent-tertiary, #10b981);
+    font-weight: 600;
+}
+
+.sb-commit {
+    color: var(--accent-primary, #a78bfa);
+}
+
+.sb-mode--simple {
+    color: var(--accent-tertiary, #10b981);
+}
+
+.sb-mode--advanced {
+    color: var(--accent-secondary, #3b82f6);
+}
+
+.sb-selected {
+    color: #eab308;
+}
+
+.sb-zoom {
+    min-width: 72px;
+    justify-content: center;
+}

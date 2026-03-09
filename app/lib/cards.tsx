@@ -10,6 +10,7 @@ import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
 import { hideSelectedFiles } from './hidden-files';
 import { savePosition, getPositionKey, isPathExpandedInPositions, setPathExpandedInPositions } from './positions';
 import { updateMinimap, updateCanvasTransform, updateZoomUI, jumpToFile } from './canvas';
+import { updateStatusBarSelected } from './status-bar';
 import { renderConnections, scheduleRenderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { filterFileContentByLayer, layerState, createLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
@@ -75,6 +76,7 @@ export function updateSelectionHighlights(ctx: CanvasContext) {
     ctx.fileCards.forEach((card, path) => {
         card.classList.toggle('selected', selected.includes(path));
     });
+    updateStatusBarSelected(selected.length);
 }
 
 export function clearSelectionHighlights(ctx: CanvasContext) {

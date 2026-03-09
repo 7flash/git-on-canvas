@@ -16,6 +16,7 @@ import { getActiveLayer } from './layers';
 import { renderConnections, buildConnectionMarkers } from './connections';
 import { renderAllFilesViaCardManager, materializeViewport } from './galaxydraw-bridge';
 import { registerRepo, renderRepoTabs, getNextRepoOffset, isMultiRepoLoad, getLoadedRepos } from './multi-repo';
+import { updateStatusBarRepo, updateStatusBarCommit, updateStatusBarFiles } from './status-bar';
 
 // Shared: reference to ctx for changed-files panel navigation
 let _panelCtx: CanvasContext | null = null;
@@ -63,6 +64,7 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             // the entire DOM and invalidate ctx.canvas references.
             history.replaceState(null, '', '#' + encodeURIComponent(repoPath));
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
+            updateStatusBarRepo(repoPath);
             // Save to recent repos list
             const recentKey = 'gitcanvas:recentRepos';
             const recent: string[] = JSON.parse(localStorage.getItem(recentKey) || '[]');
@@ -385,6 +387,8 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
             const fileCountEl = document.getElementById('fileCount');
             if (fileCountEl) fileCountEl.textContent = ctx.fileCards.size;
             _showCommitProgress(false);
+            updateStatusBarCommit(hash);
+            updateStatusBarFiles(ctx.fileCards.size);
 
             // Populate changed files panel with diff stats
             populateChangedFilesPanel(data.files);

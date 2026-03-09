@@ -3,6 +3,7 @@
  * Canvas transform, zoom, minimap, fit-all.
  */
 import { measure } from 'measure-fn';
+import { updateStatusBarZoom } from './status-bar';
 import type { CanvasContext } from './context';
 import { scheduleViewportCulling, uncullAllCards, markTransformActive } from './viewport-culling';
 import { getGalaxyDrawState } from './galaxydraw-bridge';
@@ -71,6 +72,7 @@ export function updateZoomUI(ctx: CanvasContext) {
     const value = document.getElementById('zoomValue');
     if (slider) slider.value = state.zoom;
     if (value) value.textContent = `${Math.round(state.zoom * 100)}%`;
+    updateStatusBarZoom(state.zoom);
 }
 
 // ─── Cheap viewport-only minimap update ─────────────────
