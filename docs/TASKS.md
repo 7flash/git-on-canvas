@@ -1,59 +1,40 @@
 # GitMaps Tasks & Ideas
 
-## 🔴 Priority: Fix
-- [x] ~~**WARMAPS zoom propagation**~~ — ✅ Already fixed in starwar repo (engine checks `[data-card-type]` + `consumesWheel`).
-- [x] ~~**Canvas mode missing scrollbar**~~ — ✅ Fixed: sticky canvas positioning, absolute scroll shim, scrollbar CSS for `.canvas-container`.
-- [x] ~~**Multi-file drag broken**~~ — ✅ CardManager syncs selected cards; multi-drag works.
-- [x] ~~**Commit graph HTML entity encoding**~~ — ✅ Removed double-escaping.
-- [x] ~~**Card duplication on scroll**~~ — ✅ `materializeViewport` now removes from `ctx.deferredCards` to prevent viewport-culling duplication.
-- [x] ~~**Hide file doesn't work**~~ — ✅ Hidden files now excluded from viewport-culling materialization and deferredCards.
+## ✅ Fixed This Session
+- [x] **Minimap broken (NaN poisoning)** — corrupted position records caused `Math.min/max` to return NaN, cascading to all 126 dots. Fixed with `isNaN()` guards in minimap rebuild, fitAllFiles, and createAllFileCard.
+- [x] **FitAll → NaN% zoom** — same NaN poisoning. Fixed.
+- [x] **Canvas text = default** — changed from opt-in to default. Much better rendering performance.
+- [x] **Canvas scrollbar invisible** — scroll shim was 1px wide with opacity:0. Now full-width with pointer-events:none for native scrollbar.
+- [x] **Canvas change markers too small** — added 6px left gutter bars + full scrollbar-style change gutter overlay with clickable markers + ▲/▼ hunk navigation.
+- [x] **AI/Unfold buttons in header** — removed from both card templates (JSX + innerHTML).
+- [x] **F hotkey expanding cards** — removed. Obsolete with canvas text virtual scrolling.
+- [x] **Changed file click auto-expands** — removed expandCardByPath call, just navigates.
+- [x] **Drag only from header** — engine now listens on full card body, skips interactive elements.
+- [x] **Hover popup before pill mode** — aligned PREVIEW_ZOOM_THRESHOLD with LOD_ZOOM_THRESHOLD.
+- [x] **Popup scroll broken** — removed overflow:hidden and pointerEvents:none from clones.
+- [x] **Duplicate cards (pill + full)** — immediately hide pills with materialized cards during LOD transition.
+- [x] **Arrange buttons in pill mode** — getSelectedCardsInfo now checks fileCards → deferredCards → pills. applyPosition updates all three.
+- [x] **Selection outline on multi-drag** — added outline + outline-offset to .file-card.selected CSS with z-index:5.
+- [x] ~~**Multi-tab editor modal**~~ — ✅ DONE. Double-click opens CodeMirror editor directly. Modal has Edit (default) + Diff tabs. Import links open as new tabs. Blame/Chat removed from modal, accessible via context menu. "Open in Editor" context menu action.
+- [x] ~~**Canvas text garbled after resize**~~ — ✅ DONE. DPR scaling was compounding in ResizeObserver (`ctx.scale()` → `ctx.setTransform()` reset).
+- [x] ~~**Pill dblclick opens zoom instead of editor**~~ — ✅ DONE. viewport-culling.ts now opens editor modal on pill double-click, consistent with card behavior.
+- [x] ~~**Settings modal**~~ — ✅ DONE. Gear icon in toolbar opens premium dark-themed modal. Sections: Rendering (text mode, font size, card width), Interface (control mode, minimap, connections, auto-imports), Advanced (max visible lines). CSS in globals.css, inline positioning for reliability. All changes auto-saved to localStorage.
+- [x] ~~**Positions stored in localStorage**~~ — ✅ Already implemented. Dual storage: localStorage (instant) + server sync (if logged in). Debounced 300ms persist.
 
 ## 🟡 Priority: Improve
-- [x] ~~**`cards.tsx` refactored from 1790→833 lines**~~ — ✅ 5 modules extracted: `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`, `card-diff-markers.ts`, `card-expand.ts`.
-- [x] ~~**File hover in zoomed-out mode**~~ — ✅ DONE. Full card clone preview (syntax highlighting, diff markers, status badges) at <35% zoom. Forces DOM rendering when canvas-text mode active. Debounced 180ms with smooth fade.
-- [x] ~~**File search not documented**~~ — ✅ Cross-card text search (`/` or `Ctrl+F`) documented.
-- [x] ~~**Performance profiling**~~ — ✅ 15 benchmarks. 10K cards: 27ms full pipeline.
-- [x] ~~**Connection line rendering optimization**~~ — ✅ `requestAnimationFrame` batching.
-- [x] ~~**Pill cards: vertical text**~~ — ✅ Rotated text (48px, readable at 8-20% zoom).
-- [x] ~~**Minimap: show all files**~~ — ✅ Minimap includes deferred cards.
-- [x] ~~**Fit All: include deferred cards**~~ — ✅ `fitAllFiles` accounts for deferred positions.
-- [x] ~~**Smooth LOD transition**~~ — ✅ Fade in with scale + opacity animation.
+- [ ] **Editor auto-save** — periodically auto-save unsaved changes in the editor modal
+- [ ] **Tab persistence** — remember open tabs across modal close/reopen
+- [ ] **Search across files** — Ctrl+Shift+F to search for text across all files in the repo
 
 ## 🟢 Priority: Features
-- [x] ~~**Inline file editing**~~ — ✅ DONE. Edit tab in file preview modal with textarea, Ctrl+S save via POST /api/repo/file-save, cursor tracking, modified/saved status indicators. Path traversal protection.
-- [x] ~~**File editing: syntax highlighting in textarea**~~ — ✅ DONE. CodeMirror 6 replaces textarea with full syntax highlighting, dark theme, fold gutters, bracket matching, search.
-- [x] ~~**File editing: unsaved changes warning**~~ — ✅ DONE. Confirm dialog when closing modal or switching tabs with unsaved edits. `hasUnsavedChanges()` compares textarea vs originalContent.
-- [x] ~~**File editing: create new file**~~ — ✅ DONE. Ctrl+N opens dialog with path input. Smart templates per extension (.ts, .py, .html, .css, .json, .md, .yaml). Auto-creates dirs and opens in edit mode.
-- [x] ~~**File editing: syntax highlighting**~~ — ✅ DONE (see above).
-- [x] ~~**Card grouping / folders**~~ — ✅ `card-groups.ts`. Click 📁 dir-labels to collapse/expand. Group cards show file count, line count, change markers, mini file list. State persisted per repo.
-- [x] ~~**Export canvas as PNG/SVG**~~ — ✅ `canvas-export.ts`. Ctrl+Shift+E (full canvas) / Ctrl+Shift+V (viewport). Renders cards with file names, language colors, diff markers, branded header, timestamp.
-- [x] ~~**Multi-repo workspace**~~ — ✅ `multi-repo.ts` supports 2-3 repos side-by-side.
-- [x] ~~**Branch comparison view**~~ — ✅ `branch-compare.ts` glassmorphism drawer.
-- [x] ~~**Command Palette (Ctrl+K)**~~ — ✅ Fuzzy file search overlay.
-- [x] ~~**Enhanced Context Menu**~~ — ✅ Right-click 8 organized actions.
-- [x] ~~**Cross-card text search**~~ — ✅ `/` or `Ctrl+F`.
-- [x] ~~**Directory labels**~~ — ✅ `renderDirectoryLabels()`.
-- [x] ~~**Status bar**~~ — ✅ `status-bar.ts`.
-
-## ✅ Recently Fixed (this session)
-- [x] **Card duplication** — materializeViewport syncs deferredCards removal.
-- [x] **Hide file not working** — viewport-culling + deferredCards now check hiddenFiles.
-- [x] **Folder bulk-hide** — Hidden files modal now has "Hide by folder" section.
-- [x] **bgrun dashboard self-kill** — error() throws instead of process.exit(1).
-- [x] **bgrun validateDirectory crash** — Same fix, now throws.
-- [x] **cards.tsx refactoring** — 1790→1128 lines. 3 modules extracted.
-- [x] **Files show "X more lines" with no expand** — IntersectionObserver auto-loads on scroll.
-- [x] **Right-click context menu not working** — CardManager cards now get contextmenu/dblclick/click handlers.
-- [x] **Text mode toggle broken** — Now uses `rerenderCurrentView()`.
-- [x] **Connections visible by default** — Default OFF, persisted to localStorage.
-- [x] **Minimap missing most files** — CardManager path now syncs `ctx.deferredCards`.
-- [x] **Canvas cursor stuck on grab** — Defaults to normal, grab only during pan.
-- [x] **Selected cards not visually clear** — 3px purple outline with glow.
-- [x] **bgrun zombie sweep** — Skips generic keywords to prevent self-kill.
+- [ ] **File creation from canvas** — right-click canvas background → "New File" to create + edit
+- [ ] **Branch switching** — dropdown to switch branches and see diff against different branches
 
 ## 📝 Architecture Notes
-- **Framework**: galaxydraw lives in `packages/galaxydraw/`
+- **Canvas text = default** for main cards (performance + virtual scrolling)
+- **DOM rendering = popup previews only** (hover/link peek)
+- **Editor modal** = CodeMirror 6 with Edit (default) + Diff views. activateEditView() handles initialization.
+- **Settings** = `settings.ts` (localStorage persistence + custom events) + `settings-modal.tsx` (UI). CSS must go in `globals.css` (not `main.css` — that file is dead/not bundled).
+- **Framework**: galaxydraw in `packages/galaxydraw/`
 - **Dev**: `bgrun --restart galaxy-canvas` (port 3335)
-- **Import**: Relative `../../packages/galaxydraw/src/core/...` (not package name)
 - **Bridge**: `galaxydraw-bridge.ts` — adapter between CanvasState and CanvasContext
-- **Key files**: `cards.tsx` (833 LOC), `card-context-menu.tsx`, `card-arrangement.ts`, `file-modal.tsx`, `card-diff-markers.ts`, `card-expand.ts`, `events.tsx`, `canvas.ts`, `repo.tsx`

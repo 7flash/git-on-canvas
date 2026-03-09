@@ -254,33 +254,39 @@ export class CardManager {
     // ─── Drag interaction ────────────────────────────────
 
     private setupDrag(card: HTMLElement) {
-        const header = card.querySelector('.gd-card-header') as HTMLElement | null;
-        const handle = header || card;
-
         let dragging = false;
+        let dragStarted = false;
+        let startScreenX = 0, startScreenY = 0;
         let startWorldX = 0, startWorldY = 0;
         let moveGroup: { el: HTMLElement; startX: number; startY: number }[] = [];
+        const DRAG_THRESHOLD = 5;
 
-        handle.addEventListener('mousedown', (e: MouseEvent) => {
+        card.addEventListener('mousedown', (e: MouseEvent) => {
             if (e.button !== 0) return;
-            // Don't start drag if clicking inside content
-            if (header && e.target !== header && !header.contains(e.target as Node)) return;
+            // Don't start drag from interactive elements
+            if ((e.target as HTMLElement).closest('button, a, input, textarea, select, .connect-btn')) return;
 
-            e.preventDefault();
+            // Don't prevent default yet — allow body scroll until threshold is exceeded
             dragging = true;
+            dragStarted = false;
+            startScreenX = e.clientX;
+            startScreenY = e.clientY;
             this.bringToFront(card);
 
             const world = this.state.screenToWorld(e.clientX, e.clientY);
             startWorldX = world.x;
             startWorldY = world.y;
-            card.classList.add('gd-card--dragging');
 
             // Build move group: if this card is selected and there are other selected cards, move them all
             const cardId = card.dataset.cardId || card.dataset.path || '';
             moveGroup = [];
-            if (this.selected.has(cardId) && this.selected.size > 1) {
+
+            // Collect all selected card IDs from this.selected
+            const allSelectedIds = new Set<string>(this.selected);
+
+            if (allSelectedIds.has(cardId) && allSelectedIds.size > 1) {
                 // Multi-drag: move all selected cards
-                for (const selId of this.selected) {
+                for (const selId of allSelectedIds) {
                     const el = this.cards.get(selId);
                     if (el) {
                         moveGroup.push({
@@ -301,6 +307,22 @@ export class CardManager {
 
             const onMove = (ev: MouseEvent) => {
                 if (!dragging) return;
+
+                // Check drag threshold before starting actual drag
+                if (!dragStarted) {
+                    const screenDist = Math.sqrt(
+                        (ev.clientX - startScreenX) ** 2 + (ev.clientY - startScreenY) ** 2
+                    );
+                    if (screenDist < DRAG_THRESHOLD) return;
+                    dragStarted = true;
+                    card.classList.add('gd-card--dragging');
+                    // Prevent default only after threshold is met to avoid text selection etc.
+                    ev.preventDefault();
+                } else {
+                    // Continue preventing default for subsequent moves if drag has started
+                    ev.preventDefault();
+                }
+
                 const curr = this.state.screenToWorld(ev.clientX, ev.clientY);
                 const dx = curr.x - startWorldX;
                 const dy = curr.y - startWorldY;
@@ -326,12 +348,14 @@ export class CardManager {
                 window.removeEventListener('mousemove', onMove);
                 window.removeEventListener('mouseup', onUp);
 
-                // Emit move events for all moved cards
-                for (const info of moveGroup) {
-                    const x = parseFloat(info.el.style.left) || 0;
-                    const y = parseFloat(info.el.style.top) || 0;
-                    const id = info.el.dataset.cardId || info.el.dataset.path || '';
-                    this.bus.emit('card:move', { id, x, y });
+                // Only emit move events if drag actually started
+                if (dragStarted) {
+                    for (const info of moveGroup) {
+                        const x = parseFloat(info.el.style.left) || 0;
+                        const y = parseFloat(info.el.style.top) || 0;
+                        const id = info.el.dataset.cardId || info.el.dataset.path || '';
+                        this.bus.emit('card:move', { id, x, y });
+                    }
                 }
             };
 

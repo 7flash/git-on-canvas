@@ -21,7 +21,7 @@ import { getGalaxyDrawState } from './galaxydraw-bridge';
 import type { CanvasContext } from './context';
 
 // ─── Config ──────────────────────────────────────────────
-const PREVIEW_ZOOM_THRESHOLD = 0.35;
+const PREVIEW_ZOOM_THRESHOLD = 0.25; // Match LOD_ZOOM_THRESHOLD in viewport-culling.ts
 const SHOW_DELAY_MS = 180;
 const OFFSET_X = 16;
 const OFFSET_Y = 16;
@@ -34,6 +34,8 @@ let showTimer: ReturnType<typeof setTimeout> | null = null;
 let currentCardPath: string | null = null;
 let isInitialized = false;
 let _ctx: CanvasContext | null = null;
+let isPreviewEnabled = localStorage.getItem('gitmaps:previewEnabled') !== 'false'; // enabled by default
+let _isHoveringPopup = false;
 
 // ─── Popup container ─────────────────────────────────────
 function ensurePopup(): HTMLElement {
@@ -44,13 +46,14 @@ function ensurePopup(): HTMLElement {
     popup.style.cssText = `
         position: fixed;
         z-index: 9999;
-        pointer-events: none;
+        pointer-events: auto;
         opacity: 0;
         transform: translateY(6px) scale(0.97);
         transition: opacity 0.18s ease, transform 0.18s ease;
         max-width: ${POPUP_MAX_W}px;
         max-height: ${POPUP_MAX_H}px;
-        overflow: hidden;
+        overflow-y: auto;
+        overflow-x: hidden;
         border-radius: 12px;
         box-shadow:
             0 12px 48px rgba(0, 0, 0, 0.6),
@@ -58,6 +61,12 @@ function ensurePopup(): HTMLElement {
             0 0 24px rgba(124, 58, 237, 0.12);
         background: var(--bg-primary, #0a0a14);
     `;
+    // Keep popup visible while hovering over it (for scrolling)
+    popup.addEventListener('mouseenter', () => { _isHoveringPopup = true; });
+    popup.addEventListener('mouseleave', () => {
+        _isHoveringPopup = false;
+        hidePopup();
+    });
     document.body.appendChild(popup);
     return popup;
 }
@@ -85,10 +94,10 @@ function renderPreviewCard(path: string): HTMLElement | null {
         clone.style.visibility = 'visible';
         clone.style.contentVisibility = 'visible';
         clone.style.opacity = '1';
-        clone.style.maxHeight = `${POPUP_MAX_H - 2}px`;
+        clone.style.maxHeight = 'none';
         clone.style.width = `${POPUP_MAX_W - 2}px`;
-        clone.style.overflow = 'hidden';
-        clone.style.pointerEvents = 'none';
+        clone.style.overflow = 'visible';
+        clone.style.pointerEvents = 'auto';
         clone.style.transition = 'none';
         clone.style.transform = 'none';
         clone.style.outline = 'none';
@@ -129,10 +138,10 @@ function renderPreviewCard(path: string): HTMLElement | null {
         card.style.position = 'relative';
         card.style.left = '0';
         card.style.top = '0';
-        card.style.maxHeight = `${POPUP_MAX_H - 2}px`;
+        card.style.maxHeight = 'none';
         card.style.width = `${POPUP_MAX_W - 2}px`;
-        card.style.overflow = 'hidden';
-        card.style.pointerEvents = 'none';
+        card.style.overflow = 'visible';
+        card.style.pointerEvents = 'auto';
 
         card.style.transition = 'none';
         return card;
@@ -141,19 +150,71 @@ function renderPreviewCard(path: string): HTMLElement | null {
     return null;
 }
 
+// ─── Image preview support ───────────────────────────────
+const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico', 'bmp', 'avif']);
+
+function renderImagePreview(path: string): HTMLElement | null {
+    if (!_ctx) return null;
+    const state = _ctx.snap().context;
+    const repoPath = state.repoPath;
+    if (!repoPath) return null;
+
+    const container = document.createElement('div');
+    container.style.cssText = `
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    `;
+
+    // File name label
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size: 11px; color: var(--text-muted); font-family: monospace;';
+    label.textContent = path.split('/').pop() || path;
+    container.appendChild(label);
+
+    // Image element
+    const img = document.createElement('img');
+    img.src = `/api/repo/file-raw?path=${encodeURIComponent(repoPath)}&filePath=${encodeURIComponent(path)}`;
+    img.alt = path;
+    img.style.cssText = `
+        max-width: ${POPUP_MAX_W - 24}px;
+        max-height: ${POPUP_MAX_H - 50}px;
+        object-fit: contain;
+        border-radius: 6px;
+        background: repeating-conic-gradient(#222 0% 25%, #333 0% 50%) 50% / 16px 16px; /* checkerboard for transparency */
+    `;
+    img.onerror = () => {
+        img.style.display = 'none';
+        label.textContent = `⚠ Could not load: ${path.split('/').pop()}`;
+    };
+    container.appendChild(img);
+
+    return container;
+}
+
 function showPopup(path: string, screenX: number, screenY: number) {
     const el = ensurePopup();
 
-    // Render the preview card
-    const previewCard = renderPreviewCard(path);
-    if (!previewCard) {
+    // Check if this is an image file
+    const ext = path.split('.').pop()?.toLowerCase() || '';
+    let previewContent: HTMLElement | null;
+
+    if (IMAGE_EXTENSIONS.has(ext)) {
+        previewContent = renderImagePreview(path);
+    } else {
+        previewContent = renderPreviewCard(path);
+    }
+
+    if (!previewContent) {
         hidePopup();
         return;
     }
 
     // Clear previous and insert
     el.innerHTML = '';
-    el.appendChild(previewCard);
+    el.appendChild(previewContent);
 
     // Position: near mouse, clamped to viewport
     const vw = window.innerWidth;
@@ -196,6 +257,9 @@ function hidePopup() {
 
 // ─── Event handlers ──────────────────────────────────────
 function onMouseMove(e: MouseEvent) {
+    if (!isPreviewEnabled) return;
+    if (_isHoveringPopup) return; // Don't hide while interacting with popup
+
     const gdState = getGalaxyDrawState();
     if (!gdState || gdState.zoom >= PREVIEW_ZOOM_THRESHOLD) {
         hidePopup();
@@ -250,6 +314,9 @@ function onMouseMove(e: MouseEvent) {
 function onMouseOut(e: MouseEvent) {
     const related = e.relatedTarget as HTMLElement | null;
     if (related?.closest?.('.file-pill') || related?.closest?.('.file-card')) return;
+    // Don't hide if mouse moved to the popup itself
+    if (related?.closest?.('.file-preview-popup')) return;
+    if (_isHoveringPopup) return;
     hidePopup();
 }
 
@@ -294,4 +361,30 @@ export function destroyFilePreview(viewportEl: HTMLElement) {
     }
     _ctx = null;
     isInitialized = false;
+}
+
+/**
+ * Toggle file preview on/off. Persists to localStorage.
+ */
+export function toggleFilePreview(): boolean {
+    isPreviewEnabled = !isPreviewEnabled;
+    localStorage.setItem('gitmaps:previewEnabled', String(isPreviewEnabled));
+    if (!isPreviewEnabled) hidePopup();
+    return isPreviewEnabled;
+}
+
+/**
+ * Set file preview enabled state. Persists to localStorage.
+ */
+export function setFilePreviewEnabled(enabled: boolean) {
+    isPreviewEnabled = enabled;
+    localStorage.setItem('gitmaps:previewEnabled', String(enabled));
+    if (!enabled) hidePopup();
+}
+
+/**
+ * Get current preview enabled state.
+ */
+export function isFilePreviewEnabled(): boolean {
+    return isPreviewEnabled;
 }

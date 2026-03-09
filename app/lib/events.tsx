@@ -400,7 +400,7 @@ export function setupEventListeners(ctx: CanvasContext) {
         // Text rendering mode toggle (Canvas vs DOM)
         const textToggle = document.getElementById('toggleCanvasText');
         if (textToggle) {
-            ctx.useCanvasText = localStorage.getItem('gitcanvas:useCanvasText') === 'true';
+            ctx.useCanvasText = localStorage.getItem('gitcanvas:useCanvasText') !== 'false';
             textToggle.classList.toggle('active', ctx.useCanvasText);
             textToggle.addEventListener('click', () => {
                 ctx.useCanvasText = !ctx.useCanvasText;
@@ -661,6 +661,14 @@ export function setupEventListeners(ctx: CanvasContext) {
             });
         });
 
+        // Settings modal
+        document.getElementById('openSettings')?.addEventListener('click', () => {
+            import('./settings-modal').then(({ openSettingsModal }) => openSettingsModal(ctx));
+        });
+
+        // Apply saved settings on startup
+        import('./settings-modal').then(({ applyAllSettings }) => applyAllSettings(ctx));
+
         // ── Keyboard shortcuts ──
         window.addEventListener('keydown', (e) => {
             // Space-bar canvas panning
@@ -725,14 +733,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 updateArrangeToolbar(ctx);
             }
 
-            // F = Toggle selected cards expanded/collapsed (skip if Ctrl held — Ctrl+F is file search)
-            if ((e.key === 'f' || e.key === 'F') && !e.ctrlKey && !e.metaKey) {
-                const selected = ctx.snap().context.selectedCards;
-                if (selected.length > 0) {
-                    e.preventDefault();
-                    toggleCardExpand(ctx);
-                }
-            }
+            // F key: no longer used for expand (canvas text handles all lines)
 
             // W = Fit selected cards to screen/viewport size
             if (e.key === 'w' || e.key === 'W') {

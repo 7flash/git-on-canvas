@@ -903,8 +903,6 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
                             import('./canvas').then(({ jumpToFile }) => {
                                 jumpToFile(_panelCtx!, f.path);
                             });
-                            // Auto-expand the card to show full diff
-                            expandCardByPath(_panelCtx, f.path);
                         }}
                     >
                         <span className="changed-file-status" style={`color: ${color} `}>{icon}</span>

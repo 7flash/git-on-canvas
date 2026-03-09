@@ -262,22 +262,27 @@ export function performViewportCulling(ctx: CanvasContext) {
     // ── LOD mode transition (with smooth animation) ──
     if (newLodMode !== _currentLodMode) {
         if (newLodMode === 'pill') {
-            // Transitioning to pill mode: fade out full cards
+            // Transitioning to pill mode: immediately hide ALL full cards
+            // Must be synchronous to prevent content from leaking through at low zoom
             for (const [path, card] of ctx.fileCards) {
-                // Add fade-out transition to full cards
-                card.style.transition = 'opacity 0.2s ease';
-                card.style.opacity = '0';
-                // After fade completes, actually hide for perf
-                setTimeout(() => {
-                    card.style.contentVisibility = 'hidden';
-                    card.style.visibility = 'hidden';
-                    card.dataset.culled = 'true';
-                    card.style.opacity = '';
-                    card.style.transition = '';
-                }, 200);
+                card.style.contentVisibility = 'hidden';
+                card.style.visibility = 'hidden';
+                card.dataset.culled = 'true';
             }
         } else {
-            // Transitioning to full mode: fade out pills, then remove
+            // Transitioning to full mode: immediately hide pills that have
+            // materialized full cards (prevents duplicate rendering), then
+            // fade out remaining pills
+            for (const [path, pill] of pillCards) {
+                if (ctx.fileCards.has(path)) {
+                    // Full card exists — hide pill immediately to prevent overlap
+                    pill.style.opacity = '0';
+                    pill.style.display = 'none';
+                    pill.remove();
+                    pillCards.delete(path);
+                }
+            }
+            // Fade out any remaining pills (deferred-only cards)
             fadeOutPills(() => {
                 clearAllPills(ctx);
             });
@@ -288,12 +293,10 @@ export function performViewportCulling(ctx: CanvasContext) {
     // 1. Handle existing DOM cards (cull/show)
     for (const [path, card] of ctx.fileCards) {
         if (isLowZoom) {
-            // In pill mode: always hide full cards
-            if (card.dataset.culled !== 'true') {
-                card.style.contentVisibility = 'hidden';
-                card.style.visibility = 'hidden';
-                card.dataset.culled = 'true';
-            }
+            // In pill mode: ALWAYS force-hide full cards (catches newly materialized ones too)
+            card.style.contentVisibility = 'hidden';
+            card.style.visibility = 'hidden';
+            card.dataset.culled = 'true';
             culled++;
             continue;
         }
@@ -541,7 +544,7 @@ export function setupPillInteraction(ctx: CanvasContext) {
         window.addEventListener('mouseup', onPillUp);
     });
 
-    // Native dblclick for zoom-to-file (more reliable than custom timing)
+    // Native dblclick to open editor modal (consistent with card dblclick)
     ctx.canvas.addEventListener('dblclick', (e: MouseEvent) => {
         const pill = (e.target as HTMLElement).closest('.file-pill') as HTMLElement;
         if (!pill) return;
@@ -549,9 +552,9 @@ export function setupPillInteraction(ctx: CanvasContext) {
         e.preventDefault();
         const pillPath = pill.dataset.path || '';
         if (pillPath) {
-            import('./canvas').then(({ jumpToFile }) => {
-                jumpToFile(ctx, pillPath);
-            });
+            const file = ctx.allFilesData?.find(f => f.path === pillPath) ||
+                { path: pillPath, name: pillPath.split('/').pop(), lines: 0 };
+            import('./file-modal').then(({ openFileModal }) => openFileModal(ctx, file));
         }
     });
 

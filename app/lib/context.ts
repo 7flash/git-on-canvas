@@ -82,7 +82,7 @@ export function createCanvasContext(actor: any): CanvasContext {
         scrollTimers: {},
         connectionDragState: null,
         loadingOverlay: null,
-        useCanvasText: false,
+        useCanvasText: true,
 
         allFilesActive: true,
         changedFilePaths: new Set(),

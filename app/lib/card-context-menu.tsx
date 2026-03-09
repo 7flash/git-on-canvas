@@ -35,7 +35,9 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
             <button className="ctx-item" onClick={() => onAction('copy-path')}>📋 Copy path</button>
             <button className="ctx-item" onClick={() => onAction('select')}>☑️ Select</button>
             <div className="ctx-divider"></div>
-            <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
+            <button className="ctx-item" onClick={() => onAction('expand')}>📖 Open in Editor</button>
+            <button className="ctx-item" onClick={() => onAction('edit')}>✏️ Edit file</button>
+            <button className="ctx-item" onClick={() => onAction('blame')}>👤 Git blame</button>
             <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
             <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
             <div className="ctx-divider"></div>
@@ -104,6 +106,18 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
                 ctx.allFilesData?.find(f => f.path === filePath) ||
                 { path: filePath, name: filePath.split('/').pop(), lines: 0 };
             _openFileModal(ctx, file);
+        } else if (action === 'edit') {
+            const state = ctx.snap().context;
+            const file = state.commitFiles?.find(f => f.path === filePath) ||
+                ctx.allFilesData?.find(f => f.path === filePath) ||
+                { path: filePath, name: filePath.split('/').pop(), lines: 0 };
+            _openFileModal(ctx, file, 'edit');
+        } else if (action === 'blame') {
+            const state = ctx.snap().context;
+            const file = state.commitFiles?.find(f => f.path === filePath) ||
+                ctx.allFilesData?.find(f => f.path === filePath) ||
+                { path: filePath, name: filePath.split('/').pop(), lines: 0 };
+            _openFileModal(ctx, file, 'blame');
         } else if (action === 'fit-content') {
             ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
             _updateSelectionHighlights(ctx);

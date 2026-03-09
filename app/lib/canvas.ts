@@ -130,8 +130,10 @@ function _rebuildMinimap(ctx: CanvasContext) {
     const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string; path: string; changed: boolean; displayPath?: string }[] = [];
 
     ctx.fileCards.forEach((card, path) => {
-        const x = parseFloat(card.style.left) || 0;
-        const y = parseFloat(card.style.top) || 0;
+        const x = parseFloat(card.style.left);
+        const y = parseFloat(card.style.top);
+        // Skip cards with invalid positions (NaN poisons Math.min/max)
+        if (isNaN(x) || isNaN(y)) return;
         const w = card.offsetWidth || 580;
         const h = card.offsetHeight || 200;
         const name = path.split('/').pop() || path;
@@ -155,6 +157,8 @@ function _rebuildMinimap(ctx: CanvasContext) {
             if (ctx.fileCards.has(path)) return;
             const x = entry.x;
             const y = entry.y;
+            // Skip cards with invalid positions
+            if (isNaN(x) || isNaN(y)) return;
             const w = entry.size?.width || 580;
             const h = entry.size?.height || 700;
             const name = path.split('/').pop() || path;
@@ -189,6 +193,12 @@ function _rebuildMinimap(ctx: CanvasContext) {
     const mmW = minimap.offsetWidth;
     const mmH = minimap.offsetHeight;
 
+    // Guard: if minimap hasn't been laid out yet, defer rebuild
+    if (mmW === 0 || mmH === 0 || contentW <= 0 || contentH <= 0) {
+        requestAnimationFrame(() => _rebuildMinimap(ctx));
+        return;
+    }
+
     // Scale to fit content in minimap
     const scale = Math.min(mmW / contentW, mmH / contentH);
 
@@ -196,7 +206,7 @@ function _rebuildMinimap(ctx: CanvasContext) {
     const frag = document.createDocumentFragment();
     const dotEls = new Map<string, { dot: HTMLElement; label: HTMLElement }>();
 
-    cardInfos.forEach(info => {
+    cardInfos.forEach((info, idx) => {
         const dotX = (info.x - minX) * scale;
         const dotY = (info.y - minY) * scale;
         const dotW = Math.max(2, info.w * scale);
@@ -346,6 +356,7 @@ export function fitAllFiles(ctx: CanvasContext) {
         ctx.fileCards.forEach(card => {
             const x = parseInt(card.style.left);
             const y = parseInt(card.style.top);
+            if (isNaN(x) || isNaN(y)) return; // Skip cards without positions
             minX = Math.min(minX, x);
             minY = Math.min(minY, y);
             maxX = Math.max(maxX, x + (card.offsetWidth || 580));

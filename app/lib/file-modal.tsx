@@ -11,9 +11,10 @@ import { openFileChatInModal } from './chat';
 import { addClickableImports } from './goto-definition';
 import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prevTab, onTabChange, onTabCloseRequest, setActiveTab, type FileTab } from './file-tabs';
 import { renderBreadcrumbs } from './breadcrumbs';
+import { renderSymbolOutline } from './symbol-outline';
 
 // ─── File expand modal ──────────────────────────────────
-export function openFileModal(ctx: CanvasContext, file: any) {
+export function openFileModal(ctx: CanvasContext, file: any, initialView?: string) {
     const modal = document.getElementById('filePreviewModal');
     const pathEl = document.getElementById('previewFilePath');
     const contentEl = document.getElementById('previewContent');
@@ -49,8 +50,8 @@ export function openFileModal(ctx: CanvasContext, file: any) {
 
     const hasDiff = !!(file.status && (file.hunks?.length > 0 || file.content));
     const rendered = { full: '', diff: '', full_raw: '' };
-    // Default to diff view for changed files, full view for unchanged
-    let currentView = hasDiff ? 'diff' : 'full';
+    // Default to edit view — editor is the primary experience
+    let currentView = initialView || 'edit';
     let onNavKey: ((e: KeyboardEvent) => void) | null = null;
     let originalContent = file.content || '';
 
@@ -111,6 +112,51 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 if (tab) switchToTab(ctx, tab);
             }
         }
+        // Ctrl+Shift+O to toggle outline
+        if (e.key === 'o' && (e.ctrlKey || e.metaKey) && e.shiftKey) {
+            e.preventDefault();
+            toggleOutline();
+        }
+    }
+
+    function toggleOutline() {
+        const panel = document.getElementById('modalOutlinePanel');
+        if (!panel) return;
+        const isVisible = panel.style.display !== 'none';
+        panel.style.display = isVisible ? 'none' : '';
+        if (!isVisible) {
+            // Render outline with current content
+            updateOutline();
+        }
+    }
+
+    function updateOutline() {
+        const panel = document.getElementById('modalOutlinePanel');
+        if (!panel || panel.style.display === 'none') return;
+        const raw = rendered.full_raw || file.content || '';
+        if (!raw) return;
+        renderSymbolOutline(panel, raw, file.name || file.path, (line: number) => {
+            scrollToLine(line);
+        });
+    }
+
+    function scrollToLine(line: number) {
+        const modalPre = document.getElementById('modalBodyPre');
+        if (!modalPre) return;
+        // Find the line element or estimate scroll position
+        const codeEl = document.getElementById('previewContent');
+        if (!codeEl) return;
+        const lineHeight = 24; // approximate
+        const targetScroll = (line - 1) * lineHeight;
+        modalPre.scrollTo({ top: targetScroll, behavior: 'smooth' });
+    }
+
+    // Outline toggle button
+    const outlineToggle = document.getElementById('outlineToggle');
+    if (outlineToggle) {
+        const newToggle = outlineToggle.cloneNode(true) as HTMLElement;
+        outlineToggle.replaceWith(newToggle);
+        newToggle.addEventListener('click', toggleOutline);
     }
 
     document.addEventListener('keydown', onEsc);
@@ -272,221 +318,25 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
 
                 const modalPre = document.getElementById('modalBodyPre');
-                const chatContainer = document.getElementById('modalChatContainer');
                 const editContainer = document.getElementById('modalEditContainer');
                 const saveStatus = document.getElementById('modalSaveStatus');
 
-                if (view === 'chat') {
-                    // Show chat, hide code + edit
-                    if (modalPre) modalPre.style.display = 'none';
-                    if (chatContainer) chatContainer.style.display = 'flex';
+                if (view === 'edit') {
+                    activateEditView();
+                } else if (view === 'diff') {
+                    // Show diff, hide edit
+                    if (modalPre) modalPre.style.display = '';
                     if (editContainer) editContainer.style.display = 'none';
                     if (saveStatus) saveStatus.style.display = 'none';
-                    let diffText = '';
-                    if (file.hunks) {
-                        diffText = file.hunks.map(h => {
-                            return h.lines.map(l => {
-                                const prefix = l.type === 'add' ? '+' : l.type === 'del' ? '-' : ' ';
-                                return prefix + l.content;
-                            }).join('\n');
-                        }).join('\n');
-                    }
-                    openFileChatInModal(file.path, file.content || '', file.status || '', diffText);
-                } else if (view === 'edit') {
-                    // Show edit mode
-                    if (modalPre) modalPre.style.display = 'none';
-                    if (chatContainer) chatContainer.style.display = 'none';
-                    if (editContainer) editContainer.style.display = 'flex';
-                    if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = ''; saveStatus.className = 'modal-save-status'; }
-
-                    const textarea = document.getElementById('modalEditTextarea') as HTMLTextAreaElement;
-                    const lineInfo = document.getElementById('editLineInfo');
-                    const saveBtn = document.getElementById('editSaveBtn');
-
-                    // Load current content
-                    const editContent = rendered.full_raw || file.content || '';
-                    originalContent = editContent;
-
-                    // Hide textarea (CodeMirror replaces it)
-                    if (textarea) textarea.style.display = 'none';
-
-                    // Mount CodeMirror into the edit container
-                    let editorMountEl = document.getElementById('cmEditorMount');
-                    if (!editorMountEl) {
-                        editorMountEl = document.createElement('div');
-                        editorMountEl.id = 'cmEditorMount';
-                        editorMountEl.className = 'cm-editor-mount';
-                        // Insert before the toolbar
-                        const toolbar = document.getElementById('modalEditToolbar');
-                        if (toolbar && editContainer) {
-                            editContainer.insertBefore(editorMountEl, toolbar);
-                        } else if (editContainer) {
-                            editContainer.appendChild(editorMountEl);
-                        }
-                    }
-                    editorMountEl.innerHTML = '';
-
-                    // Create CodeMirror editor
-                    const ext = file.name?.split('.').pop()?.toLowerCase() || '';
-                    import('./code-editor').then(({ createCodeEditor }) => {
-                        const editor = createCodeEditor(editorMountEl!, editContent, ext, {
-                            onSave: () => saveFile(),
-                            onChange: (content) => {
-                                // Show modified indicator
-                                if (saveStatus && content !== originalContent) {
-                                    saveStatus.style.display = '';
-                                    saveStatus.textContent = '● Modified';
-                                    saveStatus.className = 'modal-save-status modified';
-                                } else if (saveStatus && content === originalContent) {
-                                    saveStatus.style.display = 'none';
-                                }
-                            },
-                            onCursorMove: (line, col) => {
-                                if (lineInfo) lineInfo.textContent = `Line ${line}, Col ${col}`;
-                            },
-                        });
-
-                        // Store editor reference for content access
-                        (editContainer as any)._cmEditor = editor;
-                        editor.focus();
-                    });
-
-                    // Save handler
-                    const saveFile = async () => {
-                        const editor = (editContainer as any)?._cmEditor;
-                        const content = editor ? editor.getContent() : textarea?.value || '';
-                        const state = ctx.snap().context;
-                        const repoPath = state.repoPath;
-                        if (!repoPath) {
-                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'No repo path'; saveStatus.className = 'modal-save-status error'; }
-                            return;
-                        }
-
-                        if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'Saving...'; saveStatus.className = 'modal-save-status saving'; }
-
-                        try {
-                            const res = await fetch('/api/repo/file-save', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    path: repoPath,
-                                    filePath: file.path,
-                                    content,
-                                }),
-                            });
-                            if (res.ok) {
-                                const data = await res.json();
-                                originalContent = content;
-                                // Update the in-memory file data
-                                file.content = content;
-                                file.lines = data.lines;
-                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Saved (${data.lines} lines)`; saveStatus.className = 'modal-save-status saved'; }
-                                // Also update the rendered full view for when they switch back
-                                const ext = file.name?.split('.').pop()?.toLowerCase() || '';
-                                rendered.full = highlightSyntax(content, ext);
-                                rendered.full_raw = content;
-
-                                // Show commit section after save
-                                const commitSection = document.getElementById('editCommitSection');
-                                const commitInput = document.getElementById('editCommitMsg') as HTMLInputElement;
-                                const commitBtn = document.getElementById('editCommitBtn');
-                                const commitCancel = document.getElementById('editCommitCancel');
-
-                                if (commitSection && commitInput) {
-                                    commitSection.style.display = 'flex';
-                                    const fileName = file.name || file.path?.split('/').pop() || 'file';
-                                    commitInput.value = `edit: ${fileName}`;
-                                    commitInput.focus();
-                                    commitInput.select();
-
-                                    const doCommit = async () => {
-                                        const msg = commitInput.value.trim();
-                                        if (!msg) { commitInput.focus(); return; }
-                                        if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'Committing...'; saveStatus.className = 'modal-save-status saving'; }
-                                        try {
-                                            const cRes = await fetch('/api/repo/git-commit', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({
-                                                    path: repoPath,
-                                                    filePath: file.path,
-                                                    message: msg,
-                                                }),
-                                            });
-                                            if (cRes.ok) {
-                                                const cData = await cRes.json();
-                                                const shortHash = cData.hash ? cData.hash.substring(0, 7) : '';
-                                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Committed ${shortHash}`; saveStatus.className = 'modal-save-status saved'; }
-                                                commitSection.style.display = 'none';
-                                                setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓')) { saveStatus.style.display = 'none'; } }, 4000);
-                                            } else {
-                                                const err = await cRes.text();
-                                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Commit err: ${err}`; saveStatus.className = 'modal-save-status error'; }
-                                            }
-                                        } catch (err: any) {
-                                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Commit err: ${err.message}`; saveStatus.className = 'modal-save-status error'; }
-                                        }
-                                    };
-
-                                    // Wire commit button
-                                    if (commitBtn) {
-                                        const newCommitBtn = commitBtn.cloneNode(true) as HTMLElement;
-                                        commitBtn.replaceWith(newCommitBtn);
-                                        newCommitBtn.addEventListener('click', doCommit);
-                                    }
-
-                                    // Enter key in input triggers commit
-                                    commitInput.addEventListener('keydown', (e) => {
-                                        if (e.key === 'Enter') { e.preventDefault(); doCommit(); }
-                                        if (e.key === 'Escape') { commitSection.style.display = 'none'; editor?.focus(); }
-                                    });
-
-                                    // Cancel button
-                                    if (commitCancel) {
-                                        const newCancelBtn = commitCancel.cloneNode(true) as HTMLElement;
-                                        commitCancel.replaceWith(newCancelBtn);
-                                        newCancelBtn.addEventListener('click', () => { commitSection.style.display = 'none'; editor?.focus(); });
-                                    }
-                                }
-
-                                // Fade out save status after 3s (only if no commit action is pending)
-                                setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓ Saved')) { saveStatus.style.display = 'none'; } }, 3000);
-                            } else {
-                                const err = await res.text();
-                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err}`; saveStatus.className = 'modal-save-status error'; }
-                            }
-                        } catch (err: any) {
-                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err.message}`; saveStatus.className = 'modal-save-status error'; }
-                        }
-                    };
-
-                    if (saveBtn) {
-                        const newSaveBtn = saveBtn.cloneNode(true) as HTMLElement;
-                        saveBtn.replaceWith(newSaveBtn);
-                        newSaveBtn.addEventListener('click', saveFile);
-                    }
-                } else if (view === 'blame') {
-                    // Show blame view
-                    if (modalPre) modalPre.style.display = 'none';
-                    if (chatContainer) chatContainer.style.display = 'none';
-                    if (editContainer) editContainer.style.display = 'none';
-                    if (saveStatus) saveStatus.style.display = 'none';
-                    const blameContainer = document.getElementById('modalBlameContainer');
-                    if (blameContainer) {
-                        blameContainer.style.display = '';
-                        loadBlameView(ctx, file, blameContainer);
+                    if (rendered.diff) {
+                        contentEl.innerHTML = rendered.diff;
                     }
                 } else {
-                    // Show code, hide chat + edit + blame
+                    // Fallback: show code, hide edit
                     if (modalPre) modalPre.style.display = '';
-                    if (chatContainer) chatContainer.style.display = 'none';
                     if (editContainer) editContainer.style.display = 'none';
                     if (saveStatus) saveStatus.style.display = 'none';
-                    const blameContainer = document.getElementById('modalBlameContainer');
-                    if (blameContainer) blameContainer.style.display = 'none';
-                    if (view === 'diff' && rendered.diff) {
-                        contentEl.innerHTML = rendered.diff;
-                    } else if (view === 'full' && rendered.full) {
+                    if (rendered.full) {
                         contentEl.innerHTML = rendered.full;
                         addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
                     }
@@ -495,12 +345,190 @@ export function openFileModal(ctx: CanvasContext, file: any) {
         });
     }
 
+    // ─── Edit view activation (shared by initial open + tab click) ────
+    function activateEditView() {
+        const modalPre = document.getElementById('modalBodyPre');
+        const editContainer = document.getElementById('modalEditContainer');
+        const saveStatus = document.getElementById('modalSaveStatus');
+
+        if (modalPre) modalPre.style.display = 'none';
+        if (editContainer) editContainer.style.display = 'flex';
+        if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = ''; saveStatus.className = 'modal-save-status'; }
+
+        const textarea = document.getElementById('modalEditTextarea') as HTMLTextAreaElement;
+        const lineInfo = document.getElementById('editLineInfo');
+        const saveBtn = document.getElementById('editSaveBtn');
+
+        // Load current content
+        const editContent = rendered.full_raw || file.content || '';
+        originalContent = editContent;
+
+        // Hide textarea (CodeMirror replaces it)
+        if (textarea) textarea.style.display = 'none';
+
+        // Mount CodeMirror into the edit container
+        let editorMountEl = document.getElementById('cmEditorMount');
+        if (!editorMountEl) {
+            editorMountEl = document.createElement('div');
+            editorMountEl.id = 'cmEditorMount';
+            editorMountEl.className = 'cm-editor-mount';
+            // Insert before the toolbar
+            const toolbar = document.getElementById('modalEditToolbar');
+            if (toolbar && editContainer) {
+                editContainer.insertBefore(editorMountEl, toolbar);
+            } else if (editContainer) {
+                editContainer.appendChild(editorMountEl);
+            }
+        }
+        editorMountEl.innerHTML = '';
+
+        // Create CodeMirror editor
+        const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+        import('./code-editor').then(({ createCodeEditor }) => {
+            const editor = createCodeEditor(editorMountEl!, editContent, ext, {
+                onSave: () => saveFile(),
+                onChange: (content) => {
+                    // Show modified indicator
+                    if (saveStatus && content !== originalContent) {
+                        saveStatus.style.display = '';
+                        saveStatus.textContent = '● Modified';
+                        saveStatus.className = 'modal-save-status modified';
+                    } else if (saveStatus && content === originalContent) {
+                        saveStatus.style.display = 'none';
+                    }
+                },
+                onCursorMove: (line, col) => {
+                    if (lineInfo) lineInfo.textContent = `Line ${line}, Col ${col}`;
+                },
+            });
+
+            // Store editor reference for content access
+            (editContainer as any)._cmEditor = editor;
+            editor.focus();
+        });
+
+        // Save handler
+        const saveFile = async () => {
+            const editor = (editContainer as any)?._cmEditor;
+            const content = editor ? editor.getContent() : textarea?.value || '';
+            const state = ctx.snap().context;
+            const repoPath = state.repoPath;
+            if (!repoPath) {
+                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'No repo path'; saveStatus.className = 'modal-save-status error'; }
+                return;
+            }
+
+            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'Saving...'; saveStatus.className = 'modal-save-status saving'; }
+
+            try {
+                const res = await fetch('/api/repo/file-save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        path: repoPath,
+                        filePath: file.path,
+                        content,
+                    }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    originalContent = content;
+                    // Update the in-memory file data
+                    file.content = content;
+                    file.lines = data.lines;
+                    if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Saved (${data.lines} lines)`; saveStatus.className = 'modal-save-status saved'; }
+                    // Also update the rendered full view for when they switch back
+                    const ext = file.name?.split('.').pop()?.toLowerCase() || '';
+                    rendered.full = highlightSyntax(content, ext);
+                    rendered.full_raw = content;
+
+                    // Show commit section after save
+                    const commitSection = document.getElementById('editCommitSection');
+                    const commitInput = document.getElementById('editCommitMsg') as HTMLInputElement;
+                    const commitBtn = document.getElementById('editCommitBtn');
+                    const commitCancel = document.getElementById('editCommitCancel');
+
+                    if (commitSection && commitInput) {
+                        commitSection.style.display = 'flex';
+                        const fileName = file.name || file.path?.split('/').pop() || 'file';
+                        commitInput.value = `edit: ${fileName}`;
+                        commitInput.focus();
+                        commitInput.select();
+
+                        const doCommit = async () => {
+                            const msg = commitInput.value.trim();
+                            if (!msg) { commitInput.focus(); return; }
+                            if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = 'Committing...'; saveStatus.className = 'modal-save-status saving'; }
+                            try {
+                                const cRes = await fetch('/api/repo/git-commit', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        path: repoPath,
+                                        filePath: file.path,
+                                        message: msg,
+                                    }),
+                                });
+                                if (cRes.ok) {
+                                    const cData = await cRes.json();
+                                    const shortHash = cData.hash ? cData.hash.substring(0, 7) : '';
+                                    if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `✓ Committed ${shortHash}`; saveStatus.className = 'modal-save-status saved'; }
+                                    commitSection.style.display = 'none';
+                                    setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓')) { saveStatus.style.display = 'none'; } }, 4000);
+                                } else {
+                                    const err = await cRes.text();
+                                    if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Commit err: ${err}`; saveStatus.className = 'modal-save-status error'; }
+                                }
+                            } catch (err: any) {
+                                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Commit err: ${err.message}`; saveStatus.className = 'modal-save-status error'; }
+                            }
+                        };
+
+                        // Wire commit button
+                        if (commitBtn) {
+                            const newCommitBtn = commitBtn.cloneNode(true) as HTMLElement;
+                            commitBtn.replaceWith(newCommitBtn);
+                            newCommitBtn.addEventListener('click', doCommit);
+                        }
+
+                        // Enter key in input triggers commit
+                        commitInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') { e.preventDefault(); doCommit(); }
+                            if (e.key === 'Escape') { commitSection.style.display = 'none'; editor?.focus(); }
+                        });
+
+                        // Cancel button
+                        if (commitCancel) {
+                            const newCancelBtn = commitCancel.cloneNode(true) as HTMLElement;
+                            commitCancel.replaceWith(newCancelBtn);
+                            newCancelBtn.addEventListener('click', () => { commitSection.style.display = 'none'; editor?.focus(); });
+                        }
+                    }
+
+                    // Fade out save status after 3s (only if no commit action is pending)
+                    setTimeout(() => { if (saveStatus?.textContent?.startsWith('✓ Saved')) { saveStatus.style.display = 'none'; } }, 3000);
+                } else {
+                    const err = await res.text();
+                    if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err}`; saveStatus.className = 'modal-save-status error'; }
+                }
+            } catch (err: any) {
+                if (saveStatus) { saveStatus.style.display = ''; saveStatus.textContent = `Error: ${err.message}`; saveStatus.className = 'modal-save-status error'; }
+            }
+        };
+
+        if (saveBtn) {
+            const newSaveBtn = saveBtn.cloneNode(true) as HTMLElement;
+            saveBtn.replaceWith(newSaveBtn);
+            newSaveBtn.addEventListener('click', saveFile);
+        }
+    }
+
+
+    // Activate the initial edit view immediately
+    requestAnimationFrame(() => activateEditView());
+
     if (hasDiff) {
         rendered.diff = buildModalDiffHTML(file);
-        // If defaulting to diff view, show it immediately
-        if (currentView === 'diff') {
-            contentEl.innerHTML = rendered.diff;
-        }
     }
 
     measure('modal:fetchContent', async () => {
@@ -543,9 +571,13 @@ export function openFileModal(ctx: CanvasContext, file: any) {
             rendered.full_raw = content;
             originalContent = content;
 
-            if (currentView === 'full') {
-                contentEl.innerHTML = rendered.full;
-                addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
+            // If currently in edit mode, update the CodeMirror editor with fetched content
+            if (currentView === 'edit') {
+                const editContainer = document.getElementById('modalEditContainer');
+                const editor = (editContainer as any)?._cmEditor;
+                if (editor && !editor.getContent()) {
+                    editor.setContent(content);
+                }
             }
 
             // Sync rendered data to the active tab
@@ -555,22 +587,22 @@ export function openFileModal(ctx: CanvasContext, file: any) {
                 activeTab.originalContent = originalContent;
             }
 
+            // Update outline if visible
+            updateOutline();
+
         } catch (err) {
             measure('modal:fetchError', () => err);
             if (file.content) {
                 const ext = file.name?.split('.').pop()?.toLowerCase() || '';
                 rendered.full = highlightSyntax(file.content, ext);
                 rendered.full_raw = file.content;
-                if (currentView === 'full') {
-                    contentEl.innerHTML = rendered.full;
-                    addClickableImports(ctx, contentEl, file.path, rendered.full_raw);
-                }
             } else {
                 contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${escapeHtml(err.message)}</span>`;
             }
         }
     });
 }
+
 
 // ─── Load content for a tab (used when switching to an unloaded tab) ──
 async function loadTabContent(ctx: CanvasContext, tab: FileTab) {

@@ -233,7 +233,7 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 
     card.addEventListener('mousedown', onMouseDown);
 
-    // ── Double-click to zoom into file ──
+    // ── Double-click to open in editor modal ──
     card.addEventListener('dblclick', (e) => {
         // Don't trigger on buttons
         if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
@@ -242,7 +242,9 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 
         const filePath = card.dataset.path;
         if (filePath) {
-            jumpToFile(ctx, filePath);
+            const file = ctx.allFilesData?.find(f => f.path === filePath) ||
+                { path: filePath, name: filePath.split('/').pop(), lines: 0 };
+            import('./file-modal').then(({ openFileModal }) => openFileModal(ctx, file));
         }
     });
 
@@ -469,12 +471,7 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
                 <span className="file-name">{file.name}</span>
                 <span className="file-status" style={`background: ${statusColor}20; color: ${statusColor}; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600;`}>{statusLabel}</span>
                 <span style="font-size: 10px; color: var(--text-muted); margin-left: auto;">{metaInfo}</span>
-                <button className="connect-btn ai-btn" title="Ask AI about this file" data-path={file.path}>AI</button>
-                <button className="connect-btn expand-btn" title="Expand file (selectable text)" data-path={file.path}>
-                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                        <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
-                    </svg>
-                </button>
+
             </div>
             <div className="file-card-body">
                 {file.oldPath ? (
@@ -508,21 +505,71 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
             e.preventDefault();
             e.stopPropagation();
             const filePath = card.dataset.path;
-            if (filePath) jumpToFile(ctx, filePath);
+            if (filePath) {
+                const file = ctx.allFilesData?.find(f => f.path === filePath) ||
+                    { path: filePath, name: filePath.split('/').pop(), lines: 0 };
+                import('./file-modal').then(({ openFileModal }) => openFileModal(ctx, file));
+            }
         });
+        // Smart selection: don't deselect others on mousedown if card is already selected
+        // This allows multi-drag to work. Deselection is deferred to mouseup (click without drag).
+        let _dragOccurred = false;
         card.addEventListener('mousedown', (e) => {
             if (e.button !== 0) return;
             if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.connect-btn')) return;
             const filePath = card.dataset.path || '';
             const multi = e.shiftKey || e.ctrlKey;
-            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: multi });
-            import('./galaxydraw-bridge').then(({ getCardManager }) => {
-                const cm = getCardManager();
-                if (cm) cm.select(filePath, multi);
-            });
+            const selected = ctx.snap().context.selectedCards;
+            const alreadySelected = selected.includes(filePath);
+            _dragOccurred = false;
+
+            if (multi) {
+                // Shift/Ctrl: toggle selection
+                ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: true });
+                try {
+                    const { getCardManager } = require('./galaxydraw-bridge');
+                    const cm = getCardManager();
+                    if (cm) {
+                        if (alreadySelected) cm.deselect(filePath);
+                        else cm.select(filePath, true);
+                    }
+                } catch { }
+            } else if (!alreadySelected) {
+                // Not selected yet → replace selection with this card
+                ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+                try {
+                    const { getCardManager } = require('./galaxydraw-bridge');
+                    const cm = getCardManager();
+                    if (cm) cm.select(filePath, false);
+                } catch { }
+            }
+            // If already selected without shift → do nothing on mousedown (allow multi-drag)
+            // Deselection of others happens on mouseup below
+
             updateSelectionHighlights(ctx);
             updateArrangeToolbar(ctx);
         });
+        card.addEventListener('mouseup', (e) => {
+            if (e.button !== 0) return;
+            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.connect-btn')) return;
+            // Only deselect others if: no shift, card was already selected, and no drag happened
+            const filePath = card.dataset.path || '';
+            const multi = e.shiftKey || e.ctrlKey;
+            if (multi) return; // shift-click handled in mousedown
+            const selected = ctx.snap().context.selectedCards;
+            if (selected.length > 1 && selected.includes(filePath) && !_dragOccurred) {
+                ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+                try {
+                    const { getCardManager } = require('./galaxydraw-bridge');
+                    const cm = getCardManager();
+                    if (cm) cm.select(filePath, false);
+                } catch { }
+                updateSelectionHighlights(ctx);
+                updateArrangeToolbar(ctx);
+            }
+        });
+        // Track drag state from engine for mouseup deselection logic
+        card.addEventListener('mousemove', () => { _dragOccurred = true; });
     }
     setupConnectionDrag(ctx, card, file.path);
 
@@ -605,8 +652,9 @@ export function _buildFileContentHTML(
     }
 
     const hiddenCount = totalVisible - renderedCount;
+    // Invisible sentinel for IntersectionObserver auto-loading (no visible text)
     const truncNote = hiddenCount > 0
-        ? `<span class="more-lines" data-auto-expand="true">${hiddenCount.toLocaleString()} more lines · scroll to load</span>`
+        ? `<span class="more-lines" data-auto-expand="true" style="display:block;height:1px;"></span>`
         : '';
     return `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
 }
@@ -615,8 +663,11 @@ export function _buildFileContentHTML(
 export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: number, savedSize: any, skipInteraction = false): HTMLElement {
     const card = document.createElement('div');
     card.className = 'file-card';
-    card.style.left = `${x}px`;
-    card.style.top = `${y}px`;
+    // Guard against NaN/undefined positions (corrupted position records)
+    const safeX = isNaN(x) ? 0 : x;
+    const safeY = isNaN(y) ? 0 : y;
+    card.style.left = `${safeX}px`;
+    card.style.top = `${safeY}px`;
     card.dataset.path = file.path;
 
     if (savedSize) {
@@ -633,9 +684,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
 
     const deletedBeforeLine: Map<number, string[]> = file.deletedBeforeLine || new Map();
 
-    // Check if this file was previously expanded (persisted across refreshes)
-    // Uses positions-based system for server sync, falls back to legacy localStorage
-    const wasExpanded = isPathExpandedInPositions(ctx, file.path) || isPathExpanded(file.path);
+    // All files are now same fixed size - no expand persistence
 
     let contentHTML = '';
     let useCanvasText = false;
@@ -656,20 +705,12 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             };
             contentHTML = `<div class="file-content-preview canvas-container" style="position:relative; height: 100%; overflow: auto; background: var(--bg-card);"></div>`;
         } else {
-            contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, wasExpanded, file.lines);
+            contentHTML = _buildFileContentHTML(file.content, file.layerSections, addedLines, deletedBeforeLine, isAllAdded, isAllDeleted, false, file.lines);
         }
     } else {
         contentHTML = `<div class="file-content-preview"><pre><code><span class="error-notice">Could not read file</span></code></pre></div>`;
     }
 
-    // If previously expanded, override card dimensions
-    if (wasExpanded) {
-        card.dataset.expanded = 'true';
-        card.style.maxHeight = 'none';
-        // Use a tall default for expanded cards (will be adjusted by viewport in toggleCardExpand)
-        const expandHeight = Math.max(600, (window.innerHeight || 800) - 40);
-        card.style.height = `${expandHeight}px`;
-    }
 
     const dir = file.path.includes('/') ? file.path.split('/').slice(0, -1).join('/') : '';
 
@@ -687,12 +728,7 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             </div>
             <span class="file-name">${escapeHtml(file.name)}</span>
             ${metaInfo}
-            <button class="connect-btn ai-btn" title="Ask AI about this file" data-path="${escapeHtml(file.path)}">AI</button>
-            <button class="connect-btn expand-btn" title="Expand file (selectable text)" data-path="${escapeHtml(file.path)}">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-                </svg>
-            </button>
+
         </div>
         <div class="file-card-body">
             <div class="file-path">${escapeHtml(dir)}</div>
@@ -715,13 +751,17 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             e.stopPropagation();
             showCardContextMenu(ctx, card, e.clientX, e.clientY);
         });
-        // Double-click to zoom into file
+        // Double-click to open in editor modal
         card.addEventListener('dblclick', (e) => {
             if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
             e.preventDefault();
             e.stopPropagation();
             const filePath = card.dataset.path;
-            if (filePath) jumpToFile(ctx, filePath);
+            if (filePath) {
+                const file = ctx.allFilesData?.find(f => f.path === filePath) ||
+                    { path: filePath, name: filePath.split('/').pop(), lines: 0 };
+                import('./file-modal').then(({ openFileModal }) => openFileModal(ctx, file));
+            }
         });
         // Click to select (sync both XState and CardManager)
         card.addEventListener('mousedown', (e) => {
@@ -730,11 +770,14 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             const filePath = card.dataset.path || '';
             const multi = e.shiftKey || e.ctrlKey;
             ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: multi });
-            // Also sync CardManager's selection set for multi-drag
-            import('./galaxydraw-bridge').then(({ getCardManager }) => {
+            // Sync CardManager's selection set SYNCHRONOUSLY for multi-drag
+            // Using async import() here caused a race condition where
+            // CardManager.setupDrag read an empty selection set
+            try {
+                const { getCardManager } = require('./galaxydraw-bridge');
                 const cm = getCardManager();
                 if (cm) cm.select(filePath, multi);
-            });
+            } catch { }
             updateSelectionHighlights(ctx);
             updateArrangeToolbar(ctx);
         });

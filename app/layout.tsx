@@ -107,7 +107,6 @@ export default function RootLayout({ children }: { children: any }) {
                                         <div className="hk"><kbd>Drag canvas</kbd> Rect select</div>
                                         <div className="hk"><kbd>Drag card</kbd> Move</div>
                                         <div className="hk"><kbd>Del</kbd> Hide file</div>
-                                        <div className="hk"><kbd>F</kbd> Expand/collapse</div>
                                         <div className="hk"><kbd>H</kbd> Arrange row</div>
                                         <div className="hk"><kbd>V</kbd> Arrange column</div>
                                         <div className="hk"><kbd>G</kbd> Arrange grid</div>
@@ -115,7 +114,7 @@ export default function RootLayout({ children }: { children: any }) {
                                         <div className="hk"><kbd>I</kbd> AI Chat</div>
                                         <div className="hk"><kbd>/</kbd> Search files</div>
                                         <div className="hk"><kbd>Ctrl +/-</kbd> Text zoom</div>
-                                        <div className="hk"><kbd>Dbl-click</kbd> Zoom to card</div>
+                                        <div className="hk"><kbd>Dbl-click</kbd> Open editor</div>
                                         <div className="hk"><kbd>Alt+Click</kbd> Connect lines</div>
                                         <div className="hk"><kbd>Arrow keys</kbd> Prev/next commit</div>
                                         <div className="hk"><kbd>Ctrl+N</kbd> New file</div>
@@ -159,12 +158,6 @@ export default function RootLayout({ children }: { children: any }) {
                                         </svg>
                                     </button>
                                     <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }}></div>
-                                    <button id="arrangeExpand" className="btn-ghost btn-xs" title="Toggle Collapse (F)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <polyline points="4 14 12 22 20 14" />
-                                            <polyline points="4 10 12 2 20 10" />
-                                        </svg>
-                                    </button>
                                     <button id="arrangeFit" className="btn-ghost btn-xs" title="Reset Size (W)">
                                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                             <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
@@ -236,6 +229,12 @@ export default function RootLayout({ children }: { children: any }) {
                                         <line x1="18" y1="12" x2="22" y2="12" />
                                     </svg>
                                 </button>
+                                <button id="openSettings" className="btn-ghost btn-sm" title="Settings">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <circle cx="12" cy="12" r="3" />
+                                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                                    </svg>
+                                </button>
                                 <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat (I)">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
                                         <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
@@ -302,14 +301,12 @@ export default function RootLayout({ children }: { children: any }) {
                                     </button>
                                 </div>
                                 <div className="modal-view-tabs" id="modalViewTabs">
-                                    <button className="modal-tab active" data-view="full">
+                                    <button className="modal-tab active" data-view="edit">
                                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                            <polyline points="14 2 14 8 20 8" />
-                                            <line x1="16" y1="13" x2="8" y2="13" />
-                                            <line x1="16" y1="17" x2="8" y2="17" />
+                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
                                         </svg>
-                                        Full
+                                        Edit
                                     </button>
                                     <button className="modal-tab" data-view="diff">
                                         <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
@@ -317,34 +314,21 @@ export default function RootLayout({ children }: { children: any }) {
                                         </svg>
                                         Diff
                                     </button>
-                                    <button className="modal-tab" data-view="chat">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                        </svg>
-                                        AI Chat
-                                    </button>
-                                    <button className="modal-tab" data-view="edit">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                        </svg>
-                                        Edit
-                                    </button>
-                                    <button className="modal-tab" data-view="blame">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                                            <circle cx="9" cy="7" r="4" />
-                                            <path d="M23 21v-2a4 4 0 00-3-3.87" />
-                                            <path d="M16 3.13a4 4 0 010 7.75" />
-                                        </svg>
-                                        Blame
-                                    </button>
                                 </div>
                                 <span className="modal-save-status" id="modalSaveStatus" style={{ display: 'none' }}></span>
+                                <button className="btn-ghost btn-xs modal-outline-toggle" id="outlineToggle" title="Toggle symbol outline (Ctrl+Shift+O)">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
+                                        <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
+                                    </svg>
+                                </button>
                                 <button className="modal-close" id="closePreview">&times;</button>
                             </div>
                         </div>
-                        <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
+                        <div className="modal-body-wrapper">
+                            <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
+                            <div className="modal-outline-panel" id="modalOutlinePanel" style={{ display: 'none' }}></div>
+                        </div>
                         <div className="modal-blame-container" id="modalBlameContainer" style={{ display: 'none' }}></div>
                         <div className="modal-chat-container" id="modalChatContainer" style={{ display: 'none' }}></div>
                         <div className="modal-edit-container" id="modalEditContainer" style={{ display: 'none' }}>

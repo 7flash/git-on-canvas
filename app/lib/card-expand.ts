@@ -18,40 +18,12 @@ function getCardsDeps() {
 const DEFAULT_CARD_HEIGHT = 700;
 
 // ─── Hidden lines indicator ─────────────────────────────
-export function updateHiddenLinesIndicator(card: HTMLElement, _totalLines?: number) {
-    const body = card.querySelector('.file-card-body') as HTMLElement;
-    if (!body) return;
-
-    let indicator = card.querySelector('.hidden-lines-indicator') as HTMLElement;
-
-    const lineEls = card.querySelectorAll('.diff-line');
-    const totalLines = _totalLines && _totalLines > 0 ? _totalLines : lineEls.length;
-    if (totalLines === 0) {
-        if (indicator) indicator.style.display = 'none';
-        return;
-    }
-
-    const cardH = card.offsetHeight;
-    const headerH = (card.querySelector('.file-card-header') as HTMLElement)?.offsetHeight || 36;
-    const pathH = (card.querySelector('.file-path') as HTMLElement)?.offsetHeight || 18;
-    const availableH = cardH - headerH - pathH - 8;
-    const pre = body.querySelector('.file-content-preview pre') as HTMLElement;
-    const fontSize = pre ? parseFloat(getComputedStyle(pre).fontSize) : 8.5;
-    const lineHeight = fontSize * 1.1;
-    const visibleLines = Math.floor(availableH / lineHeight);
-    const hiddenLines = totalLines - visibleLines;
-
-    if (hiddenLines > 2) {
-        if (!indicator) {
-            indicator = document.createElement('div');
-            indicator.className = 'hidden-lines-indicator';
-            card.appendChild(indicator);
-        }
-        indicator.textContent = `⋯ ${hiddenLines} more lines · Ctrl+/− to zoom`;
-        indicator.style.display = '';
-    } else if (indicator) {
-        indicator.style.display = 'none';
-    }
+// Disabled: all files are same size, no expand/collapse mode.
+// Keeping the export as a no-op for backward compatibility.
+export function updateHiddenLinesIndicator(_card: HTMLElement, _totalLines?: number) {
+    // Remove any existing indicator
+    const indicator = _card.querySelector('.hidden-lines-indicator') as HTMLElement;
+    if (indicator) indicator.remove();
 }
 
 // ─── Change card font size (Ctrl +/-) ─────────────────
