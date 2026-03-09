@@ -2352,9 +2352,10 @@ body {
 
 /* ─── Card states ─────────────────────────────────── */
 .file-card.selected {
-    outline: 2px solid var(--info);
-    outline-offset: 2px;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+    outline: 3px solid var(--accent-primary);
+    outline-offset: 3px;
+    box-shadow: 0 0 24px rgba(124, 58, 237, 0.4), 0 0 8px rgba(124, 58, 237, 0.3);
+    z-index: 50 !important;
 }
 
 .file-card.resizing {
@@ -2424,15 +2425,17 @@ body {
     cursor: crosshair;
 }
 
-/* More lines truncation notice */
+/* More lines truncation notice — auto-loads on scroll */
 .more-lines {
     display: block;
     text-align: center;
-    color: var(--text-muted);
+    color: var(--accent-tertiary);
     font-size: 11px;
-    padding: 8px;
+    padding: 12px 8px;
     font-style: italic;
     border-top: 1px solid var(--border-subtle);
+    background: linear-gradient(to bottom, transparent, rgba(124, 58, 237, 0.05));
+    cursor: default;
 }
 
 /* ─── SVG connection overlay ──────────────────────── */

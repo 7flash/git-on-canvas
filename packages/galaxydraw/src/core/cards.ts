@@ -259,7 +259,7 @@ export class CardManager {
 
         let dragging = false;
         let startWorldX = 0, startWorldY = 0;
-        let cardStartX = 0, cardStartY = 0;
+        let moveGroup: { el: HTMLElement; startX: number; startY: number }[] = [];
 
         handle.addEventListener('mousedown', (e: MouseEvent) => {
             if (e.button !== 0) return;
@@ -271,26 +271,53 @@ export class CardManager {
             this.bringToFront(card);
 
             const world = this.state.screenToWorld(e.clientX, e.clientY);
-            cardStartX = parseFloat(card.style.left) || 0;
-            cardStartY = parseFloat(card.style.top) || 0;
             startWorldX = world.x;
             startWorldY = world.y;
             card.classList.add('gd-card--dragging');
 
+            // Build move group: if this card is selected and there are other selected cards, move them all
+            const cardId = card.dataset.cardId || card.dataset.path || '';
+            moveGroup = [];
+            if (this.selected.has(cardId) && this.selected.size > 1) {
+                // Multi-drag: move all selected cards
+                for (const selId of this.selected) {
+                    const el = this.cards.get(selId);
+                    if (el) {
+                        moveGroup.push({
+                            el,
+                            startX: parseFloat(el.style.left) || 0,
+                            startY: parseFloat(el.style.top) || 0,
+                        });
+                    }
+                }
+            } else {
+                // Single card drag
+                moveGroup = [{
+                    el: card,
+                    startX: parseFloat(card.style.left) || 0,
+                    startY: parseFloat(card.style.top) || 0,
+                }];
+            }
+
             const onMove = (ev: MouseEvent) => {
                 if (!dragging) return;
                 const curr = this.state.screenToWorld(ev.clientX, ev.clientY);
-                let newX = cardStartX + (curr.x - startWorldX);
-                let newY = cardStartY + (curr.y - startWorldY);
+                const dx = curr.x - startWorldX;
+                const dy = curr.y - startWorldY;
 
-                // Snap to grid
-                if (this.opts.gridSize > 0 && ev.shiftKey) {
-                    newX = Math.round(newX / this.opts.gridSize) * this.opts.gridSize;
-                    newY = Math.round(newY / this.opts.gridSize) * this.opts.gridSize;
+                for (const info of moveGroup) {
+                    let newX = info.startX + dx;
+                    let newY = info.startY + dy;
+
+                    // Snap to grid
+                    if (this.opts.gridSize > 0 && ev.shiftKey) {
+                        newX = Math.round(newX / this.opts.gridSize) * this.opts.gridSize;
+                        newY = Math.round(newY / this.opts.gridSize) * this.opts.gridSize;
+                    }
+
+                    info.el.style.left = `${newX}px`;
+                    info.el.style.top = `${newY}px`;
                 }
-
-                card.style.left = `${newX}px`;
-                card.style.top = `${newY}px`;
             };
 
             const onUp = () => {
@@ -299,9 +326,13 @@ export class CardManager {
                 window.removeEventListener('mousemove', onMove);
                 window.removeEventListener('mouseup', onUp);
 
-                const x = parseFloat(card.style.left) || 0;
-                const y = parseFloat(card.style.top) || 0;
-                this.bus.emit('card:move', { id: card.dataset.cardId!, x, y });
+                // Emit move events for all moved cards
+                for (const info of moveGroup) {
+                    const x = parseFloat(info.el.style.left) || 0;
+                    const y = parseFloat(info.el.style.top) || 0;
+                    const id = info.el.dataset.cardId || info.el.dataset.path || '';
+                    this.bus.emit('card:move', { id, x, y });
+                }
             };
 
             window.addEventListener('mousemove', onMove);

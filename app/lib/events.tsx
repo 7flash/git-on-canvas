@@ -252,13 +252,13 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
         window.addEventListener('mouseup', (e) => {
             if (ctx.isDragging) {
                 ctx.isDragging = false;
-                ctx.canvasViewport.style.cursor = 'grab';
+                ctx.canvasViewport.style.cursor = '';
                 return;
             }
 
             if (isRectSelecting) {
                 isRectSelecting = false;
-                ctx.canvasViewport.style.cursor = 'grab';
+                ctx.canvasViewport.style.cursor = '';
 
                 if (selectionRect) {
                     const rx = parseFloat(selectionRect.style.left);
@@ -407,14 +407,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 textToggle.classList.toggle('active', ctx.useCanvasText);
 
                 // Re-render currently visible cards
-                const state = ctx.snap().context;
-                import('./repo').then(m => {
-                    if (state.currentCommitHash) {
-                        m.renderCommitCards(ctx, state.commitFilesData || []);
-                    } else {
-                        m.renderAllFilesCards(ctx, state.allFilesData || []);
-                    }
-                });
+                rerenderCurrentView(ctx);
             });
         }
 
@@ -446,7 +439,7 @@ export function setupEventListeners(ctx: CanvasContext) {
 
                 // Update cursor
                 if (ctx.canvasViewport) {
-                    ctx.canvasViewport.style.cursor = ctx.controlMode === 'simple' ? 'grab' : '';
+                    ctx.canvasViewport.style.cursor = '';
                 }
 
                 // Show toast
@@ -464,11 +457,13 @@ export function setupEventListeners(ctx: CanvasContext) {
         // Connections visibility toggle
         const connToggle = document.getElementById('toggleConnections');
         if (connToggle) {
-            let connectionsVisible = true;
-            connToggle.classList.add('active');
+            // Default OFF — connections are distracting on first load
+            let connectionsVisible = localStorage.getItem('gitcanvas:connectionsVisible') === 'true';
+            const svg = document.getElementById('connectionsOverlay') as HTMLElement;
+            if (svg && !connectionsVisible) svg.style.display = 'none';
+            connToggle.classList.toggle('active', connectionsVisible);
             connToggle.addEventListener('click', () => {
                 connectionsVisible = !connectionsVisible;
-                const svg = document.getElementById('connectionsOverlay') as HTMLElement;
                 if (svg) svg.style.display = connectionsVisible ? '' : 'none';
                 // Also toggle marker strips on cards
                 document.querySelectorAll('.connection-markers').forEach(el => {
@@ -476,6 +471,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 });
                 connToggle.classList.toggle('active', connectionsVisible);
                 connToggle.title = connectionsVisible ? 'Hide connection lines' : 'Show connection lines';
+                localStorage.setItem('gitcanvas:connectionsVisible', String(connectionsVisible));
             });
         }
 

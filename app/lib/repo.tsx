@@ -171,7 +171,7 @@ function CommitItem({ commit, lane, color, onClick }: { commit: any; lane: numbe
             <div className="commit-message">
                 {commit.refs && commit.refs.length > 0 && (
                     <span className="commit-refs">
-                        {commit.refs.map(r => <span className="commit-ref-badge">{escapeHtml(r)}</span>)}
+                        {commit.refs.map(r => <span className="commit-ref-badge">{r}</span>)}
                     </span>
                 )}
                 {commit.message}

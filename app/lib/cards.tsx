@@ -250,294 +250,13 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
     });
 }
 
-// ─── Card context menu (JSX) ────────────────────────
-function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void, isInActiveLayer: boolean }) {
-    const customLayers = layerState.layers.filter(l => l.id !== 'default');
-    return (
-        <>
-            <button className="ctx-item" onClick={() => onAction('copy-path')}>📋 Copy path</button>
-            <button className="ctx-item" onClick={() => onAction('select')}>☑️ Select</button>
-            <div className="ctx-divider"></div>
-            <button className="ctx-item" onClick={() => onAction('expand')}>↗️ Expand</button>
-            <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
-            <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
-            <div className="ctx-divider"></div>
-            <button className="ctx-item" onClick={() => onAction('history')}>🕰️ File history</button>
-            <div className="ctx-item ctx-dropdown">
-                <span>✨ Add to Layer ▸</span>
-                <div className="ctx-dropdown-content">
-                    {customLayers.length === 0 ? (
-                        <div className="ctx-item" style="opacity: 0.5; pointer-events: none">No custom layers</div>
-                    ) : (
-                        customLayers.map(l => (
-                            <button key={l.id} className="ctx-item" onClick={() => onActionLayer(l.id)}>
-                                + {l.name}
-                            </button>
-                        ))
-                    )}
-                    <div className="ctx-divider"></div>
-                    <button className="ctx-item" onClick={() => onActionLayer('new')}>✨ Create New Layer</button>
-                </div>
-            </div>
-            {isInActiveLayer && (
-                <button className="ctx-item" onClick={() => onAction('remove-from-layer')} style="color: #ef4444">
-                    ✕ Remove from Layer
-                </button>
-            )}
-            <div className="ctx-divider"></div>
-            <button className="ctx-item" onClick={() => onAction('hide')} style="color: #f59e0b">� Hide file</button>
-        </>
-    );
-}
+// ─── Context menu & file history (extracted to card-context-menu.tsx) ────
+import { showCardContextMenu, showFileHistory } from './card-context-menu';
+export { showCardContextMenu, showFileHistory };
 
-function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: number, y: number) {
-    document.querySelector('.card-context-menu')?.remove();
-
-    const filePath = card.dataset.path;
-    const menu = document.createElement('div');
-    menu.className = 'card-context-menu';
-    menu.style.left = `${x}px`;
-    menu.style.top = `${y}px`;
-
-    // Check if file is in the active layer
-    const activeLayer = getActiveLayer();
-    const isInActiveLayer = !!(activeLayer && activeLayer.files[filePath]);
-
-    function handleAction(action: string) {
-        menu.remove();
-        if (action === 'copy-path') {
-            navigator.clipboard.writeText(filePath).then(() => {
-                showToast(`Copied: ${filePath}`, 'info');
-            });
-        } else if (action === 'select') {
-            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
-            updateSelectionHighlights(ctx);
-            updateArrangeToolbar(ctx);
-        } else if (action === 'hide') {
-            hideSelectedFiles(ctx, [filePath]);
-        } else if (action === 'remove-from-layer') {
-            removeFileFromLayer(ctx, layerState.activeLayerId, filePath);
-        } else if (action === 'expand') {
-            const state = ctx.snap().context;
-            const file = state.commitFiles?.find(f => f.path === filePath) ||
-                ctx.allFilesData?.find(f => f.path === filePath) ||
-                { path: filePath, name: filePath.split('/').pop(), lines: 0 };
-            openFileModal(ctx, file);
-        } else if (action === 'fit-content') {
-            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
-            updateSelectionHighlights(ctx);
-            toggleCardExpand(ctx);
-        } else if (action === 'fit-screen') {
-            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
-            updateSelectionHighlights(ctx);
-            fitScreenSize(ctx);
-        } else if (action === 'history') {
-            showFileHistory(ctx, filePath);
-        }
-    }
-
-    function handleActionLayer(layerId: string) {
-        menu.remove();
-        if (layerId === 'new') {
-            const name = prompt('Enter a name for the new layer:');
-            if (!name) return;
-            createLayer(ctx, name);
-            // After creating, add the file to it
-            addFileToLayer(ctx, layerState.activeLayerId, filePath);
-        } else {
-            addFileToLayer(ctx, layerId, filePath);
-        }
-    }
-
-    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} isInActiveLayer={isInActiveLayer} />, menu);
-    document.body.appendChild(menu);
-
-    requestAnimationFrame(() => {
-        const r = menu.getBoundingClientRect();
-        if (r.right > window.innerWidth) menu.style.left = `${window.innerWidth - r.width - 8}px`;
-        if (r.bottom > window.innerHeight) menu.style.top = `${window.innerHeight - r.height - 8}px`;
-    });
-
-    const closeMenu = (e: MouseEvent) => {
-        if (!menu.contains(e.target as Node)) {
-            menu.remove();
-            document.removeEventListener('mousedown', closeMenu);
-        }
-    };
-    setTimeout(() => document.addEventListener('mousedown', closeMenu), 0);
-}
-
-// ─── File history panel (JSX) ───────────────────────
-function FileHistoryContent({ fileName, commits, error, loading, onClose, onSelect }: {
-    fileName: string; commits: any[]; error?: string; loading: boolean;
-    onClose: () => void; onSelect: (hash: string) => void;
-}) {
-    return (
-        <>
-            <div className="panel-header">
-                <span className="panel-title">History: {fileName}</span>
-                <button className="btn-ghost btn-xs" onClick={onClose}>✕</button>
-            </div>
-            <div className="file-history-list">
-                {loading ? (
-                    <div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">Loading...</div>
-                ) : error ? (
-                    <div style="padding: 16px; color: var(--error); font-size: 0.75rem;">Error: {error}</div>
-                ) : commits.length === 0 ? (
-                    <div style="padding: 16px; color: var(--text-muted); font-size: 0.75rem;">No commits found for this file</div>
-                ) : (
-                    commits.map(c => (
-                        <div key={c.hash} className="file-history-item" onClick={() => onSelect(c.hash)}>
-                            <span className="file-history-hash">{c.shortHash}</span>
-                            <span className="file-history-msg">{c.message}</span>
-                            <span className="file-history-date">{new Date(c.date).toLocaleDateString()}</span>
-                        </div>
-                    ))
-                )}
-            </div>
-        </>
-    );
-}
-
-async function showFileHistory(ctx: CanvasContext, filePath: string) {
-    const state = ctx.snap().context;
-    if (!state.repoPath) {
-        console.warn('No repository loaded');
-        return;
-    }
-
-    document.querySelector('.file-history-panel')?.remove();
-
-    const panel = document.createElement('div');
-    panel.className = 'file-history-panel';
-    const fileName = filePath.split('/').pop() || filePath;
-
-    function closePanel() { panel.remove(); }
-    function selectCommitHash(hash: string) {
-        import('./repo').then(({ selectCommit }) => {
-            selectCommit(ctx, hash);
-            panel.remove();
-        });
-    }
-
-    // Initial loading state
-    render(<FileHistoryContent fileName={fileName} commits={[]} loading={true} onClose={closePanel} onSelect={selectCommitHash} />, panel);
-    document.querySelector('.canvas-area')?.appendChild(panel);
-
-    try {
-        const response = await fetch('/api/repo/file-history', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ path: state.repoPath, filePath, limit: 30 })
-        });
-
-        if (!response.ok) throw new Error('Failed to fetch history');
-        const data = await response.json();
-
-        render(<FileHistoryContent fileName={fileName} commits={data.commits} loading={false} onClose={closePanel} onSelect={selectCommitHash} />, panel);
-    } catch (err) {
-        render(<FileHistoryContent fileName={fileName} commits={[]} error={err.message} loading={false} onClose={closePanel} onSelect={selectCommitHash} />, panel);
-    }
-}
-
-// ─── Arrangement functions ──────────────────────────────
-function getSelectedCardsInfo(ctx: CanvasContext) {
-    const selected = ctx.snap().context.selectedCards;
-    const infos = [];
-    selected.forEach(path => {
-        const card = ctx.fileCards.get(path);
-        if (card) {
-            infos.push({
-                path, card,
-                x: parseFloat(card.style.left) || 0,
-                y: parseFloat(card.style.top) || 0,
-                w: card.offsetWidth || 580,
-                h: card.offsetHeight || 400,
-            });
-        }
-    });
-    infos.sort((a, b) => a.x - b.x || a.y - b.y);
-    return infos;
-}
-
-export function arrangeRow(ctx: CanvasContext) {
-    measure('arrange:row', () => {
-        const infos = getSelectedCardsInfo(ctx);
-        if (infos.length < 2) return;
-        const startX = Math.min(...infos.map(i => i.x));
-        const startY = Math.min(...infos.map(i => i.y));
-        const gap = 40;
-        let curX = startX;
-        const commitHash = ctx.snap().context.currentCommitHash || 'allfiles';
-        infos.forEach(info => {
-            info.card.style.left = `${curX}px`;
-            info.card.style.top = `${startY}px`;
-            savePosition(ctx, commitHash, info.path, curX, startY);
-            curX += info.w + gap;
-        });
-        renderConnections(ctx);
-        updateMinimap(ctx);
-
-    });
-}
-
-export function arrangeColumn(ctx: CanvasContext) {
-    measure('arrange:column', () => {
-        const infos = getSelectedCardsInfo(ctx);
-        if (infos.length < 2) return;
-        const startX = Math.min(...infos.map(i => i.x));
-        const startY = Math.min(...infos.map(i => i.y));
-        const gap = 40;
-        let curY = startY;
-        const commitHash = ctx.snap().context.currentCommitHash || 'allfiles';
-        infos.forEach(info => {
-            info.card.style.left = `${startX}px`;
-            info.card.style.top = `${curY}px`;
-            savePosition(ctx, commitHash, info.path, startX, curY);
-            curY += info.h + gap;
-        });
-        renderConnections(ctx);
-        updateMinimap(ctx);
-
-    });
-}
-
-export function arrangeGrid(ctx: CanvasContext) {
-    measure('arrange:grid', () => {
-        const infos = getSelectedCardsInfo(ctx);
-        if (infos.length < 2) return;
-        const cols = Math.ceil(Math.sqrt(infos.length));
-        const startX = Math.min(...infos.map(i => i.x));
-        const startY = Math.min(...infos.map(i => i.y));
-        const gapX = 40, gapY = 40;
-
-        const colWidths = [];
-        const rowHeights = [];
-        infos.forEach((info, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            colWidths[col] = Math.max(colWidths[col] || 0, info.w);
-            rowHeights[row] = Math.max(rowHeights[row] || 0, info.h);
-        });
-
-        const commitHash = ctx.snap().context.currentCommitHash || 'allfiles';
-        infos.forEach((info, i) => {
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-            let x = startX;
-            for (let c = 0; c < col; c++) x += (colWidths[c] || 580) + gapX;
-            let y = startY;
-            for (let r = 0; r < row; r++) y += (rowHeights[r] || 400) + gapY;
-            info.card.style.left = `${x}px`;
-            info.card.style.top = `${y}px`;
-            savePosition(ctx, commitHash, info.path, x, y);
-        });
-
-        renderConnections(ctx);
-        updateMinimap(ctx);
-
-    });
-}
+// ─── Arrangement functions (extracted to card-arrangement.ts) ────
+import { arrangeRow, arrangeColumn, arrangeGrid } from './card-arrangement';
+export { arrangeRow, arrangeColumn, arrangeGrid };
 
 // ─── Scroll debounce ────────────────────────────────────
 export function debounceSaveScroll(ctx: CanvasContext, filePath: string, scrollTop: number) {
@@ -771,8 +490,35 @@ export function createFileCard(ctx: CanvasContext, file: any, x: number, y: numb
     cardFileData.set(card, file);
 
     // When managed by CardManager, skip legacy drag/resize/z-order setup
+    // but ALWAYS attach context menu, double-click, and click-to-select
     if (!skipInteraction) {
         setupCardInteraction(ctx, card, commitHash);
+    } else {
+        card.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showCardContextMenu(ctx, card, e.clientX, e.clientY);
+        });
+        card.addEventListener('dblclick', (e) => {
+            if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const filePath = card.dataset.path;
+            if (filePath) jumpToFile(ctx, filePath);
+        });
+        card.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.connect-btn')) return;
+            const filePath = card.dataset.path || '';
+            const multi = e.shiftKey || e.ctrlKey;
+            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: multi });
+            import('./galaxydraw-bridge').then(({ getCardManager }) => {
+                const cm = getCardManager();
+                if (cm) cm.select(filePath, multi);
+            });
+            updateSelectionHighlights(ctx);
+            updateArrangeToolbar(ctx);
+        });
     }
     setupConnectionDrag(ctx, card, file.path);
 
@@ -856,7 +602,7 @@ function _buildFileContentHTML(
 
     const hiddenCount = totalVisible - renderedCount;
     const truncNote = hiddenCount > 0
-        ? `<span class="more-lines">${hiddenCount.toLocaleString()} more lines · double-click to zoom</span>`
+        ? `<span class="more-lines" data-auto-expand="true">${hiddenCount.toLocaleString()} more lines · scroll to load</span>`
         : '';
     return `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
 }
@@ -955,8 +701,39 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
 
     setupConnectionDrag(ctx, card, file.path);
     // When managed by CardManager, skip legacy drag/resize/z-order setup
+    // but ALWAYS attach context menu, double-click, and click-to-select
     if (!skipInteraction) {
         setupCardInteraction(ctx, card, 'allfiles');
+    } else {
+        // Context menu (right-click)
+        card.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showCardContextMenu(ctx, card, e.clientX, e.clientY);
+        });
+        // Double-click to zoom into file
+        card.addEventListener('dblclick', (e) => {
+            if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const filePath = card.dataset.path;
+            if (filePath) jumpToFile(ctx, filePath);
+        });
+        // Click to select (sync both XState and CardManager)
+        card.addEventListener('mousedown', (e) => {
+            if (e.button !== 0) return;
+            if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.connect-btn')) return;
+            const filePath = card.dataset.path || '';
+            const multi = e.shiftKey || e.ctrlKey;
+            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: multi });
+            // Also sync CardManager's selection set for multi-drag
+            import('./galaxydraw-bridge').then(({ getCardManager }) => {
+                const cm = getCardManager();
+                if (cm) cm.select(filePath, multi);
+            });
+            updateSelectionHighlights(ctx);
+            updateArrangeToolbar(ctx);
+        });
     }
 
     if (useCanvasText && canvasOptions) {
@@ -993,6 +770,29 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
         });
     }
 
+    // ── Auto-load truncated lines when scrolled into view ──
+    const moreLinesEl = card.querySelector('.more-lines[data-auto-expand]') as HTMLElement;
+    if (moreLinesEl && file.content && !file.isBinary) {
+        const pre = card.querySelector('.file-content-preview pre') as HTMLElement;
+        if (pre) {
+            const observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        observer.disconnect();
+                        // Re-render with all lines (expanded)
+                        const newHTML = _buildFileContentHTML(
+                            file.content, file.layerSections, addedLines, deletedBeforeLine,
+                            isAllAdded, isAllDeleted, true, file.lines
+                        );
+                        const preview = card.querySelector('.file-content-preview');
+                        if (preview) preview.outerHTML = newHTML;
+                    }
+                }
+            }, { root: pre, rootMargin: '200px' });
+            observer.observe(moreLinesEl);
+        }
+    }
+
     // ── Diff marker strip (scrollbar annotations for changed lines) ──
     if ((addedLines.size > 0 || deletedBeforeLine.size > 0) && !isAllAdded && file.content) {
         const totalLines = file.content.split('\n').length;
@@ -1017,224 +817,10 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     return card;
 }
 
-// ─── File expand modal ──────────────────────────────────
-export function openFileModal(ctx: CanvasContext, file: any) {
-    const modal = document.getElementById('filePreviewModal');
-    const pathEl = document.getElementById('previewFilePath');
-    const contentEl = document.getElementById('previewContent');
-    const lineCountEl = document.getElementById('previewLineCount');
-    const statusEl = document.getElementById('previewFileStatus');
-    const tabsEl = document.getElementById('modalViewTabs');
-    if (!modal || !pathEl || !contentEl) return;
+// ─── File expand modal (extracted to file-modal.tsx) ─────
+import { openFileModal } from './file-modal';
+export { openFileModal };
 
-    pathEl.textContent = file.path;
-    contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Loading...</span>';
-    modal.classList.add('active');
-
-    if (statusEl) {
-        const statusColors = { added: '#22c55e', modified: '#eab308', deleted: '#ef4444' };
-        const statusLabels = { added: 'ADDED', modified: 'MODIFIED', deleted: 'DELETED' };
-        if (file.status && statusColors[file.status]) {
-            statusEl.textContent = statusLabels[file.status];
-            statusEl.style.display = '';
-            statusEl.style.background = statusColors[file.status] + '20';
-            statusEl.style.color = statusColors[file.status];
-        } else {
-            statusEl.style.display = 'none';
-        }
-    }
-
-    if (lineCountEl) {
-        lineCountEl.textContent = file.lines ? `${file.lines.toLocaleString()} lines` : '';
-    }
-
-    const hasDiff = !!(file.status && (file.hunks?.length > 0 || file.content));
-    const rendered = { full: '', diff: '' };
-    // Default to diff view for changed files, full view for unchanged
-    let currentView = hasDiff ? 'diff' : 'full';
-    let onNavKey: ((e: KeyboardEvent) => void) | null = null;
-
-    function closeModal() {
-        if (!modal) return;
-        modal.classList.remove('active');
-        document.removeEventListener('keydown', onEsc);
-        if (onNavKey) document.removeEventListener('keydown', onNavKey);
-
-        if (tabsEl) {
-            tabsEl.querySelectorAll('.modal-tab').forEach(t => {
-                t.replaceWith(t.cloneNode(true));
-            });
-        }
-    }
-
-    function onEsc(e: KeyboardEvent) {
-        if (e.key === 'Escape') closeModal();
-    }
-
-    document.addEventListener('keydown', onEsc);
-    document.getElementById('closePreview')?.addEventListener('click', closeModal, { once: true });
-    modal.querySelector('.modal-backdrop')?.addEventListener('click', closeModal, { once: true });
-
-    // Diff navigation setup
-    const changedFiles = (ctx.allFilesData || []).filter(f => f.status);
-    const navEl = document.getElementById('modalDiffNav');
-
-    if (navEl && changedFiles.length > 1) {
-        navEl.style.display = 'flex';
-        const currentIndex = changedFiles.findIndex(f => f.path === file.path);
-
-        const prevBtn = document.getElementById('diffNavPrev');
-        const nextBtn = document.getElementById('diffNavNext');
-
-        if (prevBtn && nextBtn) {
-            const newPrev = prevBtn.cloneNode(true) as HTMLElement;
-            const newNext = nextBtn.cloneNode(true) as HTMLElement;
-            prevBtn.replaceWith(newPrev);
-            nextBtn.replaceWith(newNext);
-
-            const handlePrev = () => {
-                const targetIdx = currentIndex > 0 ? currentIndex - 1 : changedFiles.length - 1;
-                closeModal();
-                setTimeout(() => openFileModal(ctx, changedFiles[targetIdx]), 50);
-            };
-
-            const handleNext = () => {
-                const targetIdx = currentIndex < changedFiles.length - 1 ? currentIndex + 1 : 0;
-                closeModal();
-                setTimeout(() => openFileModal(ctx, changedFiles[targetIdx]), 50);
-            };
-
-            newPrev.addEventListener('click', handlePrev);
-            newNext.addEventListener('click', handleNext);
-
-            onNavKey = (e: KeyboardEvent) => {
-                if (modal!.classList.contains('active') && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-                    if (e.key === 'j') handleNext();
-                    if (e.key === 'k') handlePrev();
-                }
-            };
-            document.addEventListener('keydown', onNavKey);
-        }
-    } else if (navEl) {
-        navEl.style.display = 'none';
-        const prevBtn = document.getElementById('diffNavPrev');
-        const nextBtn = document.getElementById('diffNavNext');
-        if (prevBtn) prevBtn.replaceWith(prevBtn.cloneNode(true));
-        if (nextBtn) nextBtn.replaceWith(nextBtn.cloneNode(true));
-    }
-
-    if (tabsEl) {
-        const tabs = tabsEl.querySelectorAll('.modal-tab');
-        tabs.forEach(tab => {
-            if (tab.dataset.view === 'diff') {
-                tab.style.display = hasDiff ? '' : 'none';
-            }
-            tab.classList.toggle('active', tab.dataset.view === currentView);
-        });
-
-        tabs.forEach(tab => {
-            tab.addEventListener('click', () => {
-                const view = tab.dataset.view;
-                if (view === currentView) return;
-                currentView = view;
-                tabs.forEach(t => t.classList.toggle('active', t.dataset.view === view));
-
-                const modalPre = document.getElementById('modalBodyPre');
-                const chatContainer = document.getElementById('modalChatContainer');
-
-                if (view === 'chat') {
-                    // Show chat, hide code
-                    if (modalPre) modalPre.style.display = 'none';
-                    if (chatContainer) chatContainer.style.display = 'flex';
-                    // Build diff text for context
-                    let diffText = '';
-                    if (file.hunks) {
-                        diffText = file.hunks.map(h => {
-                            return h.lines.map(l => {
-                                const prefix = l.type === 'add' ? '+' : l.type === 'del' ? '-' : ' ';
-                                return prefix + l.content;
-                            }).join('\n');
-                        }).join('\n');
-                    }
-                    openFileChatInModal(file.path, file.content || '', file.status || '', diffText);
-                } else {
-                    // Show code, hide chat
-                    if (modalPre) modalPre.style.display = '';
-                    if (chatContainer) chatContainer.style.display = 'none';
-                    if (view === 'diff' && rendered.diff) {
-                        contentEl.innerHTML = rendered.diff;
-                    } else if (view === 'full' && rendered.full) {
-                        contentEl.innerHTML = rendered.full;
-                    }
-                }
-            });
-        });
-    }
-
-    if (hasDiff) {
-        rendered.diff = buildModalDiffHTML(file);
-        // If defaulting to diff view, show it immediately
-        if (currentView === 'diff') {
-            contentEl.innerHTML = rendered.diff;
-        }
-    }
-
-    measure('modal:fetchContent', async () => {
-        try {
-            const state = ctx.snap().context;
-            let content = '';
-
-            if (state.currentCommitHash && file.path) {
-                const response = await fetch('/api/repo/file-content', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        path: state.repoPath,
-                        commit: state.currentCommitHash,
-                        filePath: file.path
-                    })
-                });
-                if (response.ok) {
-                    const data = await response.json();
-                    content = data.content || '';
-                }
-            }
-
-            if (!content && file.content) {
-                content = file.content;
-            }
-
-            if (!content) {
-                contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">No content available</span>';
-                return;
-            }
-
-            const lineCount = content.split('\n').length;
-            if (lineCountEl) {
-                lineCountEl.textContent = `${lineCount.toLocaleString()} lines`;
-            }
-
-            const ext = file.name?.split('.').pop()?.toLowerCase() || '';
-            rendered.full = highlightSyntax(content, ext);
-
-            if (currentView === 'full') {
-                contentEl.innerHTML = rendered.full;
-            }
-
-        } catch (err) {
-            measure('modal:fetchError', () => err);
-            if (file.content) {
-                const ext = file.name?.split('.').pop()?.toLowerCase() || '';
-                rendered.full = highlightSyntax(file.content, ext);
-                if (currentView === 'full') {
-                    contentEl.innerHTML = rendered.full;
-                }
-            } else {
-                contentEl.innerHTML = `<span style="color: var(--error);">Failed to load: ${escapeHtml(err.message)}</span>`;
-            }
-        }
-    });
-}
 
 // ─── Diff marker strip (scrollbar annotations) ─────────
 function _buildDiffMarkerStrip(card: HTMLElement, body: HTMLElement, addedLines: Set<number>, totalLines: number, deletedBeforeLine?: Map<number, string[]>, fileHunks?: any[]) {

@@ -406,6 +406,12 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
             createdCount++;
         } else {
             _cardManager!.defer(FILE_CARD_TYPE, cardData);
+            // Also store in ctx.deferredCards so minimap, fitAll, etc. can see ALL files
+            ctx.deferredCards.set(f.path, {
+                file: fileWithDiff, x, y,
+                size: { width: cardData.width, height: cardData.height },
+                isChanged,
+            });
             deferredCount++;
         }
     });
