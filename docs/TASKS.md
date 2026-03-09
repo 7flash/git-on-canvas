@@ -1,7 +1,7 @@
 # GitMaps Tasks & Ideas
 
 ## 🔴 Priority: Fix
-- [ ] **WARMAPS zoom propagation** — Zooming into a MapLibre map card also zooms the canvas. Scroll/wheel events need to be consumed by the map and not propagate.
+- [x] ~~**WARMAPS zoom propagation**~~ — ✅ Already fixed in starwar repo (engine checks `[data-card-type]` + `consumesWheel`).
 - [ ] **Canvas mode missing scrollbar** — Text rendering mode (canvas) has no scrollbar in the card body.
 - [x] ~~**Multi-file drag broken**~~ — ✅ CardManager syncs selected cards; multi-drag works.
 - [x] ~~**Commit graph HTML entity encoding**~~ — ✅ Removed double-escaping.
