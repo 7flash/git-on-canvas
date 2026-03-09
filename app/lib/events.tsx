@@ -666,6 +666,11 @@ export function setupEventListeners(ctx: CanvasContext) {
             import('./settings-modal').then(({ openSettingsModal }) => openSettingsModal(ctx));
         });
 
+        // Global search
+        document.getElementById('openGlobalSearch')?.addEventListener('click', () => {
+            import('./global-search').then(({ toggleGlobalSearch }) => toggleGlobalSearch(ctx));
+        });
+
         // Apply saved settings on startup
         import('./settings-modal').then(({ applyAllSettings }) => applyAllSettings(ctx));
 
@@ -804,6 +809,12 @@ export function setupEventListeners(ctx: CanvasContext) {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
                 e.preventDefault();
                 import('./new-file-dialog').then(m => m.showNewFileDialog(ctx));
+            }
+
+            // Ctrl+Shift+F = Global search across files
+            if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+                e.preventDefault();
+                import('./global-search').then(m => m.toggleGlobalSearch(ctx));
             }
         });
 
