@@ -10,6 +10,7 @@ import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { openFileChatInModal } from './chat';
 import { addClickableImports } from './goto-definition';
 import { addTab, getOpenTabs, getActiveTab, initTabBar, clearTabs, nextTab, prevTab, onTabChange, onTabCloseRequest, setActiveTab, type FileTab } from './file-tabs';
+import { renderBreadcrumbs } from './breadcrumbs';
 
 // ─── File expand modal ──────────────────────────────────
 export function openFileModal(ctx: CanvasContext, file: any) {
@@ -21,7 +22,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
     const tabsEl = document.getElementById('modalViewTabs');
     if (!modal || !pathEl || !contentEl) return;
 
-    pathEl.textContent = file.path;
+    renderBreadcrumbs(ctx, pathEl, file.path);
     contentEl.innerHTML = '<span style="color: var(--text-muted); font-style: italic;">Loading...</span>';
     modal.classList.add('active');
 
@@ -119,7 +120,7 @@ export function openFileModal(ctx: CanvasContext, file: any) {
     // ─── Tab switching helper ─────────────────────────
     function switchToTab(ctx: CanvasContext, tab: FileTab) {
         // Update modal header
-        if (pathEl) pathEl.textContent = tab.path;
+        if (pathEl) renderBreadcrumbs(ctx, pathEl, tab.path);
         if (lineCountEl) {
             const lines = tab.rendered.full_raw?.split('\n').length || tab.file.lines || 0;
             lineCountEl.textContent = lines ? `${lines.toLocaleString()} lines` : '';

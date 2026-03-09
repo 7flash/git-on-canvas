@@ -4333,6 +4333,97 @@ body {
     color: var(--error, #ef4444);
 }
 
+/* ─── Breadcrumb navigation ─── */
+.breadcrumb-bar {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+}
+
+.breadcrumb-segment {
+    background: none;
+    border: none;
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.12s ease;
+    font-family: inherit;
+}
+
+.breadcrumb-segment:hover {
+    color: #c4b5fd;
+    background: rgba(124, 58, 237, 0.12);
+}
+
+.breadcrumb-sep {
+    color: rgba(124, 58, 237, 0.3);
+    font-size: 0.75rem;
+    margin: 0 1px;
+    user-select: none;
+}
+
+.breadcrumb-file {
+    color: var(--text-primary, #e5e7eb);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 2px 4px;
+}
+
+/* Breadcrumb dropdown */
+.breadcrumb-dropdown {
+    position: fixed;
+    z-index: 10001;
+    background: rgba(15, 15, 30, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    border-radius: 8px;
+    padding: 4px;
+    min-width: 180px;
+    max-width: 320px;
+    max-height: 320px;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(124, 58, 237, 0.1);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(124, 58, 237, 0.3) transparent;
+}
+
+.breadcrumb-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    background: none;
+    border: none;
+    color: var(--text-primary, #e5e7eb);
+    font-size: 0.72rem;
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.1s ease;
+    font-family: inherit;
+}
+
+.breadcrumb-dropdown-item:hover {
+    background: rgba(124, 58, 237, 0.12);
+}
+
+.breadcrumb-dropdown-item.active {
+    background: rgba(124, 58, 237, 0.15);
+    border-left: 2px solid #7c3aed;
+    color: #c4b5fd;
+}
+
+.breadcrumb-dropdown-icon {
+    font-size: 0.7rem;
+    flex-shrink: 0;
+    width: 16px;
+    text-align: center;
+}
+
 .modal-edit-textarea:focus {
     box-shadow: inset 0 0 0 1px rgba(124, 58, 237, 0.2);
 }
