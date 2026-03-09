@@ -23,7 +23,7 @@
     "galaxydraw": "workspace:*",
     "jsx-ai": "0.1.2",
     "measure-fn": "3.10.1",
-    "melina": "2.3.3",
+    "melina": "^2.5.0",
     "simple-git": "^3.30.0",
     "sqlite-zod-orm": "^3.26.0",
     "xstate": "^5.26.0"
