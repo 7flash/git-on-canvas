@@ -4,7 +4,7 @@
  */
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
-import { scheduleViewportCulling, uncullAllCards } from './viewport-culling';
+import { scheduleViewportCulling, uncullAllCards, markTransformActive } from './viewport-culling';
 import { getGalaxyDrawState } from './galaxydraw-bridge';
 
 // ─── Minimap cached state (avoids full rebuild on every pan/zoom) ──
@@ -31,6 +31,7 @@ export function restoreViewport(ctx: CanvasContext) {
 // ─── Update canvas CSS transform from state ─────────────
 export function updateCanvasTransform(ctx: CanvasContext) {
     if (!ctx.canvas) return;
+    markTransformActive(); // Signal that user is actively panning/zooming
     const state = ctx.snap().context;
 
     // Phase 2: delegate to GalaxyDraw state engine if available
@@ -43,7 +44,7 @@ export function updateCanvasTransform(ctx: CanvasContext) {
         gdState.applyTransform();
     } else {
         // Fallback: manual transform (pre-bridge init)
-        ctx.canvas.style.transform = `translate(${state.offsetX}px, ${state.offsetY}px) scale(${state.zoom})`;
+        ctx.canvas.style.transform = `translate(${Math.round(state.offsetX)}px, ${Math.round(state.offsetY)}px) scale(${state.zoom})`;
     }
 
     // Cheap: only move the viewport rect using cached bounds

@@ -329,11 +329,11 @@ function setupChangedFilesPanel() {
         const panel = document.getElementById('changedFilesPanel');
         const closeBtn = document.getElementById('closeChangedFiles');
 
-        // Restore persisted state — default to closed
+        // Restore persisted state — default to open so changed files appear on commit select
         if (panel) {
             const wasClosed = localStorage.getItem('gitcanvas:changedFilesPanelClosed');
-            // Default closed unless explicitly opened
-            panel.dataset.manuallyClosed = wasClosed !== 'false' ? 'true' : 'false';
+            // Default open unless explicitly closed by user
+            panel.dataset.manuallyClosed = wasClosed === 'true' ? 'true' : 'false';
             panel.style.display = 'none';
         }
 
@@ -733,8 +733,6 @@ export function setupEventListeners(ctx: CanvasContext) {
         document.getElementById('closePreview')?.addEventListener('click', closePreview);
         document.querySelector('.modal-backdrop')?.addEventListener('click', closePreview);
 
-        // Changed files panel
-        setupChangedFilesPanel();
 
         // AI chat toggle
         document.getElementById('toggleCanvasChat')?.addEventListener('click', () => toggleCanvasChat(ctx));

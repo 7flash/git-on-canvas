@@ -20,9 +20,19 @@ import { renderAllFilesViaCardManager, materializeViewport } from './galaxydraw-
 let _panelCtx: CanvasContext | null = null;
 export function setPanelCtx(ctx: CanvasContext) { _panelCtx = ctx; }
 
+// Dedup guard: prevent concurrent or duplicate loadRepository calls
+let _loadingRepo: string | null = null;
+
 // ─── Load repository ─────────────────────────────────────
 export async function loadRepository(ctx: CanvasContext, repoPath: string) {
     if (!repoPath) return;
+
+    // Prevent duplicate loads of the same repo (e.g. mount triggers both hash + localStorage paths)
+    if (_loadingRepo === repoPath) {
+        console.log(`[repo] Skipping duplicate load for "${repoPath}" — already loading`);
+        return;
+    }
+    _loadingRepo = repoPath;
     _panelCtx = ctx;
     ctx.actor.send({ type: 'LOAD_REPO', path: repoPath });
 
@@ -82,6 +92,12 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             }
 
             hideLoadingProgress(ctx);
+            _loadingRepo = null; // Allow future reloads
+
+            // Re-render timeline after all async work — the initial renderCommitTimeline
+            // at line 76 can get clobbered if DOM re-renders during loadAllFiles/selectCommit
+            renderCommitTimeline(ctx);
+
             showToast(`Loaded ${data.commits.length} commits`, 'success');
 
             // Trigger onboarding for first-time users
@@ -90,6 +106,7 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             }
         } catch (err) {
             hideLoadingProgress(ctx);
+            _loadingRepo = null; // Allow retry
             ctx.actor.send({ type: 'REPO_ERROR', error: err.message });
             measure('repo:loadError', () => err);
             showToast(`Failed: ${err.message} `, 'error');
@@ -500,6 +517,9 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
         let createdCount = 0;
         let deferredCount = 0;
 
+        // Cache XState state once outside the loop — avoids N snapshots for N files
+        const cachedCardSizes = ctx.snap().context.cardSizes || {};
+
         layerFiles.forEach((f, index) => {
             const isChanged = ctx.changedFilePaths.has(f.path);
             const posKey = `allfiles:${f.path}`;
@@ -515,8 +535,8 @@ export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
                 y = 50 + row * cellH;
             }
 
-            const cardState = ctx.snap().context;
-            let size = cardState.cardSizes?.[f.path];
+            // Get saved size (from cached snapshot — no per-file ctx.snap() call)
+            let size = cachedCardSizes[f.path];
             if (!size && ctx.positions.has(posKey)) {
                 const pos = ctx.positions.get(posKey);
                 if (pos.width) size = { width: pos.width, height: pos.height };

@@ -65,8 +65,11 @@ export class CanvasState {
     /** Apply current state to the content element's CSS transform */
     applyTransform() {
         if (!this.contentEl) return;
+        // Round translate to whole pixels to prevent subpixel text blurring
+        const tx = Math.round(this.offsetX);
+        const ty = Math.round(this.offsetY);
         this.contentEl.style.transform =
-            `translate(${this.offsetX}px, ${this.offsetY}px) scale(${this.zoom})`;
+            `translate(${tx}px, ${ty}px) scale(${this.zoom})`;
     }
 
     /** Set zoom + offset, clamping zoom to limits */

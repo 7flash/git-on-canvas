@@ -38,7 +38,16 @@ const LOD_ZOOM_THRESHOLD = 0.25;
 
 // Maximum deferred cards to materialize per animation frame
 // Prevents frame drops when zooming out then back in on huge repos
-const MAX_MATERIALIZE_PER_FRAME = 30;
+const MAX_MATERIALIZE_PER_FRAME = 8;
+
+// Cooldown: don't materialize during rapid pan/zoom — wait until settled
+let _lastTransformTime = 0;
+const MATERIALIZE_COOLDOWN_MS = 150;
+
+/** Call from updateCanvasTransform to signal active interaction */
+export function markTransformActive() {
+    _lastTransformTime = performance.now();
+}
 
 // Track current LOD mode so we can detect transitions
 let _currentLodMode: 'full' | 'pill' = 'full';
@@ -80,6 +89,7 @@ function getPillColor(path: string, isChanged: boolean): string {
  * ~3 DOM nodes vs ~100+ for a full card = massive perf win at low zoom.
  */
 function createPillCard(path: string, x: number, y: number, w: number, h: number, isChanged: boolean): HTMLElement {
+    const pillH = Math.min(h, 80);
     const pill = document.createElement('div');
     pill.className = 'file-pill';
     pill.style.cssText = `
@@ -87,33 +97,56 @@ function createPillCard(path: string, x: number, y: number, w: number, h: number
         left: ${x}px;
         top: ${y}px;
         width: ${w}px;
-        height: ${Math.min(h, 40)}px;
+        height: ${pillH}px;
         background: ${getPillColor(path, isChanged)};
-        border-radius: 4px;
-        opacity: 0.7;
+        border-radius: 6px;
+        opacity: 0.85;
         pointer-events: none;
         contain: strict;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.1);
     `;
     pill.dataset.path = path;
 
-    // File name label (single text node)
+    // File name label
     const name = path.split('/').pop() || path;
     const label = document.createElement('span');
     label.className = 'file-pill-label';
     label.textContent = name;
     label.style.cssText = `
         display: block;
-        padding: 2px 6px;
-        font-size: 11px;
+        padding: 6px 8px 0;
+        font-size: 13px;
+        font-weight: 600;
         color: #fff;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: ${Math.min(h, 40) - 4}px;
+        line-height: 1.3;
         font-family: 'JetBrains Mono', monospace;
-        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        text-shadow: 0 1px 3px rgba(0,0,0,0.6);
     `;
     pill.appendChild(label);
+
+    // Directory path (secondary)
+    const parts = path.split('/');
+    if (parts.length > 1) {
+        const dir = parts.slice(0, -1).join('/');
+        const dirLabel = document.createElement('span');
+        dirLabel.className = 'file-pill-dir';
+        dirLabel.textContent = dir;
+        dirLabel.style.cssText = `
+            display: block;
+            padding: 2px 8px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.55);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-family: 'Inter', sans-serif;
+        `;
+        pill.appendChild(dirLabel);
+    }
 
     return pill;
 }
@@ -121,6 +154,7 @@ function createPillCard(path: string, x: number, y: number, w: number, h: number
 /**
  * Computes the visible world-coordinate rectangle from the current
  * viewport size, zoom, and offset.
+ * Also returns zoom so callers don't need a separate ctx.snap().
  */
 function getVisibleWorldRect(ctx: CanvasContext) {
     const state = ctx.snap().context;
@@ -139,7 +173,7 @@ function getVisibleWorldRect(ctx: CanvasContext) {
     const worldRight = (vpW - offsetX + VIEWPORT_MARGIN) / zoom;
     const worldBottom = (vpH - offsetY + VIEWPORT_MARGIN) / zoom;
 
-    return { left: worldLeft, top: worldTop, right: worldRight, bottom: worldBottom };
+    return { left: worldLeft, top: worldTop, right: worldRight, bottom: worldBottom, zoom };
 }
 
 /**
@@ -199,8 +233,8 @@ export function performViewportCulling(ctx: CanvasContext) {
     // Phase 4c: also materialize deferred CardManager cards
     materializeViewport(ctx);
 
-    const state = ctx.snap().context;
-    const zoom = state.zoom;
+    // Reuse zoom from worldRect (already snapped) — avoids redundant ctx.snap()
+    const zoom = worldRect.zoom;
     const isLowZoom = zoom <= LOD_ZOOM_THRESHOLD;
     const newLodMode = isLowZoom ? 'pill' : 'full';
 
@@ -259,102 +293,125 @@ export function performViewportCulling(ctx: CanvasContext) {
         }
     }
 
-    // 2. Handle deferred cards
-    if (ctx.deferredCards.size > 0) {
-        if (isLowZoom) {
-            // In pill mode: render pills for visible deferred cards (very cheap)
-            for (const [path, entry] of ctx.deferredCards) {
-                const { file, x, y, size, isChanged } = entry;
-                const cardW = size?.width || 580;
-                const cardH = size?.height || 700;
+    // 2. Handle pill mode — always create pills for visible items (deferred or materialized)
+    if (isLowZoom) {
+        // Create pills for deferred cards that are visible
+        for (const [path, entry] of ctx.deferredCards) {
+            const { file, x, y, size, isChanged } = entry;
+            const cardW = size?.width || 580;
+            const cardH = size?.height || 700;
+
+            const inView = (
+                x + cardW > worldRect.left &&
+                x < worldRect.right &&
+                y + cardH > worldRect.top &&
+                y < worldRect.bottom
+            );
+
+            if (inView && !pillCards.has(path)) {
+                const pill = createPillCard(path, x, y, cardW, cardH, !!isChanged);
+                ctx.canvas.appendChild(pill);
+                pillCards.set(path, pill);
+            } else if (!inView && pillCards.has(path)) {
+                removePillForPath(path);
+            }
+        }
+
+        // Always create pills for existing DOM cards (even if deferredCards is empty)
+        for (const [path, card] of ctx.fileCards) {
+            if (!pillCards.has(path)) {
+                const x = parseFloat(card.style.left) || 0;
+                const y = parseFloat(card.style.top) || 0;
+                const w = card.offsetWidth || 580;
+                const h = card.offsetHeight || 700;
+                const isChanged = card.dataset.changed === 'true';
 
                 const inView = (
-                    x + cardW > worldRect.left &&
+                    x + w > worldRect.left &&
                     x < worldRect.right &&
-                    y + cardH > worldRect.top &&
-                    y < worldRect.bottom
-                );
-
-                if (inView && !pillCards.has(path)) {
-                    const pill = createPillCard(path, x, y, cardW, cardH, !!isChanged);
-                    ctx.canvas.appendChild(pill);
-                    pillCards.set(path, pill);
-                } else if (!inView && pillCards.has(path)) {
-                    removePillForPath(path);
-                }
-            }
-
-            // Also create pills for existing cards that are visible
-            for (const [path, card] of ctx.fileCards) {
-                if (!pillCards.has(path)) {
-                    const x = parseFloat(card.style.left) || 0;
-                    const y = parseFloat(card.style.top) || 0;
-                    const w = card.offsetWidth || 580;
-                    const h = card.offsetHeight || 700;
-                    const isChanged = card.dataset.changed === 'true';
-
-                    const inView = (
-                        x + w > worldRect.left &&
-                        x < worldRect.right &&
-                        y + h > worldRect.top &&
-                        y < worldRect.bottom
-                    );
-
-                    if (inView) {
-                        const pill = createPillCard(path, x, y, w, h, isChanged);
-                        ctx.canvas.appendChild(pill);
-                        pillCards.set(path, pill);
-                    }
-                }
-            }
-        } else {
-            // Full mode: materialize deferred cards (throttled)
-            let materialized = 0;
-            const toRemove: string[] = [];
-
-            for (const [path, entry] of ctx.deferredCards) {
-                if (materialized >= MAX_MATERIALIZE_PER_FRAME) break;
-
-                const { file, x, y, size, isChanged } = entry;
-                const cardW = size?.width || 580;
-                const cardH = size?.height || 700;
-
-                // AABB check against world rect
-                const inView = (
-                    x + cardW > worldRect.left &&
-                    x < worldRect.right &&
-                    y + cardH > worldRect.top &&
+                    y + h > worldRect.top &&
                     y < worldRect.bottom
                 );
 
                 if (inView) {
-                    // Lazy-import to avoid circular dependency
-                    const { createAllFileCard, setupCardInteraction } = require('./cards');
-                    const card = createAllFileCard(ctx, file, x, y, size);
-                    if (isChanged) {
-                        card.classList.add('file-card--changed');
-                        card.dataset.changed = 'true';
-                    }
-                    ctx.canvas.appendChild(card);
-                    ctx.fileCards.set(path, card);
-                    removePillForPath(path);
-                    toRemove.push(path);
-                    materialized++;
-                    shown++;
+                    const pill = createPillCard(path, x, y, w, h, isChanged);
+                    ctx.canvas.appendChild(pill);
+                    pillCards.set(path, pill);
                 }
             }
+        }
 
-            // Remove materialized entries from deferred map
-            for (const path of toRemove) {
-                ctx.deferredCards.delete(path);
+        // Clean up pills that scrolled out of view
+        for (const [path, pill] of pillCards) {
+            const x = parseFloat(pill.style.left) || 0;
+            const y = parseFloat(pill.style.top) || 0;
+            const w = parseFloat(pill.style.width) || 580;
+            const h = parseFloat(pill.style.height) || 80;
+            const inView = (
+                x + w > worldRect.left &&
+                x < worldRect.right &&
+                y + h > worldRect.top &&
+                y < worldRect.bottom
+            );
+            if (!inView) {
+                removePillForPath(path);
             }
+        }
+    } else if (ctx.deferredCards.size > 0) {
+        // 3. Full mode: materialize deferred cards (throttled)
+        // Skip materialization during active pan/zoom to keep frames smooth
+        const timeSinceTransform = performance.now() - _lastTransformTime;
+        if (timeSinceTransform < MATERIALIZE_COOLDOWN_MS) {
+            // Still actively panning — schedule a retry after cooldown
+            setTimeout(() => scheduleViewportCulling(ctx), MATERIALIZE_COOLDOWN_MS);
+            return { culled, shown, total: ctx.fileCards.size };
+        }
 
-            if (materialized > 0) {
-                console.log(`[cull] Materialized ${materialized} deferred cards (${ctx.deferredCards.size} remaining)`);
-                // If more cards need materializing, schedule another pass
-                if (ctx.deferredCards.size > 0) {
-                    scheduleViewportCulling(ctx);
+        let materialized = 0;
+        const toRemove: string[] = [];
+
+        for (const [path, entry] of ctx.deferredCards) {
+            if (materialized >= MAX_MATERIALIZE_PER_FRAME) break;
+
+            const { file, x, y, size, isChanged } = entry;
+            const cardW = size?.width || 580;
+            const cardH = size?.height || 700;
+
+            // AABB check against world rect
+            const inView = (
+                x + cardW > worldRect.left &&
+                x < worldRect.right &&
+                y + cardH > worldRect.top &&
+                y < worldRect.bottom
+            );
+
+            if (inView) {
+                // Lazy-import to avoid circular dependency
+                const { createAllFileCard, setupCardInteraction } = require('./cards');
+                const card = createAllFileCard(ctx, file, x, y, size);
+                if (isChanged) {
+                    card.classList.add('file-card--changed');
+                    card.dataset.changed = 'true';
                 }
+                ctx.canvas.appendChild(card);
+                ctx.fileCards.set(path, card);
+                removePillForPath(path);
+                toRemove.push(path);
+                materialized++;
+                shown++;
+            }
+        }
+
+        // Remove materialized entries from deferred map
+        for (const path of toRemove) {
+            ctx.deferredCards.delete(path);
+        }
+
+        if (materialized > 0) {
+            console.log(`[cull] Materialized ${materialized} deferred cards (${ctx.deferredCards.size} remaining)`);
+            // If more cards need materializing, schedule another pass
+            if (ctx.deferredCards.size > 0) {
+                scheduleViewportCulling(ctx);
             }
         }
     }

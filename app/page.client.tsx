@@ -23,6 +23,7 @@ import { setupAuth, updateFavoriteStar } from './lib/user';
 import { setupPerfOverlay } from './lib/perf-overlay';
 import { initGalaxyDrawState, initCardManager } from './lib/galaxydraw-bridge';
 import { initFilePreview, destroyFilePreview } from './lib/file-preview';
+import { initBranchCompare } from './lib/branch-compare';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -61,6 +62,7 @@ export default function mount(): () => void {
             setupEventListeners(ctx);
             setupPerfOverlay(ctx);
             if (ctx.canvasViewport) initFilePreview(ctx.canvasViewport);
+            initBranchCompare(ctx);
             await loadSavedPositions(ctx); // initial load (may be empty if no repo yet)
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);

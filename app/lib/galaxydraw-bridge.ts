@@ -286,7 +286,7 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
 
     // Viewport rect for initial visibility check
     const MARGIN = 800;
-    const state = _gdState.getSnapshot();
+    const state = _gdState.snapshot();
     const vpEl = ctx.canvasViewport;
     const vpW = vpEl?.clientWidth || window.innerWidth;
     const vpH = vpEl?.clientHeight || window.innerHeight;
@@ -300,6 +300,9 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
 
     let createdCount = 0;
     let deferredCount = 0;
+
+    // Cache XState state once outside the loop — avoids N snapshots for N files
+    const cachedCardSizes = ctx.snap().context.cardSizes || {};
 
     layerFiles.forEach((f, index) => {
         const posKey = `allfiles:${f.path}`;
@@ -315,9 +318,8 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
             y = 50 + row * cellH;
         }
 
-        // Get saved size
-        const cardState = ctx.snap().context;
-        let size = cardState.cardSizes?.[f.path];
+        // Get saved size (from cached snapshot — no per-file ctx.snap() call)
+        let size = cachedCardSizes[f.path];
         if (!size && ctx.positions.has(posKey)) {
             const pos = ctx.positions.get(posKey);
             if (pos.width) size = { width: pos.width, height: pos.height };
@@ -391,7 +393,16 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
             y < worldBottom;
 
         if (inViewport) {
-            _cardManager!.create(FILE_CARD_TYPE, cardData);
+            const card = _cardManager!.create(FILE_CARD_TYPE, cardData);
+            if (card) {
+                // Sync to ctx.fileCards so minimap, fitAll, etc. can find it
+                ctx.fileCards.set(f.path, card);
+                // Apply change markers for diff highlighting
+                if (isChanged) {
+                    card.classList.add('file-card--changed');
+                    card.dataset.changed = 'true';
+                }
+            }
             createdCount++;
         } else {
             _cardManager!.defer(FILE_CARD_TYPE, cardData);
@@ -411,7 +422,7 @@ export function materializeViewport(ctx: CanvasContext): number {
     if (!_cardManager || !_gdState) return 0;
 
     const MARGIN = 800;
-    const state = _gdState.getSnapshot();
+    const state = _gdState.snapshot();
     const vpEl = ctx.canvasViewport;
     const vpW = vpEl?.clientWidth || window.innerWidth;
     const vpH = vpEl?.clientHeight || window.innerHeight;
@@ -426,5 +437,16 @@ export function materializeViewport(ctx: CanvasContext): number {
         bottom: (vpH - offsetY + MARGIN) / zoom,
     };
 
-    return _cardManager.materializeInRect(rect);
+    const count = _cardManager.materializeInRect(rect);
+
+    // Sync newly materialized cards to ctx.fileCards for minimap/fitAll
+    if (count > 0) {
+        for (const [id, card] of _cardManager.cards) {
+            if (!ctx.fileCards.has(id)) {
+                ctx.fileCards.set(id, card);
+            }
+        }
+    }
+
+    return count;
 }

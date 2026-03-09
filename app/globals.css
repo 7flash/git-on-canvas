@@ -1144,7 +1144,7 @@ body {
     font-size: 13px;
     line-height: 1.5;
     color: var(--text-muted);
-    overflow: hidden;
+    overflow-y: auto;
     cursor: default;
     display: flex;
     flex-direction: column;
