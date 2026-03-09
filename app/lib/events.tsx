@@ -157,7 +157,7 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                 return;
             }
 
-            const insideCard = (e.target as HTMLElement).closest('.file-card');
+            const insideCard = (e.target as HTMLElement).closest('.file-card') || (e.target as HTMLElement).closest('.file-pill');
             if (insideCard) return;
 
             // Left click on empty canvas — behavior depends on control mode
@@ -267,6 +267,7 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                     const rh = parseFloat(selectionRect.style.height);
 
                     const selected: string[] = [];
+                    // Check materialized DOM cards
                     ctx.fileCards.forEach((card, path) => {
                         const cx = parseFloat(card.style.left) || 0;
                         const cy = parseFloat(card.style.top) || 0;
@@ -276,6 +277,18 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                         const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
                         if (overlaps) selected.push(path);
                     });
+
+                    // Also check deferred cards (pill mode / zoomed out)
+                    if (ctx.deferredCards) {
+                        for (const [path, entry] of ctx.deferredCards) {
+                            if (selected.includes(path)) continue;
+                            const { x: cx, y: cy, size } = entry;
+                            const cw = size?.width || 580;
+                            const ch = size?.height || 700;
+                            const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
+                            if (overlaps) selected.push(path);
+                        }
+                    }
 
                     if (selected.length > 0) {
                         selected.forEach((path, i) => {
@@ -558,135 +571,15 @@ export function setupEventListeners(ctx: CanvasContext) {
             }).catch(() => { });
         }
 
-        // ── Clone URL handler ──
-        const cloneBtn = document.getElementById('cloneBtn');
-        const cloneInput = document.getElementById('cloneUrlInput') as HTMLInputElement;
-        const cloneStatus = document.getElementById('cloneStatus');
-
-        if (cloneBtn && cloneInput && cloneStatus) {
-            const doClone = async () => {
-                const url = cloneInput.value.trim();
-                if (!url) { cloneInput.focus(); return; }
-
-                cloneBtn.setAttribute('disabled', '');
-                cloneStatus.style.display = 'block';
-                cloneStatus.className = 'clone-status cloning';
-                cloneStatus.innerHTML = `
-                    <div class="clone-progress-text">⏳ Starting clone...</div>
-                    <div class="clone-progress-bar"><div class="clone-progress-fill" style="width: 0%"></div></div>
-                `;
-
-                const progressText = cloneStatus.querySelector('.clone-progress-text') as HTMLElement;
-                const progressFill = cloneStatus.querySelector('.clone-progress-fill') as HTMLElement;
-
-                try {
-                    const res = await fetch('/api/repo/clone-stream', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url })
-                    });
-
-                    // Non-SSE response = cached repo or validation error
-                    const contentType = res.headers.get('content-type') || '';
-                    if (contentType.includes('application/json')) {
-                        const data = await res.json();
-                        if (!res.ok || data.error) {
-                            cloneStatus.className = 'clone-status error';
-                            cloneStatus.textContent = '❌ ' + (data.error || 'Clone failed');
-                            setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
-                            cloneBtn.removeAttribute('disabled');
-                            return;
-                        }
-                        // Cached — already cloned
-                        cloneStatus.className = 'clone-status success';
-                        cloneStatus.textContent = '✅ Updated — loading...';
-                        _addRecentRepo(data.path);
-                        cloneInput.value = '';
-                        _refreshRepoDropdown();
-                        const repoSel2 = document.getElementById('repoSelect') as HTMLSelectElement;
-                        if (repoSel2) repoSel2.value = data.path;
-                        loadRepository(ctx, data.path);
-                        setTimeout(() => { cloneStatus.style.display = 'none'; }, 3000);
-                        cloneBtn.removeAttribute('disabled');
-                        return;
-                    }
-
-                    // SSE stream — read progress events
-                    const reader = res.body!.getReader();
-                    const decoder = new TextDecoder();
-                    let buffer = '';
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-
-                        // Parse SSE events from buffer
-                        const events = buffer.split('\n\n');
-                        buffer = events.pop() || ''; // Keep incomplete event in buffer
-
-                        for (const raw of events) {
-                            if (!raw.trim()) continue;
-                            let eventType = 'message';
-                            let eventData = '';
-                            for (const line of raw.split('\n')) {
-                                if (line.startsWith('event: ')) eventType = line.slice(7).trim();
-                                else if (line.startsWith('data: ')) eventData = line.slice(6);
-                            }
-                            if (!eventData) continue;
-
-                            try {
-                                const parsed = JSON.parse(eventData);
-
-                                if (eventType === 'progress') {
-                                    const shortMsg = parsed.message.length > 60
-                                        ? parsed.message.slice(0, 57) + '...'
-                                        : parsed.message;
-                                    progressText.textContent = `⏳ ${shortMsg}`;
-                                    progressFill.style.width = `${parsed.percent || 0}%`;
-                                } else if (eventType === 'done') {
-                                    cloneStatus.className = 'clone-status success';
-                                    cloneStatus.textContent = '✅ Cloned — loading...';
-                                    _addRecentRepo(parsed.path);
-                                    cloneInput.value = '';
-                                    _refreshRepoDropdown();
-                                    const repoSel3 = document.getElementById('repoSelect') as HTMLSelectElement;
-                                    if (repoSel3) repoSel3.value = parsed.path;
-                                    loadRepository(ctx, parsed.path);
-                                    setTimeout(() => { cloneStatus.style.display = 'none'; }, 3000);
-                                } else if (eventType === 'error') {
-                                    cloneStatus.className = 'clone-status error';
-                                    cloneStatus.textContent = '❌ ' + (parsed.error || 'Clone failed');
-                                    setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
-                                }
-                            } catch { /* ignore parse errors */ }
-                        }
-                    }
-                } catch (err: any) {
-                    cloneStatus.className = 'clone-status error';
-                    cloneStatus.textContent = '❌ ' + (err.message || 'Network error');
-                    setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
-                } finally {
-                    cloneBtn.removeAttribute('disabled');
+        // ── Featured repo cards on landing page ──
+        document.querySelectorAll('.repo-card-btn[data-repo]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const repoUrl = (btn as HTMLElement).dataset.repo;
+                if (repoUrl) {
+                    _triggerClone(ctx, repoUrl);
                 }
-            };
-
-            cloneBtn.addEventListener('click', doClone);
-            cloneInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') { e.preventDefault(); doClone(); }
             });
-
-            // ── Featured repo cards on landing page ──
-            document.querySelectorAll('.repo-card-btn[data-repo]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const repoUrl = (btn as HTMLElement).dataset.repo;
-                    if (repoUrl && cloneInput) {
-                        cloneInput.value = repoUrl;
-                        doClone();
-                    }
-                });
-            });
-        }
+        });
 
         // Zoom slider
         document.getElementById('zoomSlider')?.addEventListener('input', (e) => {
@@ -1287,12 +1180,45 @@ function setupGithubImport(ctx: CanvasContext) {
     const prevBtn = document.getElementById('githubPrevPage') as HTMLButtonElement;
     const nextBtn = document.getElementById('githubNextPage') as HTMLButtonElement;
     const pageInfo = document.getElementById('githubPageInfo');
+    const urlCloneRow = document.getElementById('githubUrlCloneRow');
+    const urlCloneBtn = document.getElementById('githubUrlCloneBtn');
+    const detectedUrlSpan = document.getElementById('githubDetectedUrl');
+    const filterRow = document.getElementById('githubFilterRow');
+    const filterInput = document.getElementById('githubRepoFilter') as HTMLInputElement;
 
     if (!modal || !openBtn || !grid) return;
 
     let currentPage = 1;
     let currentUser = '';
     let isLoading = false;
+    let allRenderedCards: HTMLElement[] = [];
+
+    // ── URL detection ──
+    const GITHUB_URL_RE = /^https?:\/\/(www\.)?github\.com\/[^/]+\/[^/]+/;
+    function extractRepoUrl(text: string): string | null {
+        const match = text.trim().match(GITHUB_URL_RE);
+        return match ? match[0].replace(/\.git$/, '') + '.git' : null;
+    }
+    function extractUserFromUrl(text: string): string | null {
+        const m = text.trim().match(/github\.com\/([^/]+)/);
+        return m ? m[1] : null;
+    }
+
+    function updateUrlDetection() {
+        const val = userInput?.value.trim() || '';
+        const url = extractRepoUrl(val);
+        if (url && urlCloneRow && detectedUrlSpan) {
+            // URL detected — show clone row, extract repo name
+            const parts = url.replace('.git', '').split('/');
+            const repoName = parts.slice(-2).join('/');
+            detectedUrlSpan.textContent = repoName;
+            urlCloneRow.style.display = 'flex';
+        } else if (urlCloneRow) {
+            urlCloneRow.style.display = 'none';
+        }
+    }
+
+    userInput?.addEventListener('input', updateUrlDetection);
 
     function openModal() {
         modal!.classList.add('active');
@@ -1310,9 +1236,32 @@ function setupGithubImport(ctx: CanvasContext) {
         if (e.key === 'Escape' && modal!.classList.contains('active')) closeModal();
     });
 
+    // ── Direct URL clone from modal ──
+    urlCloneBtn?.addEventListener('click', () => {
+        const url = extractRepoUrl(userInput?.value.trim() || '');
+        if (url) {
+            closeModal();
+            _triggerClone(ctx, url);
+        }
+    });
+
+    // ── Repo name filter ──
+    filterInput?.addEventListener('input', () => {
+        const q = filterInput.value.trim().toLowerCase();
+        for (const card of allRenderedCards) {
+            const name = (card.dataset.name || '').toLowerCase();
+            const desc = card.querySelector('.github-repo-desc')?.textContent?.toLowerCase() || '';
+            card.style.display = (name.includes(q) || desc.includes(q)) ? '' : 'none';
+        }
+    });
+
     async function searchRepos(page = 1) {
-        const user = userInput?.value.trim();
+        let user = userInput?.value.trim();
         if (!user || isLoading) return;
+
+        // If it's a URL, extract the username/org from it
+        const urlUser = extractUserFromUrl(user);
+        if (urlUser) user = urlUser;
 
         isLoading = true;
         currentUser = user;
@@ -1329,6 +1278,9 @@ function setupGithubImport(ctx: CanvasContext) {
             </div>
         `;
         if (pagination) pagination.style.display = 'none';
+        if (filterRow) filterRow.style.display = 'none';
+        if (filterInput) filterInput.value = '';
+        allRenderedCards = [];
 
         try {
             const res = await fetch(`/api/github/repos?user=${encodeURIComponent(user)}&page=${page}&sort=${sort}`);
@@ -1360,6 +1312,9 @@ function setupGithubImport(ctx: CanvasContext) {
             if (data.repos.length === 0) {
                 grid!.innerHTML = `<div class="github-empty-state"><p>No repositories found for "${escapeHtml(user)}"</p></div>`;
             } else {
+                // Show filter row when there are results
+                if (filterRow) filterRow.style.display = 'flex';
+
                 grid!.innerHTML = data.repos.map((repo: any) => {
                     const langColor = LANG_COLORS[repo.language] || '#8b8b8b';
                     const sizeStr = repo.size > 1024 ? `${(repo.size / 1024).toFixed(1)} MB` : `${repo.size} KB`;
@@ -1382,6 +1337,9 @@ function setupGithubImport(ctx: CanvasContext) {
                         </div>
                     `;
                 }).join('');
+
+                // Track rendered cards for filtering
+                allRenderedCards = Array.from(grid!.querySelectorAll('.github-repo-card')) as HTMLElement[];
 
                 // Attach clone handlers
                 grid!.querySelectorAll('.github-clone-btn').forEach(btn => {
@@ -1422,7 +1380,17 @@ function setupGithubImport(ctx: CanvasContext) {
 
     searchBtn?.addEventListener('click', () => searchRepos(1));
     userInput?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') { e.preventDefault(); searchRepos(1); }
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            // If URL detected, clone directly on Enter
+            const url = extractRepoUrl(userInput.value.trim());
+            if (url) {
+                closeModal();
+                _triggerClone(ctx, url);
+            } else {
+                searchRepos(1);
+            }
+        }
     });
     sortSelect?.addEventListener('change', () => {
         if (currentUser) searchRepos(1);
@@ -1435,14 +1403,90 @@ function setupGithubImport(ctx: CanvasContext) {
     if (lastUser && userInput) userInput.value = lastUser;
 }
 
-// ─── Trigger clone from GitHub modal ────────────────────
+// ─── Trigger clone (self-contained, uses clone-stream API) ──
 function _triggerClone(ctx: CanvasContext, url: string) {
-    const cloneInput = document.getElementById('cloneUrlInput') as HTMLInputElement;
-    const cloneBtn = document.getElementById('cloneBtn') as HTMLButtonElement;
-    if (cloneInput && cloneBtn) {
-        cloneInput.value = url;
-        cloneBtn.click();
-    }
+    const cloneStatus = document.getElementById('cloneStatus');
+    if (!cloneStatus) return;
+
+    cloneStatus.style.display = 'block';
+    cloneStatus.className = 'clone-status cloning';
+    cloneStatus.innerHTML = `
+        <div class="clone-progress-text">⏳ Cloning...</div>
+        <div class="clone-progress-bar"><div class="clone-progress-fill" style="width: 0%"></div></div>
+    `;
+
+    const progressText = cloneStatus.querySelector('.clone-progress-text') as HTMLElement;
+    const progressFill = cloneStatus.querySelector('.clone-progress-fill') as HTMLElement;
+
+    fetch('/api/repo/clone-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url })
+    }).then(async (res) => {
+        const contentType = res.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            const data = await res.json();
+            if (!res.ok || data.error) {
+                cloneStatus.className = 'clone-status error';
+                cloneStatus.textContent = '❌ ' + (data.error || 'Clone failed');
+                setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
+                return;
+            }
+            // Cached
+            cloneStatus.className = 'clone-status success';
+            cloneStatus.textContent = '✅ Updated — loading...';
+            _addRecentRepo(data.path);
+            _refreshRepoDropdown();
+            const repoSel = document.getElementById('repoSelect') as HTMLSelectElement;
+            if (repoSel) repoSel.value = data.path;
+            loadRepository(ctx, data.path);
+            setTimeout(() => { cloneStatus.style.display = 'none'; }, 3000);
+            return;
+        }
+
+        // SSE stream
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const events = buffer.split('\n\n');
+            buffer = events.pop() || '';
+            for (const evt of events) {
+                if (!evt.trim()) continue;
+                const eventMatch = evt.match(/^event:\s*(.+)/m);
+                const dataMatch = evt.match(/^data:\s*(.+)/m);
+                if (!dataMatch) continue;
+                try {
+                    const payload = JSON.parse(dataMatch[1]);
+                    const evtType = eventMatch?.[1] || 'progress';
+                    if (evtType === 'progress' && progressText && progressFill) {
+                        progressText.textContent = `⏳ ${payload.message || 'Cloning...'}`;
+                        if (payload.percent != null) progressFill.style.width = `${payload.percent}%`;
+                    } else if (evtType === 'done') {
+                        cloneStatus.className = 'clone-status success';
+                        cloneStatus.textContent = '✅ Cloned — loading...';
+                        _addRecentRepo(payload.path);
+                        _refreshRepoDropdown();
+                        const repoSel2 = document.getElementById('repoSelect') as HTMLSelectElement;
+                        if (repoSel2) repoSel2.value = payload.path;
+                        loadRepository(ctx, payload.path);
+                        setTimeout(() => { cloneStatus.style.display = 'none'; }, 3000);
+                    } else if (evtType === 'error') {
+                        cloneStatus.className = 'clone-status error';
+                        cloneStatus.textContent = '❌ ' + (payload.error || 'Clone failed');
+                        setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
+                    }
+                } catch { /* skip unparseable */ }
+            }
+        }
+    }).catch(err => {
+        cloneStatus.className = 'clone-status error';
+        cloneStatus.textContent = '❌ ' + err.message;
+        setTimeout(() => { cloneStatus.style.display = 'none'; }, 5000);
+    });
 }
 
 // ─── Time ago helper ────────────────────────────────────

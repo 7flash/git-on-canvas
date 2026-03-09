@@ -44,24 +44,6 @@ export default function RootLayout({ children }: { children: any }) {
                             </select>
                             <input type="text" id="repoPath" style={{ display: 'none' }} />
                             <input type="file" id="folderPickerInput" style={{ display: 'none' }} />
-                            <div className="clone-url-row" id="cloneUrlRow">
-                                <input
-                                    type="text"
-                                    id="cloneUrlInput"
-                                    className="clone-url-input"
-                                    placeholder="Paste repo URL to clone..."
-                                    spellCheck={false}
-                                    autoComplete="off"
-                                />
-                                <button id="cloneBtn" className="clone-btn" title="Clone remote repository">
-                                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                                        <polyline points="7 10 12 15 17 10" />
-                                        <line x1="12" y1="15" x2="12" y2="3" />
-                                    </svg>
-                                    Clone
-                                </button>
-                            </div>
                             <div className="clone-status" id="cloneStatus" style={{ display: 'none' }}></div>
 
                             <button id="githubImportBtn" className="github-import-btn" title="Import from GitHub">
@@ -365,7 +347,7 @@ export default function RootLayout({ children }: { children: any }) {
                                 type="text"
                                 id="githubUserInput"
                                 className="github-user-input"
-                                placeholder="GitHub username or organization..."
+                                placeholder="Username, org, or paste a GitHub URL..."
                                 spellCheck={false}
                                 autoComplete="off"
                             />
@@ -381,6 +363,26 @@ export default function RootLayout({ children }: { children: any }) {
                                 </svg>
                                 Search
                             </button>
+                        </div>
+                        <div className="github-url-clone-row" id="githubUrlCloneRow" style={{ display: 'none' }}>
+                            <div className="github-url-detected">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                                </svg>
+                                <span id="githubDetectedUrl">URL detected</span>
+                            </div>
+                            <button id="githubUrlCloneBtn" className="github-clone-btn github-url-clone-btn">Clone &amp; Open</button>
+                        </div>
+                        <div className="github-filter-row" id="githubFilterRow" style={{ display: 'none' }}>
+                            <input
+                                type="text"
+                                id="githubRepoFilter"
+                                className="github-repo-filter"
+                                placeholder="Filter repos by name..."
+                                spellCheck={false}
+                                autoComplete="off"
+                            />
                         </div>
                         <div className="github-profile" id="githubProfile" style={{ display: 'none' }}></div>
                         <div className="github-repos-grid" id="githubReposGrid">

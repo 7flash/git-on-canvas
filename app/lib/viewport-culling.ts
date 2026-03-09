@@ -87,66 +87,55 @@ function getPillColor(path: string, isChanged: boolean): string {
 /**
  * Create a lightweight pill placeholder for a file.
  * ~3 DOM nodes vs ~100+ for a full card = massive perf win at low zoom.
+ * Uses vertical text to fit file names in compact card footprint.
  */
 function createPillCard(path: string, x: number, y: number, w: number, h: number, isChanged: boolean): HTMLElement {
-    const pillH = Math.min(h, 80);
     const pill = document.createElement('div');
     pill.className = 'file-pill';
+    pill.dataset.path = path;
     pill.style.cssText = `
         position: absolute;
         left: ${x}px;
         top: ${y}px;
         width: ${w}px;
-        height: ${pillH}px;
+        height: ${h}px;
         background: ${getPillColor(path, isChanged)};
         border-radius: 6px;
-        opacity: 0.85;
-        pointer-events: none;
-        contain: strict;
+        opacity: 0.9;
+        contain: layout style;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        border: 1px solid rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.12);
+        overflow: hidden;
+        cursor: pointer;
+        user-select: none;
+        transition: opacity 0.2s ease, box-shadow 0.2s ease;
     `;
-    pill.dataset.path = path;
 
-    // File name label
+    // File name label - rotated text (rotate approach renders full strings, unlike writing-mode)
+    // Font size is in world-space px — at 16% zoom, 48px renders as ~7.7px on screen
     const name = path.split('/').pop() || path;
     const label = document.createElement('span');
     label.className = 'file-pill-label';
     label.textContent = name;
     label.style.cssText = `
-        display: block;
-        padding: 6px 8px 0;
-        font-size: 13px;
-        font-weight: 600;
-        color: #fff;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%) rotate(-90deg);
         white-space: nowrap;
+        font-size: 48px;
+        font-weight: 700;
+        color: #fff;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.3;
+        max-width: ${h - 40}px;
+        line-height: 1;
+        letter-spacing: 2px;
         font-family: 'JetBrains Mono', monospace;
-        text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+        text-shadow: 0 2px 8px rgba(0,0,0,0.7);
+        pointer-events: none;
     `;
     pill.appendChild(label);
-
-    // Directory path (secondary)
-    const parts = path.split('/');
-    if (parts.length > 1) {
-        const dir = parts.slice(0, -1).join('/');
-        const dirLabel = document.createElement('span');
-        dirLabel.className = 'file-pill-dir';
-        dirLabel.textContent = dir;
-        dirLabel.style.cssText = `
-            display: block;
-            padding: 2px 8px;
-            font-size: 10px;
-            color: rgba(255,255,255,0.55);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-family: 'Inter', sans-serif;
-        `;
-        pill.appendChild(dirLabel);
-    }
 
     return pill;
 }
@@ -472,3 +461,162 @@ export function uncullAllCards(ctx: CanvasContext) {
         ctx.deferredCards.clear();
     }
 }
+
+/**
+ * Setup event-delegated interaction for pill cards.
+ * One listener on the canvas handles all pill clicks/drags/double-clicks.
+ * Much more efficient than per-pill listeners.
+ */
+let _pillInteractionSetup = false;
+export function setupPillInteraction(ctx: CanvasContext) {
+    if (_pillInteractionSetup || !ctx.canvas) return;
+    _pillInteractionSetup = true;
+
+    let pillAction: null | 'pending' | 'move' = null;
+    let pillTarget: HTMLElement | null = null;
+    let pillStartX = 0, pillStartY = 0;
+    let pillMoveInfos: { pill: HTMLElement; path: string; startLeft: number; startTop: number }[] = [];
+    const DRAG_THRESHOLD = 5;
+
+    ctx.canvas.addEventListener('mousedown', (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        const pill = (e.target as HTMLElement).closest('.file-pill') as HTMLElement;
+        if (!pill) return;
+
+        e.stopPropagation();
+        pillTarget = pill;
+        pillAction = 'pending';
+        pillStartX = e.clientX;
+        pillStartY = e.clientY;
+
+        window.addEventListener('mousemove', onPillMove);
+        window.addEventListener('mouseup', onPillUp);
+    });
+
+    // Native dblclick for zoom-to-file (more reliable than custom timing)
+    ctx.canvas.addEventListener('dblclick', (e: MouseEvent) => {
+        const pill = (e.target as HTMLElement).closest('.file-pill') as HTMLElement;
+        if (!pill) return;
+        e.stopPropagation();
+        e.preventDefault();
+        const pillPath = pill.dataset.path || '';
+        if (pillPath) {
+            import('./canvas').then(({ jumpToFile }) => {
+                jumpToFile(ctx, pillPath);
+            });
+        }
+    });
+
+    function onPillMove(e: MouseEvent) {
+        if (!pillTarget) return;
+        const state = ctx.snap().context;
+        const dx = (e.clientX - pillStartX) / state.zoom;
+        const dy = (e.clientY - pillStartY) / state.zoom;
+
+        if (pillAction === 'pending') {
+            const dist = Math.sqrt((e.clientX - pillStartX) ** 2 + (e.clientY - pillStartY) ** 2);
+            if (dist < DRAG_THRESHOLD) return;
+
+            pillAction = 'move';
+            const pillPath = pillTarget.dataset.path || '';
+
+            // If this pill isn't selected yet, select it
+            const selected = state.selectedCards;
+            if (!selected.includes(pillPath)) {
+                if (!e.shiftKey && !e.ctrlKey) {
+                    ctx.actor.send({ type: 'SELECT_CARD', path: pillPath, shift: false });
+                } else {
+                    ctx.actor.send({ type: 'SELECT_CARD', path: pillPath, shift: true });
+                }
+                updatePillSelectionHighlights(ctx);
+            }
+
+            // Collect all selected pills for multi-drag
+            const nowSelected = ctx.snap().context.selectedCards;
+            pillMoveInfos = [];
+            nowSelected.forEach(path => {
+                const p = pillCards.get(path);
+                if (p) {
+                    pillMoveInfos.push({
+                        pill: p,
+                        path,
+                        startLeft: parseFloat(p.style.left) || 0,
+                        startTop: parseFloat(p.style.top) || 0,
+                    });
+                }
+            });
+        }
+
+        if (pillAction === 'move') {
+            pillMoveInfos.forEach(info => {
+                info.pill.style.left = `${info.startLeft + dx}px`;
+                info.pill.style.top = `${info.startTop + dy}px`;
+            });
+        }
+    }
+
+    function onPillUp(e: MouseEvent) {
+        window.removeEventListener('mousemove', onPillMove);
+        window.removeEventListener('mouseup', onPillUp);
+
+        if (!pillTarget) return;
+        const pillPath = pillTarget.dataset.path || '';
+
+        if (pillAction === 'pending') {
+            // Single click → select (double-click handled by native dblclick listener)
+            if (e.shiftKey || e.ctrlKey) {
+                ctx.actor.send({ type: 'SELECT_CARD', path: pillPath, shift: true });
+            } else {
+                ctx.actor.send({ type: 'SELECT_CARD', path: pillPath, shift: false });
+            }
+            updatePillSelectionHighlights(ctx);
+        } else if (pillAction === 'move') {
+            // Save new positions for all moved pills
+            const { savePosition } = require('./positions');
+            pillMoveInfos.forEach(info => {
+                const newX = parseFloat(info.pill.style.left) || 0;
+                const newY = parseFloat(info.pill.style.top) || 0;
+
+                // Update deferred card position
+                const deferred = ctx.deferredCards.get(info.path);
+                if (deferred) {
+                    deferred.x = newX;
+                    deferred.y = newY;
+                }
+
+                // Update materialized card position too (if exists)
+                const card = ctx.fileCards.get(info.path);
+                if (card) {
+                    card.style.left = `${newX}px`;
+                    card.style.top = `${newY}px`;
+                }
+
+                savePosition(ctx, 'allfiles', info.path, newX, newY);
+            });
+            pillMoveInfos = [];
+        }
+
+        pillAction = null;
+        pillTarget = null;
+    }
+}
+
+/**
+ * Update pill selection highlights based on XState selectedCards.
+ */
+function updatePillSelectionHighlights(ctx: CanvasContext) {
+    const selected = ctx.snap().context.selectedCards;
+    for (const [path, pill] of pillCards) {
+        if (selected.includes(path)) {
+            pill.style.outline = '3px solid var(--accent-primary, #7c3aed)';
+            pill.style.outlineOffset = '2px';
+        } else {
+            pill.style.outline = '';
+            pill.style.outlineOffset = '';
+        }
+    }
+    // Also update full card highlights
+    const { updateSelectionHighlights } = require('./cards');
+    updateSelectionHighlights(ctx);
+}
+

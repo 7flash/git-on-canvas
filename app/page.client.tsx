@@ -17,6 +17,7 @@ import { loadHiddenFiles, updateHiddenUI } from './lib/hidden-files';
 import { setupCanvasInteraction, setupEventListeners } from './lib/events';
 import { loadConnections } from './lib/connections';
 import { clearCanvas, updateCanvasTransform, updateZoomUI, restoreViewport } from './lib/canvas';
+import { setupPillInteraction } from './lib/viewport-culling';
 import { loadRepository } from './lib/repo';
 import { initLayers, renderLayersUI } from './lib/layers';
 import { setupAuth, updateFavoriteStar } from './lib/user';
@@ -60,6 +61,7 @@ export default function mount(): () => void {
             actor.start();
             setupCanvasInteraction(ctx);
             setupEventListeners(ctx);
+            setupPillInteraction(ctx);
             setupPerfOverlay(ctx);
             if (ctx.canvasViewport) initFilePreview(ctx.canvasViewport);
             initBranchCompare(ctx);
@@ -143,8 +145,9 @@ export default function mount(): () => void {
                     const sel2 = document.getElementById('repoSelect') as HTMLSelectElement;
                     if (sel2) sel2.value = saved;
 
-                    // Set the hash so it's reflected in the URL
-                    window.location.hash = encodeURIComponent(saved);
+                    // Use replaceState to avoid triggering the hashchange listener
+                    // (setting location.hash directly would fire hashchange → double load)
+                    history.replaceState(null, '', '#' + encodeURIComponent(saved));
 
                     ctx.actor.send({ type: 'LOAD_REPO', path: saved });
                     ctx.snap().context.repoPath = saved;

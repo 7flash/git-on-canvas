@@ -8,7 +8,7 @@ import { render } from 'melina/client';
 import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass } from './utils';
 import { savePosition, getPositionKey, isPathExpandedInPositions, setPathExpandedInPositions } from './positions';
-import { updateMinimap, updateCanvasTransform, updateZoomUI } from './canvas';
+import { updateMinimap, updateCanvasTransform, updateZoomUI, jumpToFile } from './canvas';
 import { renderConnections, scheduleRenderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
 import { filterFileContentByLayer, layerState, createLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
@@ -226,16 +226,16 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
 
     card.addEventListener('mousedown', onMouseDown);
 
-    // ── Double-click to open file embed viewer modal ──
+    // ── Double-click to zoom into file ──
     card.addEventListener('dblclick', (e) => {
         // Don't trigger on buttons
         if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button')) return;
         e.preventDefault();
         e.stopPropagation();
 
-        const file = cardFileData.get(card);
-        if (file) {
-            openFileModal(ctx, file);
+        const filePath = card.dataset.path;
+        if (filePath) {
+            jumpToFile(ctx, filePath);
         }
     });
 
@@ -839,7 +839,7 @@ function _buildFileContentHTML(
 
     const hiddenCount = totalVisible - renderedCount;
     const truncNote = hiddenCount > 0
-        ? `<span class="more-lines">${hiddenCount.toLocaleString()} more lines · press F to expand</span>`
+        ? `<span class="more-lines">${hiddenCount.toLocaleString()} more lines · double-click to zoom</span>`
         : '';
     return `<div class="file-content-preview"><pre><code>${code}</code></pre>${truncNote}</div>`;
 }

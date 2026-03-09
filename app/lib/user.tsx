@@ -115,12 +115,9 @@ async function toggleFavorite() {
 }
 
 function getCurrentRepoUrl(): string {
-    // Try to get from the clone input or hash
+    // Get from hash (e.g. #C:\Code\project or #https://github.com/user/repo)
     const hash = location.hash.slice(1);
     if (hash) return hash;
-
-    const cloneInput = document.getElementById('cloneUrlInput') as HTMLInputElement;
-    if (cloneInput?.value) return cloneInput.value;
 
     return '';
 }

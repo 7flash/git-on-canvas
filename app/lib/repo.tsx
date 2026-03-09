@@ -233,20 +233,29 @@ export function renderCommitTimeline(ctx: CanvasContext) {
         const colors = ['#7c3aed', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#06b6d4'];
 
         commitsList.forEach((commit, i) => {
+            // Find the lane reserved for this commit by a previous parent assignment
             let laneIndex = lanes.indexOf(commit.hash);
             if (laneIndex < 0) {
+                // No lane reserved — find first empty slot
                 laneIndex = lanes.findIndex(h => !h);
                 if (laneIndex < 0) laneIndex = lanes.length;
             }
+            // Clear the reservation (we're processing this commit now)
+            lanes[laneIndex] = null;
             nodes.push({ hash: commit.hash, lane: laneIndex, index: i });
 
             if (commit.parents && commit.parents.length > 0) {
                 commit.parents.forEach((pHash, pIndex) => {
                     const pLaneIndex = lanes.indexOf(pHash);
                     if (pIndex === 0) {
-                        if (pLaneIndex < 0) lanes[laneIndex] = pHash;
-                        else lanes[laneIndex] = null;
+                        // First parent: continue in the same lane
+                        if (pLaneIndex < 0) {
+                            lanes[laneIndex] = pHash;
+                        }
+                        // If parent already has a lane (from another child), 
+                        // just leave laneIndex free — the edge drawing handles the visual connection
                     } else {
+                        // Additional parents (merge): assign to a different lane
                         if (pLaneIndex < 0) {
                             let empty = lanes.findIndex(h => !h);
                             if (empty < 0) empty = lanes.length;
@@ -254,8 +263,6 @@ export function renderCommitTimeline(ctx: CanvasContext) {
                         }
                     }
                 });
-            } else {
-                lanes[laneIndex] = null;
             }
         });
 
@@ -801,22 +808,12 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
                         title={f.path}
                         onClick={() => {
                             if (!_panelCtx) return;
-                            const card = _panelCtx.fileCards.get(f.path);
-                            if (card) {
-                                // Auto-expand the card to show full diff
-                                expandCardByPath(_panelCtx, f.path);
-                                const vpRect = _panelCtx.canvasViewport.getBoundingClientRect();
-                                const state = _panelCtx.snap().context;
-                                const cardX = parseFloat(card.style.left) || 0;
-                                const cardY = parseFloat(card.style.top) || 0;
-                                const newOffsetX = -(cardX + card.offsetWidth / 2) * state.zoom + vpRect.width / 2;
-                                const newOffsetY = -(cardY + card.offsetHeight / 2) * state.zoom + vpRect.height / 2;
-                                _panelCtx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
-                                updateCanvasTransform(_panelCtx);
-                                updateMinimap(_panelCtx);
-                                card.classList.add('card-flash');
-                                setTimeout(() => card.classList.remove('card-flash'), 1500);
-                            }
+                            // Animated zoom+pan to the file
+                            import('./canvas').then(({ jumpToFile }) => {
+                                jumpToFile(_panelCtx!, f.path);
+                            });
+                            // Auto-expand the card to show full diff
+                            expandCardByPath(_panelCtx, f.path);
                         }}
                     >
                         <span className="changed-file-status" style={`color: ${color} `}>{icon}</span>

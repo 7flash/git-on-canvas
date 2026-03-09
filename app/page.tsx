@@ -264,7 +264,7 @@ export default function Page() {
                             <span className="cta-arrow a1">←</span>
                             <span className="cta-text">Select a repository from the sidebar to begin</span>
                         </div>
-                        <div className="cta-or">or paste a GitHub URL in the clone input above</div>
+                        <div className="cta-or">or click Import from GitHub in the sidebar</div>
                     </div>
 
                     {/* Stats Row */}

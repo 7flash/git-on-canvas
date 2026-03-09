@@ -123,9 +123,9 @@ function _rebuildMinimap(ctx: CanvasContext) {
         _mmCache.dotEls.forEach(({ dot, label }) => { dot.remove(); label.remove(); });
     }
 
-    // Calculate actual bounding box from all file cards
+    // Calculate actual bounding box from all file cards (DOM + deferred)
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string; path: string; changed: boolean }[] = [];
+    const cardInfos: { x: number; y: number; w: number; h: number; name: string; status: string; path: string; changed: boolean; displayPath?: string }[] = [];
 
     ctx.fileCards.forEach((card, path) => {
         const x = parseFloat(card.style.left) || 0;
@@ -133,7 +133,6 @@ function _rebuildMinimap(ctx: CanvasContext) {
         const w = card.offsetWidth || 580;
         const h = card.offsetHeight || 200;
         const name = path.split('/').pop() || path;
-        // Get folder-prefixed name for tooltip (e.g. "lib/cards.tsx")
         const parts = path.split('/');
         const displayPath = parts.length > 1 ? parts.slice(-2).join('/') : name;
         const status = card.dataset.status || card.className.match(/file-card--(\w+)/)?.[1] || 'default';
@@ -146,6 +145,29 @@ function _rebuildMinimap(ctx: CanvasContext) {
 
         cardInfos.push({ x, y, w, h, name, displayPath, status, path, changed });
     });
+
+    // Also include deferred cards (not yet in DOM but positioned on canvas)
+    if (ctx.deferredCards) {
+        ctx.deferredCards.forEach((entry, path) => {
+            // Skip if already in fileCards (shouldn't happen, but safety)
+            if (ctx.fileCards.has(path)) return;
+            const x = entry.x;
+            const y = entry.y;
+            const w = entry.size?.width || 580;
+            const h = entry.size?.height || 700;
+            const name = path.split('/').pop() || path;
+            const parts = path.split('/');
+            const displayPath = parts.length > 1 ? parts.slice(-2).join('/') : name;
+            const changed = !!entry.isChanged;
+
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x + w);
+            maxY = Math.max(maxY, y + h);
+
+            cardInfos.push({ x, y, w, h, name, displayPath, status: changed ? 'modified' : 'default', path, changed });
+        });
+    }
 
     // If no cards, just hide viewport
     if (cardInfos.length === 0) {
@@ -247,20 +269,38 @@ function _rebuildMinimap(ctx: CanvasContext) {
 // ─── Jump to a specific file on the canvas ──────────────
 export function jumpToFile(ctx: CanvasContext, filePath: string) {
     measure('canvas:jumpToFile', () => {
-        const card = ctx.fileCards.get(filePath);
-        if (!card) return;
+        let card = ctx.fileCards.get(filePath);
+        let cardX: number, cardY: number, cardW: number, cardH: number;
 
-        const cardX = parseFloat(card.style.left) || 0;
-        const cardY = parseFloat(card.style.top) || 0;
-        const cardW = card.offsetWidth || 580;
-        const cardH = card.offsetHeight || 200;
+        if (card) {
+            cardX = parseFloat(card.style.left) || 0;
+            cardY = parseFloat(card.style.top) || 0;
+            cardW = card.offsetWidth || 580;
+            cardH = card.offsetHeight || 200;
+        } else if (ctx.deferredCards?.has(filePath)) {
+            // Card is deferred (not yet in DOM) — get position from deferred data
+            const entry = ctx.deferredCards.get(filePath)!;
+            cardX = entry.x;
+            cardY = entry.y;
+            cardW = entry.size?.width || 580;
+            cardH = entry.size?.height || 700;
+        } else {
+            return; // File not found
+        }
 
         const vpRect = ctx.canvasViewport.getBoundingClientRect();
         const state = ctx.snap().context;
 
-        const targetZoom = Math.min(state.zoom, 1);
+        // Target zoom: bring to readable level (at least 0.6, or current if already zoomed in)
+        const targetZoom = Math.max(0.6, Math.min(state.zoom, 1));
         const newOffsetX = vpRect.width / 2 - (cardX + cardW / 2) * targetZoom;
         const newOffsetY = vpRect.height / 2 - (cardY + cardH / 2) * targetZoom;
+
+        // Animate using CSS transition on the canvas element
+        const canvasEl = ctx.canvas;
+        if (canvasEl) {
+            canvasEl.style.transition = 'transform 400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        }
 
         ctx.actor.send({ type: 'SET_ZOOM', zoom: targetZoom });
         ctx.actor.send({ type: 'SET_OFFSET', x: newOffsetX, y: newOffsetY });
@@ -268,20 +308,34 @@ export function jumpToFile(ctx: CanvasContext, filePath: string) {
         updateZoomUI(ctx);
         updateMinimap(ctx);
 
-        // Flash highlight
-        card.style.outline = '2px solid var(--accent-primary)';
-        card.style.outlineOffset = '4px';
+        // Clean up transition after animation completes
         setTimeout(() => {
-            card.style.outline = '';
-            card.style.outlineOffset = '';
-        }, 1500);
+            if (canvasEl) {
+                canvasEl.style.transition = '';
+            }
+            // Re-cull after animation settles (may need to materialize the card)
+            scheduleViewportCulling(ctx);
+
+            // Flash highlight on the card (may have been materialized by culling)
+            const finalCard = ctx.fileCards.get(filePath);
+            if (finalCard) {
+                finalCard.style.outline = '2px solid var(--accent-primary)';
+                finalCard.style.outlineOffset = '4px';
+                setTimeout(() => {
+                    finalCard.style.outline = '';
+                    finalCard.style.outlineOffset = '';
+                }, 1500);
+            }
+        }, 420);
     });
 }
 
 // ─── Fit all files in viewport ──────────────────────────
 export function fitAllFiles(ctx: CanvasContext) {
     measure('canvas:fitAll', () => {
-        if (ctx.fileCards.size === 0 || !ctx.canvasViewport) return;
+        if (ctx.fileCards.size === 0 && (!ctx.deferredCards || ctx.deferredCards.size === 0)) {
+            if (!ctx.canvasViewport) return;
+        }
 
         // Temporarily uncull all cards so offsetWidth/Height are measurable
         uncullAllCards(ctx);
@@ -295,6 +349,16 @@ export function fitAllFiles(ctx: CanvasContext) {
             maxX = Math.max(maxX, x + (card.offsetWidth || 580));
             maxY = Math.max(maxY, y + (card.offsetHeight || 700));
         });
+
+        // Include deferred cards in bounds
+        if (ctx.deferredCards) {
+            ctx.deferredCards.forEach((entry) => {
+                minX = Math.min(minX, entry.x);
+                minY = Math.min(minY, entry.y);
+                maxX = Math.max(maxX, entry.x + (entry.size?.width || 580));
+                maxY = Math.max(maxY, entry.y + (entry.size?.height || 700));
+            });
+        }
 
         const viewportRect = ctx.canvasViewport.getBoundingClientRect();
         const contentWidth = maxX - minX + 100;
