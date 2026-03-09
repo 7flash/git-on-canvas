@@ -795,6 +795,12 @@ export function setupEventListeners(ctx: CanvasContext) {
                 e.preventDefault();
                 exportViewportAsPNG(ctx);
             }
+
+            // Ctrl+N = Create new file
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+                e.preventDefault();
+                import('./new-file-dialog').then(m => m.showNewFileDialog(ctx));
+            }
         });
 
         // ── Prevent browser page zoom (Ctrl+scroll, Ctrl+0) ──

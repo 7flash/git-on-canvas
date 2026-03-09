@@ -4237,6 +4237,153 @@ body {
     margin-right: 8px;
 }
 
+/* ─── New File Dialog ─────────────────────────────────── */
+.new-file-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 18vh;
+    animation: fadeIn 0.15s ease;
+}
+
+.new-file-dialog {
+    width: 480px;
+    max-width: 90vw;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg), 0 0 60px rgba(34, 197, 94, 0.1);
+    overflow: hidden;
+    animation: slideUp 0.2s ease;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(16px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.new-file-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border-subtle);
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(124, 58, 237, 0.04));
+    color: #22c55e;
+}
+
+.new-file-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.new-file-body {
+    padding: 16px 20px;
+}
+
+.new-file-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.new-file-label code {
+    color: #22c55e;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    background: rgba(34, 197, 94, 0.1);
+    padding: 1px 5px;
+    border-radius: 3px;
+}
+
+.new-file-input {
+    width: 100%;
+    padding: 10px 14px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.new-file-input:focus {
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.new-file-input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.new-file-hint {
+    margin-top: 8px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.new-file-hint code {
+    font-family: var(--font-mono);
+    background: rgba(255, 255, 255, 0.06);
+    padding: 0 3px;
+    border-radius: 2px;
+}
+
+.new-file-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding: 12px 20px 16px;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.new-file-create-btn {
+    display: flex !important;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+    color: white !important;
+    font-weight: 600 !important;
+    border: none !important;
+    padding: 6px 16px !important;
+    border-radius: 6px !important;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.new-file-create-btn:hover {
+    box-shadow: 0 0 16px rgba(34, 197, 94, 0.3);
+    transform: translateY(-1px);
+}
+
+.new-file-create-btn:disabled,
+.new-file-create-btn[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 /* ─── File Search Overlay ─────────────────────────────── */
 .file-search-overlay {
     position: fixed;

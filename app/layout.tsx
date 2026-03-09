@@ -118,6 +118,8 @@ export default function RootLayout({ children }: { children: any }) {
                                         <div className="hk"><kbd>Dbl-click</kbd> Zoom to card</div>
                                         <div className="hk"><kbd>Alt+Click</kbd> Connect lines</div>
                                         <div className="hk"><kbd>Arrow keys</kbd> Prev/next commit</div>
+                                        <div className="hk"><kbd>Ctrl+N</kbd> New file</div>
+                                        <div className="hk"><kbd>Ctrl+S</kbd> Save (in editor)</div>
                                     </div>
                                 </div>
                             </div>
