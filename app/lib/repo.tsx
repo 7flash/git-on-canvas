@@ -730,11 +730,21 @@ function renderDirectoryLabels(ctx: CanvasContext) {
     for (const [dir, g] of groups) {
         const label = document.createElement('div');
         label.className = 'dir-label';
+        label.dataset.dir = dir;
         const centerX = (g.minX + g.maxX) / 2;
         label.style.left = `${centerX}px`;
         label.style.top = `${g.minY - 36}px`;
         label.style.transform = 'translateX(-50%)';
         label.innerHTML = `<span class="dir-label-icon">📁</span> ${dir}<span class="dir-label-count">${g.count}</span>`;
+
+        // Click to collapse directory into a group card
+        label.addEventListener('click', (e) => {
+            e.stopPropagation();
+            import('./card-groups').then(({ toggleDirectoryCollapse }) => {
+                toggleDirectoryCollapse(ctx, dir);
+            });
+        });
+
         frag.appendChild(label);
     }
     ctx.canvas?.appendChild(frag);

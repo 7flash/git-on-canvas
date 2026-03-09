@@ -1808,11 +1808,18 @@ body {
     font-weight: 500;
     letter-spacing: 0.02em;
     white-space: nowrap;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: pointer;
     z-index: 1;
     user-select: none;
     opacity: 0.85;
-    transition: opacity 0.2s;
+    transition: opacity 0.2s, background 0.2s, border-color 0.2s;
+}
+
+.dir-label:hover {
+    opacity: 1;
+    background: rgba(124, 58, 237, 0.2);
+    border-color: rgba(124, 58, 237, 0.4);
 }
 
 .dir-label-icon {
@@ -1828,6 +1835,129 @@ body {
     font-size: 10px;
     color: var(--accent-primary, #a78bfa);
     font-weight: 600;
+}
+
+/* ─── Group cards (collapsed directories) ─── */
+.group-card {
+    width: 320px !important;
+    max-height: none !important;
+    border-color: rgba(124, 58, 237, 0.25);
+    background: linear-gradient(135deg, rgba(40, 30, 60, 0.95), rgba(25, 20, 40, 0.95));
+}
+
+.group-card:hover {
+    border-color: rgba(124, 58, 237, 0.5);
+    box-shadow: var(--shadow-md), 0 0 24px rgba(124, 58, 237, 0.2);
+}
+
+.group-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(124, 58, 237, 0.08);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.15);
+    cursor: pointer;
+}
+
+.group-icon {
+    font-size: 16px;
+    filter: none;
+}
+
+.group-meta {
+    margin-left: auto;
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.group-changed {
+    font-size: 10px;
+    color: #eab308;
+    font-weight: 500;
+}
+
+.group-expand-btn {
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    border-radius: 4px;
+    color: var(--accent-tertiary);
+    font-size: 10px;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.group-expand-btn:hover {
+    background: rgba(124, 58, 237, 0.3);
+    color: #fff;
+}
+
+.group-card-body {
+    padding: 10px 14px;
+}
+
+.group-dir-path {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-stats {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.group-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.group-file-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-secondary);
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.1s;
+}
+
+.group-file-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.group-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.group-file-lines {
+    color: var(--text-muted);
+    font-size: 9px;
+    flex-shrink: 0;
+}
+
+.group-more {
+    font-size: 10px;
+    color: var(--accent-tertiary);
+    padding: 4px 4px 0;
+    font-style: italic;
 }
 
 .minimap-dot {
