@@ -89,7 +89,7 @@ function getPillColor(path: string, isChanged: boolean): string {
  * ~3 DOM nodes vs ~100+ for a full card = massive perf win at low zoom.
  * Uses vertical text to fit file names in compact card footprint.
  */
-function createPillCard(path: string, x: number, y: number, w: number, h: number, isChanged: boolean): HTMLElement {
+function createPillCard(path: string, x: number, y: number, w: number, h: number, isChanged: boolean, animate = false): HTMLElement {
     const pill = document.createElement('div');
     pill.className = 'file-pill';
     pill.dataset.path = path;
@@ -101,15 +101,24 @@ function createPillCard(path: string, x: number, y: number, w: number, h: number
         height: ${h}px;
         background: ${getPillColor(path, isChanged)};
         border-radius: 6px;
-        opacity: 0.9;
+        opacity: ${animate ? '0' : '0.9'};
         contain: layout style;
         box-shadow: 0 2px 8px rgba(0,0,0,0.3);
         border: 1px solid rgba(255,255,255,0.12);
         overflow: hidden;
         cursor: pointer;
         user-select: none;
-        transition: opacity 0.2s ease, box-shadow 0.2s ease;
+        transition: opacity 0.25s ease, box-shadow 0.2s ease, transform 0.25s ease;
+        transform: ${animate ? 'scale(0.92)' : 'scale(1)'};
     `;
+
+    // Animate pill entrance
+    if (animate) {
+        requestAnimationFrame(() => {
+            pill.style.opacity = '0.9';
+            pill.style.transform = 'scale(1)';
+        });
+    }
 
     // File name label - rotated text (rotate approach renders full strings, unlike writing-mode)
     // Font size is in world-space px — at 16% zoom, 48px renders as ~7.7px on screen
@@ -194,14 +203,30 @@ function clearAllPills(ctx: CanvasContext) {
 }
 
 /**
+ * Fade out all pills, then call cleanup callback.
+ */
+function fadeOutPills(onComplete?: () => void) {
+    for (const [, pill] of pillCards) {
+        pill.style.opacity = '0';
+        pill.style.transform = 'scale(0.92)';
+    }
+    if (onComplete) {
+        setTimeout(onComplete, 250);
+    }
+}
+
+/**
  * Transition from pill mode to full mode: remove pills for cards that
- * have been fully materialized.
+ * have been fully materialized. Uses fade-out if pill is visible.
  */
 function removePillForPath(path: string) {
     const pill = pillCards.get(path);
     if (pill) {
-        pill.remove();
+        // Fade out the pill as the card replaces it
+        pill.style.opacity = '0';
+        pill.style.transform = 'scale(0.92)';
         pillCards.delete(path);
+        setTimeout(() => pill.remove(), 250);
     }
 }
 
@@ -230,18 +255,28 @@ export function performViewportCulling(ctx: CanvasContext) {
     let culled = 0;
     let shown = 0;
 
-    // ── LOD mode transition ──
+    // ── LOD mode transition (with smooth animation) ──
     if (newLodMode !== _currentLodMode) {
         if (newLodMode === 'pill') {
-            // Transitioning to pill mode: hide all full cards, show pills
+            // Transitioning to pill mode: fade out full cards
             for (const [path, card] of ctx.fileCards) {
-                card.style.contentVisibility = 'hidden';
-                card.style.visibility = 'hidden';
-                card.dataset.culled = 'true';
+                // Add fade-out transition to full cards
+                card.style.transition = 'opacity 0.2s ease';
+                card.style.opacity = '0';
+                // After fade completes, actually hide for perf
+                setTimeout(() => {
+                    card.style.contentVisibility = 'hidden';
+                    card.style.visibility = 'hidden';
+                    card.dataset.culled = 'true';
+                    card.style.opacity = '';
+                    card.style.transition = '';
+                }, 200);
             }
         } else {
-            // Transitioning to full mode: clear pills, show full cards
-            clearAllPills(ctx);
+            // Transitioning to full mode: fade out pills, then remove
+            fadeOutPills(() => {
+                clearAllPills(ctx);
+            });
         }
         _currentLodMode = newLodMode;
     }
@@ -263,11 +298,16 @@ export function performViewportCulling(ctx: CanvasContext) {
         const wasCulled = card.dataset.culled === 'true';
 
         if (visible && wasCulled) {
-            // Card entering viewport — show it
+            // Card entering viewport — show it with fade-in
             card.style.contentVisibility = '';
             card.style.visibility = '';
+            card.style.opacity = '0';
+            card.style.transition = 'opacity 0.25s ease';
             card.dataset.culled = 'false';
             removePillForPath(path);
+            requestAnimationFrame(() => { card.style.opacity = ''; });
+            // Cleanup transition once done to avoid overhead
+            setTimeout(() => { card.style.transition = ''; }, 300);
             shown++;
         } else if (!visible && !wasCulled) {
             // Card leaving viewport — hide it (keep dimensions for layout)
@@ -298,7 +338,7 @@ export function performViewportCulling(ctx: CanvasContext) {
             );
 
             if (inView && !pillCards.has(path)) {
-                const pill = createPillCard(path, x, y, cardW, cardH, !!isChanged);
+                const pill = createPillCard(path, x, y, cardW, cardH, !!isChanged, true);
                 ctx.canvas.appendChild(pill);
                 pillCards.set(path, pill);
             } else if (!inView && pillCards.has(path)) {
@@ -323,7 +363,7 @@ export function performViewportCulling(ctx: CanvasContext) {
                 );
 
                 if (inView) {
-                    const pill = createPillCard(path, x, y, w, h, isChanged);
+                    const pill = createPillCard(path, x, y, w, h, isChanged, true);
                     ctx.canvas.appendChild(pill);
                     pillCards.set(path, pill);
                 }
