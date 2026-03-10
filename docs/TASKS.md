@@ -10,7 +10,7 @@
 ## 🟢 Priority: Features
 - [ ] **File dependency graph view** — Visualize import relationships as a force-directed graph layout. Users could toggle between spatial layout and dependency graph.
 - [x] ~~**Quick file switcher (Ctrl+P)**~~ — ✅ DONE. Already existed as `command-palette.ts` (Ctrl+K/Ctrl+O). Added Ctrl+P as additional VS Code-style shortcut. Updated shortcuts panel with accurate keybindings, removed stale entries (I, /).
-- [ ] **Card minimap indicator** — Show a tiny colored dot on each card corner indicating changes (green=added, yellow=modified, red=deleted) visible even at low zoom.
+- [x] ~~**Card minimap indicator**~~ — ✅ DONE. CSS-only `::after` pseudo-elements on status cards. 10px colored dots (green=added, yellow=modified, red=deleted, purple=renamed, blue=changed) with glow shadows. Scale 1.4x on hover.
 - [x] ~~**Sticky zoom controls**~~ — ✅ DONE. Glassmorphism floating pill in bottom-right with zoom ±, slider, percentage, and fit-all button. Always visible, synced with sidebar controls.
 
 ## ✅ Completed
