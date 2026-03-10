@@ -69,6 +69,16 @@ export function openSettingsModal(ctx?: any) {
                     </div>
                     <div class="settings-row">
                         <div class="settings-label">
+                            <span class="settings-label-text">Popup Font Size</span>
+                            <span class="settings-label-desc">Font size for hover popup previews</span>
+                        </div>
+                        <div class="settings-slider-group">
+                            <input type="range" id="settingPopupFontSize" class="settings-slider" min="10" max="24" step="1" value="${settings.popupFontSize}" />
+                            <span class="settings-slider-value" id="popupFontSizeValue">${settings.popupFontSize}px</span>
+                        </div>
+                    </div>
+                    <div class="settings-row">
+                        <div class="settings-label">
                             <span class="settings-label-text">Card Width</span>
                             <span class="settings-label-desc">Character columns per card (like editors)</span>
                         </div>
@@ -185,6 +195,13 @@ export function openSettingsModal(ctx?: any) {
         fontValue.textContent = `${fontSlider.value}px`;
         updateSettings({ fontSize: parseInt(fontSlider.value) });
         applyFontSize(parseInt(fontSlider.value));
+    });
+
+    const popupFontSlider = _modal.querySelector('#settingPopupFontSize') as HTMLInputElement;
+    const popupFontValue = _modal.querySelector('#popupFontSizeValue')!;
+    popupFontSlider?.addEventListener('input', () => {
+        popupFontValue.textContent = `${popupFontSlider.value}px`;
+        updateSettings({ popupFontSize: parseInt(popupFontSlider.value) });
     });
 
     const cardWidthSlider = _modal.querySelector('#settingCardWidth') as HTMLInputElement;

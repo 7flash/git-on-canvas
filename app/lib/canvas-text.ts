@@ -558,6 +558,16 @@ export class CanvasTextRenderer {
 
         const ensurePopup = () => {
             if (!this.hoverPopup) {
+                // Read popup font size from settings
+                let popupFontSize = 14;
+                try {
+                    const stored = localStorage.getItem('gitcanvas:settings');
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (parsed.popupFontSize) popupFontSize = parsed.popupFontSize;
+                    }
+                } catch { }
+
                 this.hoverPopup = document.createElement('div');
                 this.hoverPopup.className = 'canvas-text-hover-popup';
                 this.hoverPopup.style.cssText = `
@@ -570,7 +580,7 @@ export class CanvasTextRenderer {
                     max-height: 300px;
                     overflow: auto;
                     font-family: "JetBrains Mono", Consolas, monospace;
-                    font-size: ${this.fontSize}px;
+                    font-size: ${popupFontSize}px;
                     line-height: 1.4;
                     color: #c9d1d9;
                     backdrop-filter: blur(8px);
@@ -582,6 +592,14 @@ export class CanvasTextRenderer {
                 document.body.appendChild(this.hoverPopup);
             }
         };
+
+        // Recreate popup when popupFontSize setting changes
+        window.addEventListener('gitcanvas:settings-changed', () => {
+            if (this.hoverPopup) {
+                this.hoverPopup.remove();
+                this.hoverPopup = null;
+            }
+        });
 
         container.addEventListener('mousemove', (e) => {
             const rect = container.getBoundingClientRect();

@@ -25,6 +25,8 @@ export interface GitCanvasSettings {
     autoDetectImports: boolean;
     /** Theme: 'dark' (default) or 'light' */
     theme: 'dark' | 'light';
+    /** Font size for hover popup (px) */
+    popupFontSize: number;
 }
 
 const DEFAULTS: GitCanvasSettings = {
@@ -37,6 +39,7 @@ const DEFAULTS: GitCanvasSettings = {
     maxVisibleLines: 100,
     autoDetectImports: false,
     theme: 'dark',
+    popupFontSize: 14,
 };
 
 let _settings: GitCanvasSettings | null = null;
