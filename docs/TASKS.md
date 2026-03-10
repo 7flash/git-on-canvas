@@ -1,11 +1,9 @@
 # GitMaps Tasks & Ideas
 
 ## 🔴 Priority: Fix
-- [ ] **Canvas scrollbar thumb drag** — Dragging the custom scrollbar thumb doesn't scrub smoothly. Need to add a `mousedown` → `mousemove` → `mouseup` drag handler on the thumb so users can scrub scroll position by dragging.
 - [ ] **Hover popup flicker near edge** — Moving the mouse near long-line fade edges can cause the hover popup to flicker between visible and hidden states. Add a debounce or hysteresis zone.
 
 ## 🟡 Priority: Improve
-- [ ] **Canvas text horizontal scroll** — Currently horizontal scroll is locked (overflowX: hidden). Consider adding shift+wheel or trackpad horizontal panning for wide files.
 - [ ] **Pill card hover preview** — At zoomed-out pill view, hovering over a pill could show a tooltip with file stats (lines, changes, language).
 - [ ] **Diff nav buttons visual feedback** — The ▲/▼ buttons could briefly highlight the current hunk after navigation to provide clearer visual feedback.
 
@@ -15,6 +13,8 @@
 - [ ] **Card pinning** — Pin important cards so they stay visible regardless of zoom level.
 
 ## ✅ Completed
+- [x] ~~**Horizontal scroll (Shift+wheel/trackpad)**~~ — ✅ DONE. Shift+wheel pans content horizontally. Trackpad horizontal gestures also work (deltaX detection). Left-edge fade gradient appears when scrolled right. Canvas-rendered horizontal scrollbar indicator at bottom shows position.
+- [x] ~~**Scrollbar thumb drag**~~ — ✅ DONE. Dragging the vertical scrollbar thumb now smoothly scrubs scroll position. Click on track background jumps to position. Thumb highlights purple during drag.
 - [x] ~~**Scrollbar invisible when not hovering**~~ — ✅ DONE. Custom scrollbar now maintains baseline 0.5 opacity, brightens on hover/scroll, fades back to baseline instead of 0.
 - [x] ~~**Duplicate diff marker columns**~~ — ✅ DONE. Canvas-text mode now skips the DOM diff-marker-strip since CanvasTextRenderer already builds its own change gutter. Added `!useCanvasText` guard.
 - [x] ~~**Hover popup positioning**~~ — ✅ DONE. Hover popup for long lines and deleted diffs now appears above cursor by default, falling below only when near the top edge of the screen.

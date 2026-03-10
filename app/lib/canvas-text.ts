@@ -24,6 +24,8 @@ export class CanvasTextRenderer {
     private maxLineWidth: number = 0;
     private fontSize: number = 12;
     private hoverPopup: HTMLElement | null = null;
+    /** Index of the currently highlighted hunk (for nav flash), -1 = none */
+    private _highlightedHunkIdx: number = -1;
     /** Dynamic gutter: diff marker (6px) + line number chars + padding */
     private gutterLeft: number = 6;
     private lineNumWidth: number = 42;
@@ -461,6 +463,33 @@ export class CanvasTextRenderer {
 
             let currentHunkIdx = -1;
 
+            // Flash a gutter marker when navigated to
+            const flashMarker = (idx: number) => {
+                const markers = gutter.querySelectorAll('.canvas-gutter-marker');
+                const marker = markers[idx] as HTMLElement;
+                if (!marker) return;
+                marker.style.background = this.hunkRanges[idx].type === 'add'
+                    ? 'rgba(46, 160, 67, 1)' : 'rgba(248, 81, 73, 1)';
+                marker.style.width = '12px';
+                marker.style.boxShadow = this.hunkRanges[idx].type === 'add'
+                    ? '0 0 8px rgba(46, 160, 67, 0.8)' : '0 0 8px rgba(248, 81, 73, 0.8)';
+                setTimeout(() => {
+                    marker.style.background = this.hunkRanges[idx].type === 'add'
+                        ? 'rgba(46, 160, 67, 0.7)' : 'rgba(248, 81, 73, 0.7)';
+                    marker.style.width = '8px';
+                    marker.style.boxShadow = '';
+                }, 600);
+            };
+
+            // Counter label
+            const counterLabel = document.createElement('span');
+            counterLabel.style.cssText = `
+                font-size: 8px; color: rgba(201, 209, 217, 0.6);
+                font-family: 'JetBrains Mono', monospace;
+                text-align: center; line-height: 1; pointer-events: none;
+            `;
+            counterLabel.textContent = `${this.hunkRanges.length}`;
+
             const makeArrow = (label: string, direction: 'up' | 'down') => {
                 const btn = document.createElement('button');
                 btn.textContent = label;
@@ -485,12 +514,26 @@ export class CanvasTextRenderer {
                     this.scrollTop = Math.max(0, targetScroll);
                     container.scrollTop = this.scrollTop;
                     this._updateScrollTrack();
+
+                    // Highlight the navigated hunk briefly in the canvas render
+                    this._highlightedHunkIdx = currentHunkIdx;
                     this.render();
+                    setTimeout(() => {
+                        this._highlightedHunkIdx = -1;
+                        this.render();
+                    }, 500);
+
+                    // Flash the gutter marker
+                    flashMarker(currentHunkIdx);
+
+                    // Update counter
+                    counterLabel.textContent = `${currentHunkIdx + 1}/${this.hunkRanges.length}`;
                 });
                 return btn;
             };
 
             navContainer.appendChild(makeArrow('▲', 'up'));
+            navContainer.appendChild(counterLabel);
             navContainer.appendChild(makeArrow('▼', 'down'));
             container.appendChild(navContainer);
         }
@@ -659,6 +702,18 @@ export class CanvasTextRenderer {
                 // Left gutter marker (red bar)
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 0.8)';
                 this.ctx.fillRect(0, y, diffGutterW, this.lineHeight);
+            }
+
+            // Navigation highlight flash (when using ▲/▼ buttons)
+            if (this._highlightedHunkIdx >= 0 && this._highlightedHunkIdx < this.hunkRanges.length) {
+                const hl = this.hunkRanges[this._highlightedHunkIdx];
+                if (i >= hl.startIdx && i <= hl.endIdx) {
+                    const flashColor = hl.type === 'add'
+                        ? 'rgba(46, 160, 67, 0.3)'
+                        : 'rgba(248, 81, 73, 0.3)';
+                    this.ctx.fillStyle = flashColor;
+                    this.ctx.fillRect(0, y, w, this.lineHeight);
+                }
             }
 
             // Deleted-before marker (red triangle indicator)
