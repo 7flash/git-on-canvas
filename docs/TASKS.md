@@ -4,7 +4,6 @@
 - [ ] **Hover popup flicker near edge** — Moving the mouse near long-line fade edges can cause the hover popup to flicker between visible and hidden states. Add a debounce or hysteresis zone.
 
 ## 🟢 Priority: Features
-- [ ] **File dependency graph** — Use import analysis to auto-create connections between files that import each other.
 - [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
 - [ ] **Card pinning** — Pin important cards so they stay visible regardless of zoom level.
 

@@ -1056,6 +1056,23 @@ body {
     border-color: var(--accent-primary);
 }
 
+/* Pinned card — stays visible at any zoom */
+.file-card[data-pinned="true"] {
+    border-color: rgba(251, 146, 60, 0.5);
+    box-shadow: var(--shadow-md), 0 0 12px rgba(251, 146, 60, 0.15);
+}
+
+.file-card[data-pinned="true"]::before {
+    content: '📌';
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    font-size: 14px;
+    z-index: 10;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+    pointer-events: none;
+}
+
 .file-card-header {
     display: flex;
     align-items: center;

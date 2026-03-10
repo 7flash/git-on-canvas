@@ -55,6 +55,40 @@ let _currentLodMode: 'full' | 'pill' = 'full';
 // Track pill elements for cleanup
 const pillCards = new Map<string, HTMLElement>();
 
+// ── Pinned cards — stay visible at any zoom level ──
+const PINNED_STORAGE_KEY = 'gitmaps:pinnedCards';
+let _pinnedCards: Set<string> = new Set();
+
+try {
+    const stored = localStorage.getItem(PINNED_STORAGE_KEY);
+    if (stored) _pinnedCards = new Set(JSON.parse(stored));
+} catch { }
+
+function _savePinnedCards() {
+    localStorage.setItem(PINNED_STORAGE_KEY, JSON.stringify([..._pinnedCards]));
+}
+
+/** Toggle pin state for a card. Returns new pin state. */
+export function togglePinCard(path: string): boolean {
+    if (_pinnedCards.has(path)) {
+        _pinnedCards.delete(path);
+    } else {
+        _pinnedCards.add(path);
+    }
+    _savePinnedCards();
+    return _pinnedCards.has(path);
+}
+
+/** Check if a card is pinned */
+export function isPinned(path: string): boolean {
+    return _pinnedCards.has(path);
+}
+
+/** Get all pinned card paths */
+export function getPinnedCards(): Set<string> {
+    return _pinnedCards;
+}
+
 // ── Status colors for pill cards
 const PILL_COLORS: Record<string, string> = {
     'ts': '#3178c6',
@@ -262,9 +296,16 @@ export function performViewportCulling(ctx: CanvasContext) {
     // ── LOD mode transition (with smooth animation) ──
     if (newLodMode !== _currentLodMode) {
         if (newLodMode === 'pill') {
-            // Transitioning to pill mode: immediately hide ALL full cards
-            // Must be synchronous to prevent content from leaking through at low zoom
+            // Transitioning to pill mode: hide full cards EXCEPT pinned ones
             for (const [path, card] of ctx.fileCards) {
+                if (_pinnedCards.has(path)) {
+                    // Pinned cards stay visible — scale down for readability
+                    card.style.display = '';
+                    card.dataset.culled = 'false';
+                    card.dataset.pinned = 'true';
+                    card.style.zIndex = '50';
+                    continue;
+                }
                 card.style.display = 'none';
                 card.dataset.culled = 'true';
             }
@@ -290,9 +331,21 @@ export function performViewportCulling(ctx: CanvasContext) {
     // 1. Handle existing DOM cards (cull/show)
     for (const [path, card] of ctx.fileCards) {
         if (isLowZoom) {
-            // In pill mode: ALWAYS force-hide full cards (catches newly materialized ones too)
+            // Pinned cards stay visible even in pill mode
+            if (_pinnedCards.has(path)) {
+                card.style.display = '';
+                card.style.contentVisibility = '';
+                card.style.visibility = '';
+                card.dataset.culled = 'false';
+                card.dataset.pinned = 'true';
+                card.style.zIndex = '50';
+                shown++;
+                continue;
+            }
+            // In pill mode: force-hide non-pinned full cards
             card.style.display = 'none';
             card.dataset.culled = 'true';
+            delete card.dataset.pinned;
             culled++;
             continue;
         }

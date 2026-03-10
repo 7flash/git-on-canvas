@@ -8,6 +8,7 @@ import type { CanvasContext } from './context';
 import { showToast } from './utils';
 import { hideSelectedFiles } from './hidden-files';
 import { layerState, createLayer, moveFileToLayer, addFileToLayer, removeFileFromLayer, getActiveLayer } from './layers';
+import { isPinned, togglePinCard } from './viewport-culling';
 
 // These are imported lazily to avoid circular deps
 let _updateSelectionHighlights: any;
@@ -28,13 +29,14 @@ function lazyLoad() {
 }
 
 // ─── Context Menu JSX component ─────────────────────
-function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void, isInActiveLayer: boolean }) {
+function ContextMenu({ onAction, onActionLayer, isInActiveLayer, pinned }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void, isInActiveLayer: boolean, pinned: boolean }) {
     const customLayers = layerState.layers.filter(l => l.id !== 'default');
     return (
         <>
             <button className="ctx-item" onClick={() => onAction('copy-path')}>📋 Copy path</button>
             <button className="ctx-item" onClick={() => onAction('select')}>☑️ Select</button>
             <button className="ctx-item" onClick={() => onAction('select-folder')}>📁 Select all from folder</button>
+            <button className="ctx-item" onClick={() => onAction('pin')}>{pinned ? '📌 Unpin card' : '📌 Pin card'}</button>
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('expand')}>📖 Open in Editor</button>
             <button className="ctx-item" onClick={() => onAction('edit')}>✏️ Edit file</button>
@@ -154,6 +156,17 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
             _updateSelectionHighlights(ctx);
             _updateArrangeToolbar(ctx);
             showToast(`Selected ${folderFiles.length} files from ${dir || 'root'}`, 'info');
+        } else if (action === 'pin') {
+            const nowPinned = togglePinCard(filePath);
+            if (nowPinned) {
+                card.dataset.pinned = 'true';
+                showToast(`📌 Pinned: ${filePath.split('/').pop()}`, 'info');
+            } else {
+                delete card.dataset.pinned;
+                showToast(`Unpinned: ${filePath.split('/').pop()}`, 'info');
+            }
+            // Trigger viewport culling to apply the change
+            import('./viewport-culling').then(m => m.scheduleViewportCulling(ctx));
         } else if (action === 'delete') {
             deleteFile(ctx, filePath, card);
         } else if (action === 'rename') {
@@ -181,7 +194,8 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
         }
     }
 
-    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} isInActiveLayer={isInActiveLayer} />, menu);
+    const pinned = isPinned(filePath);
+    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} isInActiveLayer={isInActiveLayer} pinned={pinned} />, menu);
     document.body.appendChild(menu);
 
     requestAnimationFrame(() => {
