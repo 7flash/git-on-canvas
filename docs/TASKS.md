@@ -46,7 +46,16 @@
 - [x] **Tab persistence** — tab paths saved to localStorage, lazy restore
 - [x] **Search across files** — Ctrl+Shift+F, git grep backend, slide-in panel
 - [x] **File creation** — Ctrl+N, `new-file-dialog.tsx`, templates by extension
-- [x] **Branch switching** — toolbar button, slide-out drawer, base/compare selects, diff summary
+- [x] ~~**Branch switching**~~ — toolbar button, slide-out drawer, base/compare selects, diff summary
+
+## 🟡 Priority: Improve
+- [ ] **Canvas text rendering performance** — Profile and optimize `canvas-text.ts` for repos with 100+ files. Current rendering creates a canvas per card; consider shared atlas or WebGL text rendering for large repos.
+- [x] ~~**Keyboard shortcuts documentation**~~ — ✅ Already existed. `shortcuts-panel.ts` implements a `?` hotkey that opens a glassmorphism cheat sheet with 4 categories (Navigation, Selection, Cards, Tools). Wired in `page.client.tsx`, styled in `globals.css`.
+
+## 🟢 Priority: Features
+- [x] ~~**Git blame integration**~~ — ✅ Already existed. `loadBlameView()` in file-modal.tsx with caching, color-coded authors, time-ago timestamps. API endpoint at `/api/repo/git-blame` with porcelain parsing.
+- [ ] **PR review mode** — Add ability to leave inline comments on diff lines (stored in localStorage or synced via WebSocket for collaborative review).
+- [ ] **Multi-repo workspace** — Support loading and switching between multiple repositories in a single canvas session (currently only one repo at a time).
 
 ## 📝 Architecture Notes
 - **Canvas//DOM split**: Canvas text for cards, DOM for popup previews & modals

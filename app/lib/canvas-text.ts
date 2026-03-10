@@ -30,6 +30,17 @@ export class CanvasTextRenderer {
     private gutterLeft: number = 6;
     private lineNumWidth: number = 42;
     private get contentX() { return this.gutterLeft + this.lineNumWidth; }
+    /** Cached DPR to avoid reading window.devicePixelRatio every frame */
+    private _dpr: number = 1;
+    /** Cached number of digits for line numbers */
+    private _numDigits: number = 3;
+    /** Pre-computed padded line number strings (avoids String+padStart per line per frame) */
+    private _lineNumStrings: string[] = [];
+    /** Cached gradient for long-line fade (recreated only on resize) */
+    private _longLineGrad: CanvasGradient | null = null;
+    private _longLineGradW: number = 0;
+    /** rAF batching — only one render per animation frame */
+    private _rafId: number = 0;
 
     constructor(container: HTMLElement, options: CanvasTextOptions) {
         this.options = options;
@@ -78,18 +89,21 @@ export class CanvasTextRenderer {
         this.canvas.style.pointerEvents = 'none';
 
         // High DPI support
-        const dpr = window.devicePixelRatio || 1;
+        this._dpr = window.devicePixelRatio || 1;
         const rect = container.getBoundingClientRect();
-        this.canvas.width = rect.width * dpr;
-        this.canvas.height = rect.height * dpr;
+        this.canvas.width = rect.width * this._dpr;
+        this.canvas.height = rect.height * this._dpr;
         this.canvas.style.height = `${rect.height}px`;
 
         this.ctx = this.canvas.getContext('2d')!;
-        this.ctx.scale(dpr, dpr);
+        this.ctx.scale(this._dpr, this._dpr);
 
         // Setup font
         this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
         this.ctx.textBaseline = 'top';
+
+        // Pre-compute padded line number strings for all drawn lines
+        this._cacheLineNumStrings();
 
         // Ensure container is a positioned scroll parent
         container.style.position = 'relative';
@@ -155,17 +169,19 @@ export class CanvasTextRenderer {
         const resizeObserver = new ResizeObserver((entries) => {
             for (const entry of entries) {
                 const r = entry.contentRect;
-                this.canvas.width = r.width * dpr;
-                this.canvas.height = r.height * dpr;
+                this.canvas.width = r.width * this._dpr;
+                this.canvas.height = r.height * this._dpr;
                 this.canvas.style.width = `${r.width}px`;
                 this.canvas.style.height = `${r.height}px`;
                 this.viewportHeight = r.height;
                 this.viewportWidth = r.width;
                 // Reset transform to identity before re-applying DPR scale
                 // (prevents compounding on repeated resize events)
-                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                this.ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
                 this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
                 this.ctx.textBaseline = 'top';
+                // Invalidate cached gradient on resize
+                this._longLineGrad = null;
                 this._updateScrollTrack();
                 this.render();
             }
@@ -194,6 +210,8 @@ export class CanvasTextRenderer {
                     shim.style.width = `${Math.max(this.maxLineWidth, this.viewportWidth)}px`;
                 }
                 this._updateScrollTrack();
+                this._cacheLineNumStrings();
+                this._longLineGrad = null;
                 this.render();
             }
         }) as EventListener);
@@ -206,9 +224,17 @@ export class CanvasTextRenderer {
         const maxNum = this.drawnLines.length > 0
             ? this.drawnLines[this.drawnLines.length - 1].num
             : 1;
-        const digits = Math.max(3, String(maxNum).length);
+        this._numDigits = Math.max(3, String(maxNum).length);
         // gutter = diff marker (6px) + line num chars + padding (12px)
-        this.lineNumWidth = digits * this.charWidth + 12;
+        this.lineNumWidth = this._numDigits * this.charWidth + 12;
+    }
+
+    /** Pre-compute padded line number strings to avoid per-frame allocation */
+    private _cacheLineNumStrings() {
+        this._lineNumStrings = new Array(this.drawnLines.length);
+        for (let i = 0; i < this.drawnLines.length; i++) {
+            this._lineNumStrings[i] = String(this.drawnLines[i].num).padStart(this._numDigits, ' ');
+        }
     }
 
     /** Build a custom scrollbar track on the right side */
@@ -713,11 +739,21 @@ export class CanvasTextRenderer {
         return 1;
     }
 
+    /** Schedule a render on the next animation frame (batches multiple scroll events) */
     private render() {
+        if (this._rafId) return; // already scheduled
+        this._rafId = requestAnimationFrame(() => {
+            this._rafId = 0;
+            this._renderImmediate();
+        });
+    }
+
+    /** Force an immediate render (bypasses rAF batching — use for hunk flash) */
+    private _renderImmediate() {
         if (!this.ctx) return;
 
-        const w = this.canvas.width / (window.devicePixelRatio || 1);
-        const h = this.canvas.height / (window.devicePixelRatio || 1);
+        const w = this.canvas.width / this._dpr;
+        const h = this.canvas.height / this._dpr;
 
         this.ctx.clearRect(0, 0, w, h);
 
@@ -726,76 +762,76 @@ export class CanvasTextRenderer {
 
         // Left gutter width for diff markers
         const diffGutterW = this.gutterLeft;
-        const numDigits = Math.max(3, String(this.drawnLines.length > 0 ? this.drawnLines[this.drawnLines.length - 1].num : 1).length);
+
+        // Cache long-line gradient (recreated only on width change)
+        if (!this._longLineGrad || this._longLineGradW !== w) {
+            this._longLineGrad = this.ctx.createLinearGradient(w - 30, 0, w, 0);
+            this._longLineGrad.addColorStop(0, 'transparent');
+            this._longLineGrad.addColorStop(1, 'rgba(15, 15, 25, 0.8)');
+            this._longLineGradW = w;
+        }
+
+        // Hoist hot lookups outside the loop
+        const { isAllAdded, isAllDeleted, addedLines, deletedBeforeLine } = this.options;
+        const lh = this.lineHeight;
+        const cx = this.contentX;
+        const scrollTop = this.scrollTop;
+        const highlightHunk = this._highlightedHunkIdx >= 0 && this._highlightedHunkIdx < this.hunkRanges.length
+            ? this.hunkRanges[this._highlightedHunkIdx]
+            : null;
 
         for (let i = startIndex; i < endIndex; i++) {
-            const y = (i * this.lineHeight) - this.scrollTop;
+            const y = (i * lh) - scrollTop;
             const lineData = this.drawnLines[i];
-            const isAdded = this.options.isAllAdded || (this.options.addedLines && this.options.addedLines.has(lineData.num));
-            const isDeleted = this.options.isAllDeleted;
-            const hasDelBefore = this.options.deletedBeforeLine && this.options.deletedBeforeLine.has(lineData.num);
+            const lineNum = lineData.num;
+            const isAdded = isAllAdded || (addedLines && addedLines.has(lineNum));
+            const hasDelBefore = deletedBeforeLine && deletedBeforeLine.has(lineNum);
 
             // Background highlight
             if (isAdded) {
-                this.ctx.fillStyle = 'rgba(46, 160, 67, 0.15)'; // diff-add bg
-                this.ctx.fillRect(0, y, w, this.lineHeight);
-                // Left gutter marker (green bar)
+                this.ctx.fillStyle = 'rgba(46, 160, 67, 0.15)';
+                this.ctx.fillRect(0, y, w, lh);
                 this.ctx.fillStyle = 'rgba(46, 160, 67, 0.8)';
-                this.ctx.fillRect(0, y, diffGutterW, this.lineHeight);
-            } else if (isDeleted) {
-                this.ctx.fillStyle = 'rgba(248, 81, 73, 0.15)'; // diff-del bg
-                this.ctx.fillRect(0, y, w, this.lineHeight);
-                // Left gutter marker (red bar)
+                this.ctx.fillRect(0, y, diffGutterW, lh);
+            } else if (isAllDeleted) {
+                this.ctx.fillStyle = 'rgba(248, 81, 73, 0.15)';
+                this.ctx.fillRect(0, y, w, lh);
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 0.8)';
-                this.ctx.fillRect(0, y, diffGutterW, this.lineHeight);
+                this.ctx.fillRect(0, y, diffGutterW, lh);
             }
 
             // Navigation highlight flash (when using ▲/▼ buttons)
-            if (this._highlightedHunkIdx >= 0 && this._highlightedHunkIdx < this.hunkRanges.length) {
-                const hl = this.hunkRanges[this._highlightedHunkIdx];
-                if (i >= hl.startIdx && i <= hl.endIdx) {
-                    const flashColor = hl.type === 'add'
-                        ? 'rgba(46, 160, 67, 0.3)'
-                        : 'rgba(248, 81, 73, 0.3)';
-                    this.ctx.fillStyle = flashColor;
-                    this.ctx.fillRect(0, y, w, this.lineHeight);
-                }
+            if (highlightHunk && i >= highlightHunk.startIdx && i <= highlightHunk.endIdx) {
+                this.ctx.fillStyle = highlightHunk.type === 'add'
+                    ? 'rgba(46, 160, 67, 0.3)'
+                    : 'rgba(248, 81, 73, 0.3)';
+                this.ctx.fillRect(0, y, w, lh);
             }
 
             // Deleted-before marker (red triangle indicator)
             if (hasDelBefore) {
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 1)';
-                // Draw a small red wedge at the top of this line
                 this.ctx.fillRect(0, y, diffGutterW, 3);
-                // Draw a wider indicator line across
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 0.4)';
                 this.ctx.fillRect(diffGutterW, y, w - diffGutterW, 1);
             }
 
-            // Line numbers (fixed position, not affected by horizontal scroll)
-            this.ctx.fillStyle = '#6e7681'; // muted text
-            const numStr = String(lineData.num).padStart(numDigits, ' ');
-            this.ctx.fillText(numStr, diffGutterW + 2, y + 4);
+            // Line numbers (pre-computed string, no per-frame allocation)
+            this.ctx.fillStyle = '#6e7681';
+            this.ctx.fillText(this._lineNumStrings[i], diffGutterW + 2, y + 4);
 
-            // Content (no horizontal scroll — hover popup handles long lines)
-            this.ctx.fillStyle = isAdded ? '#7ee787' : isDeleted ? '#ffa198' : '#c9d1d9';
-            this.ctx.fillText(lineData.content, this.contentX, y + 4);
+            // Content
+            this.ctx.fillStyle = isAdded ? '#7ee787' : isAllDeleted ? '#ffa198' : '#c9d1d9';
+            this.ctx.fillText(lineData.content, cx, y + 4);
 
-            // Long line indicator (fade gradient at right edge)
-            const contentWidth = this.contentX + lineData.content.length * this.charWidth;
+            // Long line indicator (cached gradient)
+            const contentWidth = cx + lineData.content.length * this.charWidth;
             if (contentWidth > w) {
-                const grad = this.ctx.createLinearGradient(w - 30, 0, w, 0);
-                grad.addColorStop(0, 'transparent');
-                grad.addColorStop(1, 'rgba(15, 15, 25, 0.8)');
-                this.ctx.fillStyle = grad;
-                this.ctx.fillRect(w - 30, y, 30, this.lineHeight);
-
-                // Right-edge tick to signal more content
+                this.ctx.fillStyle = this._longLineGrad!;
+                this.ctx.fillRect(w - 30, y, 30, lh);
                 this.ctx.fillStyle = 'rgba(124, 58, 237, 0.4)';
-                this.ctx.fillRect(w - 3, y + 3, 2, this.lineHeight - 6);
+                this.ctx.fillRect(w - 3, y + 3, 2, lh - 6);
             }
         }
-
-        // (horizontal scroll indicator removed — long lines use hover popup)
     }
 }
