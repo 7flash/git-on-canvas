@@ -1709,6 +1709,63 @@ body {
     box-shadow: var(--shadow-md), 0 0 20px rgba(96, 165, 250, 0.15);
 }
 
+/* ── Card corner status indicators ──
+   Colored dots on the top-right corner of each card,
+   visible even at low zoom levels. */
+.file-card--added::after,
+.file-card--modified::after,
+.file-card--deleted::after,
+.file-card--renamed::after,
+.file-card--copied::after,
+.file-card--changed::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: 0 0 6px currentColor;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.file-card--added::after {
+    background: rgb(34, 197, 94);
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.6);
+}
+
+.file-card--modified::after {
+    background: rgb(234, 179, 8);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.6);
+}
+
+.file-card--deleted::after {
+    background: rgb(239, 68, 68);
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.file-card--renamed::after {
+    background: rgb(167, 139, 250);
+    box-shadow: 0 0 8px rgba(167, 139, 250, 0.6);
+}
+
+.file-card--copied::after {
+    background: rgb(96, 165, 250);
+    box-shadow: 0 0 8px rgba(96, 165, 250, 0.6);
+}
+
+.file-card--changed::after {
+    background: rgb(56, 189, 248);
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+
+/* Enlarge indicator on card hover for emphasis */
+.file-card:hover::after {
+    transform: scale(1.4);
+}
+
 .file-rename-path {
     font-family: var(--font-mono);
     font-size: 0.68rem;
