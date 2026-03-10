@@ -145,6 +145,9 @@ export default function mount(): () => void {
                 updateZoomUI(ctx);
 
                 if (!disposed) {
+                    import('./lib/pr-review').then(({ initReviewStore }) => {
+                        initReviewStore(hashValue);
+                    });
                     loadRepository(ctx, resolvedPath);
                     updateFavoriteStar(resolvedPath);
                 }
@@ -173,6 +176,9 @@ export default function mount(): () => void {
 
                     // Actually load the repo data
                     if (!disposed) {
+                        import('./lib/pr-review').then(({ initReviewStore }) => {
+                            initReviewStore(savedSlug);
+                        });
                         loadRepository(ctx, saved);
                     }
                 }
