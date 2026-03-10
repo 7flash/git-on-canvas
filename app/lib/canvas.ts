@@ -297,7 +297,15 @@ export function jumpToFile(ctx: CanvasContext, filePath: string) {
             cardW = entry.size?.width || 580;
             cardH = entry.size?.height || 700;
         } else {
-            return; // File not found
+            // File not on current layer — try switching to its layer
+            import('./layers').then(({ navigateToFileInLayer }) => {
+                const switched = navigateToFileInLayer(ctx, filePath);
+                if (switched) {
+                    // Layer switched and canvas re-rendered — retry jump after re-render settles
+                    setTimeout(() => jumpToFile(ctx, filePath), 500);
+                }
+            });
+            return;
         }
 
         const vpRect = ctx.canvasViewport.getBoundingClientRect();
