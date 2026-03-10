@@ -169,6 +169,25 @@ export function setActiveLayer(ctx: CanvasContext, id: string) {
     localStorage.setItem(`gitcanvas:activeLayer:${ctx.snap().context.repoPath}`, id);
     renderLayersUI(ctx);
     applyLayer(ctx);
+
+    // User feedback
+    const layer = layerState.layers.find(l => l.id === id);
+    if (layer && id !== 'default') {
+        const fileCount = Object.keys(layer.files).length;
+        if (fileCount === 0) {
+            import('./utils').then(m => m.showToast(
+                `Layer "${layer.name}" is empty — right-click cards to move them here`,
+                'info'
+            ));
+        } else {
+            import('./utils').then(m => m.showToast(
+                `Switched to "${layer.name}" (${fileCount} files)`,
+                'info'
+            ));
+        }
+    } else if (id === 'default') {
+        import('./utils').then(m => m.showToast('Switched to All Files', 'info'));
+    }
 }
 
 export function getActiveLayer(): LayerData | null {

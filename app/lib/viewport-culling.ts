@@ -233,7 +233,7 @@ function isCardVisible(card: HTMLElement, worldRect: { left: number; top: number
 /**
  * Remove all pill placeholders from the canvas.
  */
-function clearAllPills(ctx: CanvasContext) {
+export function clearAllPills(ctx: CanvasContext) {
     for (const [, pill] of pillCards) {
         pill.remove();
     }
@@ -704,7 +704,7 @@ export function setupPillInteraction(ctx: CanvasContext) {
 /**
  * Update pill selection highlights based on XState selectedCards.
  */
-function updatePillSelectionHighlights(ctx: CanvasContext) {
+export function updatePillSelectionHighlights(ctx: CanvasContext) {
     const selected = ctx.snap().context.selectedCards;
     for (const [path, pill] of pillCards) {
         if (selected.includes(path)) {

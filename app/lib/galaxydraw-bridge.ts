@@ -260,6 +260,18 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
 
     _cardManager.clear();
 
+    // Also clear existing DOM cards, pills, and deferred state
+    // Without this, layer switching leaves orphaned elements
+    ctx.fileCards.forEach(card => card.remove());
+    ctx.fileCards.clear();
+    ctx.deferredCards.clear();
+    ctx.canvas?.querySelectorAll('.dir-label').forEach(el => el.remove());
+    ctx.canvas?.querySelectorAll('.file-pill').forEach(el => el.remove());
+    // Clear pill tracking Map
+    const { clearAllPills } = require('./viewport-culling');
+    clearAllPills(ctx);
+    if (ctx.svgOverlay) ctx.svgOverlay.innerHTML = '';
+
     const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
     updateHiddenUI(ctx);
 

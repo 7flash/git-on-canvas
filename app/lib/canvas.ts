@@ -5,7 +5,7 @@
 import { measure } from 'measure-fn';
 import { updateStatusBarZoom } from './status-bar';
 import type { CanvasContext } from './context';
-import { scheduleViewportCulling, uncullAllCards, markTransformActive } from './viewport-culling';
+import { scheduleViewportCulling, uncullAllCards, markTransformActive, clearAllPills } from './viewport-culling';
 import { getGalaxyDrawState } from './galaxydraw-bridge';
 
 // ─── Minimap cached state (avoids full rebuild on every pan/zoom) ──
@@ -549,6 +549,8 @@ export function clearCanvas(ctx: CanvasContext) {
     ctx.fileCards.forEach(card => card.remove());
     ctx.fileCards.clear();
     ctx.canvas?.querySelectorAll('.dir-label').forEach(el => el.remove());
+    // Clear pill placeholders (zoomed-out view) — clears both DOM and internal Map
+    clearAllPills(ctx);
     if (ctx.svgOverlay) ctx.svgOverlay.innerHTML = '';
 }
 

@@ -27,6 +27,7 @@ import { createLayer, getActiveLayer, addSectionToLayer } from './layers';
 import { updateCanvasTransform, updateZoomUI, updateMinimap, fitAllFiles, setupMinimapClick } from './canvas';
 import { zoomTowardScreen, panByDelta, screenToWorld, getCardManager } from './galaxydraw-bridge';
 import { hideSelectedFiles, showHiddenFilesModal as showHiddenModal } from './hidden-files';
+import { updatePillSelectionHighlights } from './viewport-culling';
 import { clearSelectionHighlights, updateSelectionHighlights, updateArrangeToolbar, arrangeRow, arrangeColumn, arrangeGrid, toggleCardExpand, fitScreenSize, changeCardsFontSize } from './cards';
 import { loadRepository, rerenderCurrentView, selectCommit } from './repo';
 import { toggleCanvasChat } from './chat';
@@ -236,6 +237,7 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                     rafPendingSelect = true;
                     requestAnimationFrame(() => {
                         rafPendingSelect = false;
+                        // Highlight DOM cards
                         ctx.fileCards.forEach((card, path) => {
                             const cx = parseFloat(card.style.left) || 0;
                             const cy = parseFloat(card.style.top) || 0;
@@ -244,6 +246,26 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                             const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
                             card.classList.toggle('selected', overlaps);
                         });
+                        // Also highlight pill cards (zoomed out)
+                        const pillEls = ctx.canvas?.querySelectorAll('.file-pill') as NodeListOf<HTMLElement>;
+                        if (pillEls) {
+                            pillEls.forEach(pill => {
+                                const cx = parseFloat(pill.style.left) || 0;
+                                const cy = parseFloat(pill.style.top) || 0;
+                                const cw = parseFloat(pill.style.width) || 580;
+                                const ch = parseFloat(pill.style.height) || 700;
+                                const overlaps = cx + cw > rx && cx < rx + rw && cy + ch > ry && cy < ry + rh;
+                                if (overlaps) {
+                                    pill.style.outline = '8px solid rgba(124, 58, 237, 1)';
+                                    pill.style.outlineOffset = '6px';
+                                    pill.style.filter = 'brightness(1.3)';
+                                } else {
+                                    pill.style.outline = '';
+                                    pill.style.outlineOffset = '';
+                                    pill.style.filter = '';
+                                }
+                            });
+                        }
                     });
                 }
             }
@@ -299,7 +321,7 @@ export function setupCanvasInteraction(ctx: CanvasContext) {
                         ctx.actor.send({ type: 'DESELECT_ALL' });
                     }
 
-                    updateSelectionHighlights(ctx);
+                    updatePillSelectionHighlights(ctx);
                     updateArrangeToolbar(ctx);
 
                     selectionRect.remove();
@@ -745,6 +767,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 // Deselect all cards
                 ctx.actor.send({ type: 'DESELECT_ALL' });
                 clearSelectionHighlights(ctx);
+                updatePillSelectionHighlights(ctx);
                 updateArrangeToolbar(ctx);
             }
 
@@ -793,7 +816,13 @@ export function setupEventListeners(ctx: CanvasContext) {
                 ctx.fileCards.forEach((card, path) => {
                     ctx.actor.send({ type: 'SELECT_CARD', path, shift: true });
                 });
-                updateSelectionHighlights(ctx);
+                // Also select deferred cards (pill mode at low zoom)
+                if (ctx.deferredCards) {
+                    for (const [path] of ctx.deferredCards) {
+                        ctx.actor.send({ type: 'SELECT_CARD', path, shift: true });
+                    }
+                }
+                updatePillSelectionHighlights(ctx);
                 updateArrangeToolbar(ctx);
             }
 
@@ -1026,7 +1055,7 @@ function openFileSearch(ctx: CanvasContext) {
         card.classList.add('card-flash');
         setTimeout(() => card.classList.remove('card-flash'), 1500);
         ctx.actor.send({ type: 'SELECT_CARD', path, shift: false });
-        updateSelectionHighlights(ctx);
+        updatePillSelectionHighlights(ctx);
         updateArrangeToolbar(ctx);
 
         if (line) {
