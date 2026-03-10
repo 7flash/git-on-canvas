@@ -7641,3 +7641,16 @@ body {
     border-radius: 2px;
     padding: 0 1px;
 }
+
+/* ─── Dependency Graph Toggle ─────────────────────────── */
+#dep-graph-btn.active {
+    background: rgba(168, 130, 255, 0.18);
+    color: #a882ff;
+    box-shadow: 0 0 8px rgba(168, 130, 255, 0.2);
+}
+
+.dependency-graph-edges line,
+.dependency-graph-edges path {
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}

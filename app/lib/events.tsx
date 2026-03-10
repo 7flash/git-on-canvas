@@ -494,6 +494,15 @@ export function setupEventListeners(ctx: CanvasContext) {
             }, 2000);
         }
 
+        // Dependency graph toggle (button is in layout.tsx toolbar)
+        const depBtn = document.getElementById('dep-graph-btn');
+        if (depBtn) {
+            depBtn.addEventListener('click', () => {
+                import('./dependency-graph').then(m => m.toggleDependencyGraph(ctx));
+            });
+        }
+        import('./dependency-graph').then(m => m.setupDependencyGraphShortcut(ctx));
+
         // Repo dropdown selector
         const repoSelect = document.getElementById('repoSelect') as HTMLSelectElement;
         if (repoSelect) {

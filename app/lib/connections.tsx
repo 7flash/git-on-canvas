@@ -955,7 +955,7 @@ export async function autoDetectImports(ctx: CanvasContext) {
     return measure('connections:autoDetect', async () => {
         const state = ctx.snap().context;
         const repoPath = state.repoPath;
-        const commit = state.selectedCommit || 'HEAD';
+        const commit = state.currentCommitHash || 'HEAD';
 
         if (!repoPath) {
             _showStatus('No repo loaded');

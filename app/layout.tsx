@@ -190,6 +190,13 @@ export default function RootLayout({ children }: { children: any }) {
                                         <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
                                     </svg>
                                 </button>
+                                <button id="dep-graph-btn" className="btn-ghost btn-sm" title="Toggle dependency graph (Ctrl+G)">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="5" cy="5" r="2.5" /><circle cx="19" cy="5" r="2.5" />
+                                        <circle cx="12" cy="19" r="2.5" /><line x1="7" y1="6" x2="17" y2="6" />
+                                        <line x1="6" y1="7" x2="11" y2="17" /><line x1="18" y1="7" x2="13" y2="17" />
+                                    </svg>
+                                </button>
                                 <button id="toggleCanvasText" className="btn-ghost btn-sm" title="Toggle text rendering mode (DOM vs WebGL/Canvas)">
                                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <polyline points="4 7 4 4 20 4 20 7" />

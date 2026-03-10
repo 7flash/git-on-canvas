@@ -8,7 +8,7 @@
 - [x] ~~**Canvas AI panel UX**~~ — ✅ DONE. Panel now resizable (`resize: horizontal`, 240–600px range) with `direction: rtl` trick for left-side resize handle. Users can shrink the panel to just 240px or expand to 600px.
 
 ## 🟢 Priority: Features
-- [ ] **File dependency graph view** — Visualize import relationships as a force-directed graph layout. Users could toggle between spatial layout and dependency graph.
+- [x] ~~**File dependency graph view**~~ — ✅ DONE. `dependency-graph.ts` fetches imports from `/api/repo/imports`, builds force-directed layout (custom spring-charge model with center gravity), animates cards to graph positions, renders curved SVG dependency edges with arrowheads. Toggle via toolbar button or Ctrl+G. Restores spatial layout on toggle off.
 - [x] ~~**Quick file switcher (Ctrl+P)**~~ — ✅ DONE. Already existed as `command-palette.ts` (Ctrl+K/Ctrl+O). Added Ctrl+P as additional VS Code-style shortcut. Updated shortcuts panel with accurate keybindings, removed stale entries (I, /).
 - [x] ~~**Card minimap indicator**~~ — ✅ DONE. CSS-only `::after` pseudo-elements on status cards. 10px colored dots (green=added, yellow=modified, red=deleted, purple=renamed, blue=changed) with glow shadows. Scale 1.4x on hover.
 - [x] ~~**Sticky zoom controls**~~ — ✅ DONE. Glassmorphism floating pill in bottom-right with zoom ±, slider, percentage, and fit-all button. Always visible, synced with sidebar controls.
