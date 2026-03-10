@@ -58,14 +58,24 @@
 - [x] ~~**Search: jump to file instead of editor**~~ — ✅ DONE. Clicking a search result navigates to the card on canvas (with layer switch) and scrolls to the matching line.
 - [x] ~~**Search: persist state**~~ — ✅ DONE. Panel hides instead of destroying on result click, restoring query/results when reopened.
 
+## 🔴 Priority: Fix
+- [ ] **Changed files panel empty** — After selecting a commit, the changed files panel shows nothing. Needs investigation: may be a data flow issue where `populateChangedFilesPanel()` isn’t called, or `ctx.commitFilesData` is stale after re-renders.
+- [ ] **Connections creation UX broken** — When creating a connection, clicking a line in a file shows a comment popup instead of selecting the line for the connection endpoint. The entire comment feature is unused/useless and should be removed. Connections are the core feature — they’re what ties the dimensional space together.
+- [ ] **Wheel event hijacking** — The `onViewportWheel` handler in `file-preview.ts` uses `{ passive: false }` + `preventDefault()` when popup is visible. This blocks ALL canvas zooming when a preview popup is shown. Need to only intercept when mouse is actually near/over the popup.
+
 ## 🟡 Open Tasks
+- [x] ~~**File preview: popup visibility**~~ — ✅ DONE. Root cause: cards in pill mode have `display:none`, cloning them produced zero-size popup. Added `display:block` to cloned card.
+- [x] ~~**File preview: scrollable content**~~ — ✅ DONE. Popup stays stationary (no cursor-chasing), wheel events forwarded from viewport to popup when preview is visible.
 - [ ] **Dependency graph view** — The file dependency visualization was started (conversation 49e5cd72) but may need polish. Verify the force-directed graph layout, SVG connection rendering, and toggle button work end-to-end.
-- [ ] **File preview: scrollable content** — When hovering pills in zoomed-out mode, the preview popup should be scrollable so users can read through long files without zooming in.
 - [ ] **Production SaaS deploy** — Set up production deployment (Vercel/Fly.io/VPS). Currently only runs locally on port 3335.
 - [ ] **Card groups: directory collapse** — Card grouping (conversation f41ada72) collapses directories into summary cards. Verify persistence and expand/collapse animations work smoothly.
+- [ ] **Remove comment feature** — The line-comment popups are useless and interfere with connection creation. Strip the comment UI entirely.
+- [ ] **URL routing: use owner/repo format** — Currently uses `#starwar` slug from folder name. Should use `/7flash/starwar` or `#7flash/starwar` to match GitHub convention. The slug→path mapping via localStorage is fragile.
+- [ ] **Remove SQLite tables for connections/positions** — Connections and positions are already stored in localStorage. Clean up any leftover server-side SQLite tables/APIs that are no longer used.
 
 ## 📌 Future Ideas
-- [ ] 🟢 **Shared layout sessions** — Replace current cursor tracking (broken: each user has own layout). Instead: share a link with unique session ID → recipients join read-only view of your layout. They can see your cursor but can't move files. This makes collaborative browsing meaningful.
+- [ ] 🟢 **Shared layout sessions** — Replace current cursor tracking (broken: each user has own layout). Instead: share a link with unique session ID → recipients join read-only view of your layout. They can see your cursor but can’t move files. This makes collaborative browsing meaningful.
+- [ ] 🟢 **Landing page: dimensional metaphor** — Explain GitMaps as a dimensional navigation system: files are 1D (lines of code), canvas is 2D (spatial layout), layers are 3D (z-axis focus), connections let you navigate through this 3D space, and git/time is the 4th dimension. Like literally tying files together through the z-axis of layers.
 
 ## 📝 Architecture Notes
 - **Dev server**: `bgrun --name galaxy-canvas --command "bun run dev" --directory "c:\Code\galaxy-canvas"` on port 3335
