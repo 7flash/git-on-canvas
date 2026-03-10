@@ -27,6 +27,10 @@ export interface GitCanvasSettings {
     theme: 'dark' | 'light';
     /** Font size for hover popup (px) */
     popupFontSize: number;
+    /** Git heatmap overlay enabled */
+    heatmapEnabled: boolean;
+    /** Heatmap time range in days */
+    heatmapDays: number;
 }
 
 const DEFAULTS: GitCanvasSettings = {
@@ -40,6 +44,8 @@ const DEFAULTS: GitCanvasSettings = {
     autoDetectImports: false,
     theme: 'dark',
     popupFontSize: 14,
+    heatmapEnabled: false,
+    heatmapDays: 90,
 };
 
 let _settings: GitCanvasSettings | null = null;

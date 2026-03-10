@@ -4,6 +4,7 @@
  * Cold files (rarely changed) stay blue/gray.
  * Toggle with 'H' hotkey or toolbar button.
  */
+import { getSetting } from './settings';
 
 // ─── Types ──────────────────────────────────────────
 
@@ -114,7 +115,8 @@ export async function toggleHeatmap(repoPath: string): Promise<boolean> {
 
     if (state.active) {
         if (state.data.length === 0) {
-            await fetchHeatmap(repoPath);
+            const days = getSetting('heatmapDays');
+            await fetchHeatmap(repoPath, days);
         }
         applyOverlay();
     } else {
@@ -130,7 +132,8 @@ export function isHeatmapActive(): boolean {
 
 /** Refresh heatmap data and re-apply if active */
 export async function refreshHeatmap(repoPath: string): Promise<void> {
-    await fetchHeatmap(repoPath);
+    const days = getSetting('heatmapDays');
+    await fetchHeatmap(repoPath, days);
     if (state.active) {
         removeOverlay();
         applyOverlay();

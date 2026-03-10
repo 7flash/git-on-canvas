@@ -735,6 +735,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                         import('./heatmap').then(async ({ toggleHeatmap, injectHeatmapCSS }) => {
                             injectHeatmapCSS();
                             const active = await toggleHeatmap(repoPath);
+                            import('./settings').then(({ updateSettings }) => updateSettings({ heatmapEnabled: active }));
                             import('./utils').then(m => m.showToast(
                                 active ? '🔥 Heatmap ON — hot files glow red' : 'Heatmap OFF',
                                 'info'

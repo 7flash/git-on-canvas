@@ -129,6 +129,17 @@ function SettingsPanel({ settings }: { settings: GitCanvasSettings }) {
                     </SettingsRow>
                 </SettingsSection>
 
+                {/* Visualization Section */}
+                <SettingsSection title="Visualization">
+                    <SettingsRow label="Git Heatmap" desc="Color-code cards by commit frequency (H key)">
+                        <Switch id="settingHeatmap" checked={settings.heatmapEnabled} />
+                    </SettingsRow>
+                    <SettingsRow label="Heatmap Range" desc="Time range for commit activity">
+                        <Slider id="settingHeatmapDays" valueId="heatmapDaysValue"
+                            min={7} max={365} step={7} value={settings.heatmapDays} suffix=" days" />
+                    </SettingsRow>
+                </SettingsSection>
+
                 {/* Advanced Section */}
                 <SettingsSection title="Advanced">
                     <SettingsRow label="Max Visible Lines" desc="Lines shown per card before virtual scroll">
@@ -250,6 +261,37 @@ export function openSettingsModal(ctx?: any) {
     const autoImportsSwitch = _modal.querySelector('#settingAutoImports') as HTMLInputElement;
     autoImportsSwitch?.addEventListener('change', () => {
         updateSettings({ autoDetectImports: autoImportsSwitch.checked });
+    });
+
+    // Wire heatmap switch
+    const heatmapSwitch = _modal.querySelector('#settingHeatmap') as HTMLInputElement;
+    heatmapSwitch?.addEventListener('change', () => {
+        updateSettings({ heatmapEnabled: heatmapSwitch.checked });
+        const repoPath = ctx?.snap?.()?.context?.repoPath;
+        if (repoPath) {
+            import('./heatmap').then(async ({ toggleHeatmap, injectHeatmapCSS, isHeatmapActive }) => {
+                injectHeatmapCSS();
+                // Only toggle if state differs from setting
+                if (heatmapSwitch.checked !== isHeatmapActive()) {
+                    await toggleHeatmap(repoPath);
+                }
+            });
+        }
+    });
+
+    // Wire heatmap days slider
+    const heatmapDaysSlider = _modal.querySelector('#settingHeatmapDays') as HTMLInputElement;
+    const heatmapDaysValue = _modal.querySelector('#heatmapDaysValue')!;
+    heatmapDaysSlider?.addEventListener('input', () => {
+        heatmapDaysValue.textContent = `${heatmapDaysSlider.value} days`;
+        updateSettings({ heatmapDays: parseInt(heatmapDaysSlider.value) });
+        const repoPath = ctx?.snap?.()?.context?.repoPath;
+        if (repoPath) {
+            import('./heatmap').then(async ({ refreshHeatmap, injectHeatmapCSS }) => {
+                injectHeatmapCSS();
+                await refreshHeatmap(repoPath);
+            });
+        }
     });
 
     // Wire reset
