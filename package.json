@@ -16,17 +16,32 @@
   "scripts": {
     "dev": "bun run server.ts",
     "start": "bun run server.ts",
-    "test": "bun test app/lib/galaxydraw.test.ts packages/galaxydraw/perf.test.ts"
+    "test": "bun test app/lib/galaxydraw.test.ts packages/galaxydraw/perf.test.ts",
+    "prepublishOnly": "echo 'Publishing gitmaps to npm'"
   },
   "keywords": [
     "git",
     "canvas",
     "visualization",
-    "repository"
+    "code-review",
+    "spatial",
+    "infinite-canvas",
+    "diff",
+    "repository",
+    "minimap",
+    "codemirror"
   ],
-  "author": "",
+  "author": "mements",
   "license": "ISC",
-  "description": "Visual Git Repository Explorer with interactive canvas",
+  "description": "Spatial code explorer — see every file at once on an infinite canvas with diffs, layers, and time-travel",
+  "files": [
+    "cli.ts",
+    "server.ts",
+    "app/",
+    "packages/galaxydraw/",
+    "README.md",
+    "banner.png"
+  ],
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.1",
     "@codemirror/commands": "^6.10.2",
@@ -43,7 +58,7 @@
     "@codemirror/state": "^6.5.4",
     "@codemirror/view": "^6.39.16",
     "@lezer/highlight": "^1.2.3",
-    "galaxydraw": "workspace:*",
+    "galaxydraw": "0.2.0",
     "jsx-ai": "0.1.2",
     "measure-fn": "3.10.1",
     "melina": "^2.5.0",
