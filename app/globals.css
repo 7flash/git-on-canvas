@@ -5078,7 +5078,7 @@ body {
     max-width: 400px;
 }
 
-/* Bottom Layers Bar */
+/* Bottom Layers Bar — auto-minimizes to avoid occluding cards */
 #layersBarContainer {
     position: absolute;
     bottom: 24px;
@@ -5086,6 +5086,22 @@ body {
     transform: translateX(-50%);
     z-index: 1000;
     pointer-events: auto;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* When not hovered, shrink to a compact indicator */
+#layersBarContainer:not(:hover) .layers-bar {
+    max-width: 160px;
+    overflow: hidden;
+    opacity: 0.5;
+    transition: max-width 0.3s ease, opacity 0.2s ease;
+}
+
+/* On hover, expand to full width */
+#layersBarContainer:hover .layers-bar {
+    max-width: 800px;
+    opacity: 1;
+    transition: max-width 0.3s ease, opacity 0.15s ease;
 }
 
 .layers-bar {

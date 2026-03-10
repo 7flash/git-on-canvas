@@ -475,6 +475,16 @@ function _ensureSvgDefs(svg: SVGSVGElement) {
     svg.insertBefore(defs, svg.firstChild);
 }
 
+// ─── Zoom-aware LOD helpers ─────────────────────────────
+function _getFileDir(filePath: string): string {
+    const parts = filePath.split('/');
+    return parts.length > 1 ? parts.slice(0, -1).join('/') : '';
+}
+
+function _isSameDirectory(fileA: string, fileB: string): boolean {
+    return _getFileDir(fileA) === _getFileDir(fileB);
+}
+
 // ─── Render all SVG connection lines ────────────────────
 export function renderConnections(ctx: CanvasContext) {
     if (!ctx.svgOverlay) return;
@@ -486,10 +496,39 @@ export function renderConnections(ctx: CanvasContext) {
 
     _ensureSvgDefs(ctx.svgOverlay);
 
+    // ── Zoom-aware LOD ──────────────────────────────────
+    // At low zoom, connections become visual noise. Apply progressive filtering:
+    //   zoom < 0.35  → only inter-directory connections, very faded
+    //   zoom 0.35–0.6 → all connections, same-dir connections fade in
+    //   zoom > 0.6   → everything at full visibility
+    const zoom = state.zoom || 1;
+    const FADE_LOW = 0.35;   // below this: only cross-dir connections
+    const FADE_HIGH = 0.6;   // above this: everything fully visible
+    const showLabels = zoom > 0.5; // labels unreadable below 50% anyway
+
     connections.forEach(conn => {
         const sourceCard = ctx.fileCards.get(conn.sourceFile);
         const targetCard = ctx.fileCards.get(conn.targetFile);
         if (!sourceCard || !targetCard) return;
+
+        // LOD: filter same-directory connections at low zoom
+        const sameDir = _isSameDirectory(conn.sourceFile, conn.targetFile);
+        if (sameDir && zoom < FADE_LOW) return; // skip entirely
+
+        // Compute opacity factor for this connection
+        let opacityFactor = 1;
+        if (sameDir && zoom < FADE_HIGH) {
+            // Smoothly fade same-dir connections between FADE_LOW and FADE_HIGH
+            opacityFactor = (zoom - FADE_LOW) / (FADE_HIGH - FADE_LOW);
+            opacityFactor = Math.max(0.08, Math.min(1, opacityFactor));
+        }
+        // All connections get slightly reduced opacity at very low zoom
+        if (zoom < FADE_LOW) {
+            opacityFactor *= 0.5;
+        }
+
+        // Scale stroke width inversely so lines don't bloat when zoomed out
+        const strokeScale = zoom < 1 ? Math.max(0.6, zoom) : 1;
 
         // Get canvas-space coordinates for the line endpoints
         const startPt = _getLinePoint(sourceCard, conn.sourceLineStart, 'right');
@@ -522,7 +561,7 @@ export function renderConnections(ctx: CanvasContext) {
         const glowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         glowPath.setAttribute('d', d);
         glowPath.setAttribute('stroke', '#a78bfa');
-        glowPath.setAttribute('stroke-width', '6');
+        glowPath.setAttribute('stroke-width', String(6 * strokeScale));
         glowPath.setAttribute('fill', 'none');
         glowPath.setAttribute('stroke-linejoin', 'round');
         glowPath.setAttribute('opacity', '0');
@@ -533,43 +572,46 @@ export function renderConnections(ctx: CanvasContext) {
         const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
         path.setAttribute('d', d);
         path.setAttribute('stroke', 'url(#conn-gradient)');
-        path.setAttribute('stroke-width', '2.5');
+        path.setAttribute('stroke-width', String(2.5 * strokeScale));
         path.setAttribute('stroke-linejoin', 'round');
         path.setAttribute('fill', 'none');
-        path.setAttribute('opacity', '0.25');
+        path.setAttribute('opacity', String(0.25 * opacityFactor));
         path.classList.add('conn-main-path');
         path.style.pointerEvents = 'none';
 
-        // Animated dash
-        const pathLength = _estimatePathLength(startPt, endPt);
-        path.setAttribute('stroke-dasharray', '8 4');
+        // Animated dash — scale dash pattern with zoom
+        const dashScale = Math.max(0.5, strokeScale);
+        path.setAttribute('stroke-dasharray', `${8 * dashScale} ${4 * dashScale}`);
 
         group.appendChild(path);
 
-        // Endpoint circles
-        const srcCircle = _makeEndpoint(startPt.x, startPt.y, '#a78bfa');
-        const tgtCircle = _makeEndpoint(endPt.x, endPt.y, '#60a5fa');
+        // Endpoint circles — scale radius with zoom
+        const endpointRadius = Math.max(3, 5 * strokeScale);
+        const srcCircle = _makeEndpoint(startPt.x, startPt.y, '#a78bfa', endpointRadius, opacityFactor);
+        const tgtCircle = _makeEndpoint(endPt.x, endPt.y, '#60a5fa', endpointRadius, opacityFactor);
         group.appendChild(srcCircle);
         group.appendChild(tgtCircle);
 
-        // Label badge at midpoint
-        const midX = (startPt.x + endPt.x) / 2;
-        const midY = (startPt.y + endPt.y) / 2 - (goingRight ? 0 : ctrlOffset * 0.3);
+        // Label badge at midpoint (skip at low zoom — unreadable)
+        if (showLabels) {
+            const midX = (startPt.x + endPt.x) / 2;
+            const midY = (startPt.y + endPt.y) / 2 - (goingRight ? 0 : ctrlOffset * 0.3);
 
-        const srcName = conn.sourceFile.split('/').pop() || '';
-        const tgtName = conn.targetFile.split('/').pop() || '';
-        const labelText = `${srcName}:${conn.sourceLineStart} → ${tgtName}:${conn.targetLineStart}`;
+            const srcName = conn.sourceFile.split('/').pop() || '';
+            const tgtName = conn.targetFile.split('/').pop() || '';
+            const labelText = `${srcName}:${conn.sourceLineStart} → ${tgtName}:${conn.targetLineStart}`;
 
-        const { group: labelGroup, deleteGroup } = _makeLabel(midX, midY, labelText);
-        labelGroup.classList.add('conn-label');
-        group.appendChild(labelGroup);
+            const { group: labelGroup, deleteGroup } = _makeLabel(midX, midY, labelText);
+            labelGroup.classList.add('conn-label');
+            group.appendChild(labelGroup);
 
-        // Delete button logic
-        deleteGroup.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            deleteConnection(ctx, conn.id);
-        });
+            // Delete button logic
+            deleteGroup.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                deleteConnection(ctx, conn.id);
+            });
+        }
 
         // Navigate on circle click
         srcCircle.addEventListener('click', (e) => {
@@ -597,14 +639,15 @@ export function renderConnections(ctx: CanvasContext) {
     });
 }
 
-function _makeEndpoint(x: number, y: number, color: string): SVGCircleElement {
+function _makeEndpoint(x: number, y: number, color: string, radius = 5, opacityFactor = 1): SVGCircleElement {
     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
     circle.setAttribute('cx', String(x));
     circle.setAttribute('cy', String(y));
-    circle.setAttribute('r', '5');
+    circle.setAttribute('r', String(radius));
     circle.setAttribute('fill', color);
     circle.setAttribute('stroke', 'rgba(0,0,0,0.5)');
     circle.setAttribute('stroke-width', '1');
+    if (opacityFactor < 1) circle.setAttribute('opacity', String(opacityFactor));
     circle.style.transition = 'r 0.15s ease';
     circle.style.pointerEvents = 'none';
     return circle;

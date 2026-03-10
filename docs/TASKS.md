@@ -1,17 +1,22 @@
 # GitMaps Tasks & Ideas
 
-## ✅ Completed
-- [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
+## 🔴 Priority: Fix
+- [x] ~~**Connection lines too dense at low zoom**~~ — ✅ DONE. Zoom-aware LOD in `renderConnections`: below 35% only cross-dir connections show, between 35-60% same-dir connections fade in proportionally. Stroke width, dash pattern, and endpoint radius scale inversely with zoom. Labels hidden below 50% (unreadable).
+
+## 🟡 Priority: Improve
+- [x] ~~**Layer bubble occludes cards**~~ — ✅ DONE. CSS auto-minimize: `max-width: 160px` + `opacity: 0.5` when not hovered, expands to full `800px` on `:hover` with smooth 300ms transitions. Reduces visual footprint by ~80% during normal canvas work.
+- [ ] **Canvas AI panel UX** — The AI chat panel covers ~25% of the canvas when open. Consider making it resizable, or a floating window that can be repositioned/minimized.
+
+## 🟢 Priority: Features
+- [ ] **File dependency graph view** — Visualize import relationships as a force-directed graph layout. Users could toggle between spatial layout and dependency graph.
+- [ ] **Quick file switcher (Ctrl+P)** — Fuzzy file finder like VS Code's Ctrl+P. Type to search across all files in the repo, Enter to navigate to the card.
 
 ## ✅ Completed
+- [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
 - [x] ~~**Settings modal JSX refactor**~~ — ✅ DONE. Converted from innerHTML string template to proper JSX components using melina/client render.
 - [x] ~~**Popup font size in settings**~~ — ✅ DONE. New `popupFontSize` setting (10-24px slider) reads from localStorage, live-updates popup on change.
 - [x] ~~**Cross-layer file navigation**~~ — ✅ DONE. `jumpToFile` now calls `navigateToFileInLayer` when file not found on current layer, switches layers and retries.
-
-## ✅ Completed
 - [x] ~~**Collaborative cursor sharing**~~ — ✅ DONE. WebSocket-based live presence via Bun pub/sub. Broadcasts canvas-space mouse coords at 50ms throttle. Remote cursors rendered as colored SVG pointers with name labels. 5s stale fade, 15s auto-remove. Positions sync with local viewport pan/zoom.
-
-## ✅ Completed
 - [x] ~~**Popup non-blocking**~~ — ✅ DONE. `pointer-events: none` so popup never blocks cursor movement to adjacent lines.
 - [x] ~~**Popup wheel scroll**~~ — ✅ DONE. When popup has overflowing content, wheel events scroll the popup instead of the card body.
 - [x] ~~**Double scrollbar fix**~~ — ✅ DONE. Hidden native scrollbar (`scrollbar-width: none`) since CanvasTextRenderer has its own custom scroll track.
@@ -47,16 +52,14 @@
 - [x] **Search across files** — Ctrl+Shift+F, git grep backend, slide-in panel
 - [x] **File creation** — Ctrl+N, `new-file-dialog.tsx`, templates by extension
 - [x] ~~**Branch switching**~~ — toolbar button, slide-out drawer, base/compare selects, diff summary
-
-## 🟡 Priority: Improve
-- [x] ~~**Canvas text rendering performance**~~ — ✅ DONE. 5 optimizations: (1) rAF batching — only one render per animation frame, (2) cached DPR as instance field, (3) pre-computed padded line number strings at init (eliminates O(visible) String+padStart allocations per frame), (4) cached long-line gradient — recreated only on resize (eliminates createLinearGradient per long line per frame), (5) hoisted options/lineHeight/contentX before loop.
-- [x] ~~**Keyboard shortcuts documentation**~~ — ✅ Already existed. `shortcuts-panel.ts` implements a `?` hotkey that opens a glassmorphism cheat sheet with 4 categories (Navigation, Selection, Cards, Tools). Wired in `page.client.tsx`, styled in `globals.css`.
-
-## 🟢 Priority: Features
-- [x] ~~**Git blame integration**~~ — ✅ Already existed. `loadBlameView()` in file-modal.tsx with caching, color-coded authors, time-ago timestamps. API endpoint at `/api/repo/git-blame` with porcelain parsing.
-- [x] ~~**PR review mode**~~ — ✅ DONE. `pr-review.ts` module with comment CRUD, localStorage persistence, glassmorphism comment thread popup. Canvas gutter click handler opens "💬 Line N" popup with input, resolve, and delete. Purple dot markers + count badges rendered in canvas gutter for lines with comments. Review store initialized per-repo. Browser verified on localhost:3335.
-- [x] ~~**Multi-repo workspace**~~ — ✅ Already existed. `multi-repo.ts` (287 lines): `registerRepo()` calculates bounding boxes, `getNextRepoOffset()` positions repos with 800px gaps, `renderRepoTabs()` creates color-coded tab switcher, `createZoneLabel()` renders floating zone labels. Wired into `repo.tsx` for automatic registration on load.
-- [x] ~~**Git heatmap visualization**~~ — ✅ DONE. `heatmap.ts` + `/api/repo/git-heatmap` API. Runs `git log --name-only --since=90d` to count commit frequency per file. Cards are color-coded cold (blue) → hot (red) via HSL gradient with glow effects. Fire emoji badges show commit counts. Toggle with `H` key (when no cards selected). CSS injected dynamically. Toast feedback.
+- [x] ~~**Canvas text rendering performance**~~ — ✅ DONE. 5 optimizations: (1) rAF batching, (2) cached DPR, (3) pre-computed padded line numbers, (4) cached long-line gradient, (5) hoisted options/lineHeight/contentX before loop.
+- [x] ~~**Keyboard shortcuts documentation**~~ — ✅ Already existed. `shortcuts-panel.ts` implements a `?` hotkey that opens a glassmorphism cheat sheet.
+- [x] ~~**Git blame integration**~~ — ✅ Already existed. `loadBlameView()` in file-modal.tsx with caching, color-coded authors, time-ago timestamps.
+- [x] ~~**PR review mode**~~ — ✅ DONE. `pr-review.ts` module with comment CRUD, localStorage persistence, glassmorphism comment thread popup.
+- [x] ~~**Multi-repo workspace**~~ — ✅ Already existed. `multi-repo.ts` (287 lines).
+- [x] ~~**Git heatmap visualization**~~ — ✅ DONE. `heatmap.ts` + `/api/repo/git-heatmap` API.
+- [x] ~~**File breadcrumbs navigation**~~ — ✅ DONE. `breadcrumbs.ts` renders file path as clickable segments with sibling dropdowns.
+- [x] ~~**Card grouping / directory collapse**~~ — ✅ DONE. `card-groups.ts` collapses directories into compact summary cards.
 
 ## 📝 Architecture Notes
 - **Canvas//DOM split**: Canvas text for cards, DOM for popup previews & modals
