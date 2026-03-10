@@ -135,6 +135,13 @@ export class CanvasTextRenderer {
             e.preventDefault();
             e.stopPropagation();
 
+            // If popup is visible and has overflowing content, scroll the popup
+            if (this.hoverPopup && this.hoverPopup.style.display === 'block' &&
+                this.hoverPopup.scrollHeight > this.hoverPopup.clientHeight) {
+                this.hoverPopup.scrollTop += e.deltaY;
+                return;
+            }
+
             const maxScrollY = (this.drawnLines.length * this.lineHeight) - this.viewportHeight;
 
             // Vertical scroll only
@@ -561,7 +568,7 @@ export class CanvasTextRenderer {
                     padding: 8px 12px;
                     max-width: 700px;
                     max-height: 300px;
-                    overflow: hidden;
+                    overflow: auto;
                     font-family: "JetBrains Mono", Consolas, monospace;
                     font-size: ${this.fontSize}px;
                     line-height: 1.4;
@@ -677,6 +684,15 @@ export class CanvasTextRenderer {
         if (idx < 0) return;
         const targetScroll = idx * this.lineHeight - this.viewportHeight / 4;
         this.container.scrollTop = Math.max(0, targetScroll);
+    }
+
+    /** Get the line number currently at the top of the viewport */
+    public getVisibleLine(): number {
+        const idx = Math.floor(this.scrollTop / this.lineHeight);
+        if (idx >= 0 && idx < this.drawnLines.length) {
+            return this.drawnLines[idx].num;
+        }
+        return 1;
     }
 
     private render() {

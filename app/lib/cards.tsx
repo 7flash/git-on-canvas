@@ -244,7 +244,10 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
         if (filePath) {
             const file = ctx.allFilesData?.find(f => f.path === filePath) ||
                 { path: filePath, name: filePath.split('/').pop(), lines: 0 };
-            import('./file-modal').then(({ openFileModal }) => openFileModal(ctx, file));
+            // Read visible line from canvas text renderer scroll position
+            const renderer = (card as any)._canvasTextRenderer;
+            const initialLine = renderer ? renderer.getVisibleLine?.() : undefined;
+            import('./file-modal').then(({ openFileModal }) => openFileModal(ctx, file, undefined, initialLine));
         }
     });
 
@@ -820,7 +823,8 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
         const previewEl = card.querySelector('.canvas-container') as HTMLElement;
         if (previewEl) {
             import('./canvas-text').then(({ CanvasTextRenderer }) => {
-                new CanvasTextRenderer(previewEl, canvasOptions);
+                const renderer = new CanvasTextRenderer(previewEl, canvasOptions);
+                (card as any)._canvasTextRenderer = renderer;
             });
         }
     }

@@ -225,6 +225,7 @@ export interface EditorInstance {
     getContent: () => string;
     setContent: (content: string) => void;
     getCursorPosition: () => { line: number; col: number };
+    scrollToLine: (line: number) => void;
     destroy: () => void;
     focus: () => void;
 }
@@ -326,6 +327,13 @@ export function createCodeEditor(
             const pos = view.state.selection.main.head;
             const line = view.state.doc.lineAt(pos);
             return { line: line.number, col: pos - line.from + 1 };
+        },
+        scrollToLine: (lineNum: number) => {
+            const line = view.state.doc.line(Math.min(lineNum, view.state.doc.lines));
+            view.dispatch({
+                selection: { anchor: line.from },
+                scrollIntoView: true,
+            });
         },
         destroy: () => view.destroy(),
         focus: () => view.focus(),
