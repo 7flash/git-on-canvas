@@ -8,8 +8,8 @@
 - [x] ~~**Popup font size in settings**~~ — ✅ DONE. New `popupFontSize` setting (10-24px slider) reads from localStorage, live-updates popup on change.
 - [x] ~~**Cross-layer file navigation**~~ — ✅ DONE. `jumpToFile` now calls `navigateToFileInLayer` when file not found on current layer, switches layers and retries.
 
-## 🟢 Priority: Features
-- [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
+## ✅ Completed
+- [x] ~~**Collaborative cursor sharing**~~ — ✅ DONE. WebSocket-based live presence via Bun pub/sub. Broadcasts canvas-space mouse coords at 50ms throttle. Remote cursors rendered as colored SVG pointers with name labels. 5s stale fade, 15s auto-remove. Positions sync with local viewport pan/zoom.
 
 ## ✅ Completed
 - [x] ~~**Popup non-blocking**~~ — ✅ DONE. `pointer-events: none` so popup never blocks cursor movement to adjacent lines.
