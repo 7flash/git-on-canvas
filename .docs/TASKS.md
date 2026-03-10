@@ -35,7 +35,7 @@
 - [x] ~~**File operations: delete file**~~ — ✅ DONE. Context menu "🗑️ Delete file" with confirmation dialogs. POST /api/repo/file-delete with optional git rm. Auto-cleans empty dirs. Removes card from canvas.
 - [x] ~~**File operations: rename/move**~~ — ✅ DONE. Context menu "✏️ Rename / Move" with prompt. POST /api/repo/file-rename uses git mv (preserves history) with fs.rename fallback. Re-keys all internal maps.
 - [x] ~~**Go-to-definition**~~ — ✅ DONE. Import paths in Full view are clickable (dashed underline). Click navigates to target file's card on canvas with green pulse highlight. Resolves relative paths with extension/index fallbacks. Ctrl+Click also works.
-- [ ] **Code minimap in editor** — Add a minimap scrollbar to the CodeMirror editor for large files, using `@codemirror/view` extensions.
+- [x] ~~**Code minimap in editor**~~ — ✅ DONE. Custom `ViewPlugin` minimap extension in `code-editor.ts`. 60px canvas-rendered minimap with heuristic syntax coloring (keywords/strings/comments/numbers), HiDPI support, draggable viewport indicator with purple accent, auto-updates on scroll/edit. Zero dependencies.
 - [x] ~~**Multi-tab editor**~~ — ✅ DONE. Tab bar with file icons, names, close buttons. Ctrl+Tab/Ctrl+Shift+Tab cycling, middle-click close, scroll position per tab. Go-to-definition opens as new tab.
 - [x] ~~**File breadcrumb navigation**~~ — ✅ DONE. Clickable directory segments in modal header. Click opens dropdown with sibling files/dirs. Drill into subdirs. Opens files as new tabs.
 - [x] ~~**Git blame view**~~ — ✅ DONE. "Blame" tab with porcelain API. Color-coded authors, grouped commits, relative timestamps, author legend, cached data.

@@ -4,7 +4,7 @@
  * Creates a CodeMirror 6 editor instance with syntax highlighting,
  * dark theme, and integration with the save/commit workflow.
  */
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, highlightSpecialChars } from '@codemirror/view';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, highlightSpecialChars, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { EditorState, Compartment } from '@codemirror/state';
 import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching, foldGutter, foldKeymap, HighlightStyle } from '@codemirror/language';
 import { defaultKeymap, indentWithTab, history, historyKeymap } from '@codemirror/commands';
@@ -295,6 +295,7 @@ export function createCodeEditor(
             },
         }),
         EditorView.lineWrapping,
+        minimapExtension(),
     ];
 
     if (langExt) {
@@ -338,4 +339,170 @@ export function createCodeEditor(
         destroy: () => view.destroy(),
         focus: () => view.focus(),
     };
+}
+
+// ─── Minimap Extension ──────────────────────────────────
+
+function minimapExtension() {
+    return ViewPlugin.fromClass(class {
+        wrapper: HTMLElement;
+        canvas: HTMLCanvasElement;
+        viewport: HTMLElement;
+        ctx: CanvasRenderingContext2D;
+        isDragging = false;
+        rafId = 0;
+
+        constructor(public view: EditorView) {
+            // Wrapper
+            this.wrapper = document.createElement('div');
+            this.wrapper.className = 'cm-minimap';
+            this.wrapper.style.cssText = `
+                position: absolute; top: 0; right: 0; width: 60px; height: 100%;
+                background: rgba(10, 10, 18, 0.85); border-left: 1px solid rgba(255,255,255,0.06);
+                z-index: 5; cursor: pointer; overflow: hidden;
+            `;
+
+            // Canvas for rendering minimap text
+            this.canvas = document.createElement('canvas');
+            this.canvas.style.cssText = 'width: 100%; height: 100%; display: block;';
+            this.wrapper.appendChild(this.canvas);
+            this.ctx = this.canvas.getContext('2d')!;
+
+            // Viewport indicator
+            this.viewport = document.createElement('div');
+            this.viewport.className = 'cm-minimap-viewport';
+            this.viewport.style.cssText = `
+                position: absolute; left: 0; right: 0;
+                background: rgba(139, 92, 246, 0.12);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+                border-radius: 2px; pointer-events: none;
+                transition: top 0.05s ease-out;
+            `;
+            this.wrapper.appendChild(this.viewport);
+
+            // Mount into the editor's scroll parent
+            const scroller = view.scrollDOM;
+            scroller.style.position = 'relative';
+            scroller.appendChild(this.wrapper);
+
+            // Click to scroll
+            this.wrapper.addEventListener('mousedown', this.onMouseDown);
+
+            // Initial render
+            requestAnimationFrame(() => { this.render(); this.updateViewport(); });
+        }
+
+        update(update: ViewUpdate) {
+            if (update.docChanged || update.viewportChanged || update.geometryChanged) {
+                this.scheduleRender();
+            }
+        }
+
+        scheduleRender() {
+            if (this.rafId) return;
+            this.rafId = requestAnimationFrame(() => {
+                this.rafId = 0;
+                this.render();
+                this.updateViewport();
+            });
+        }
+
+        render() {
+            const { canvas, ctx, view } = this;
+            const dpr = window.devicePixelRatio || 1;
+            const rect = this.wrapper.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+
+            canvas.width = w * dpr;
+            canvas.height = h * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, w, h);
+
+            const doc = view.state.doc;
+            const totalLines = doc.lines;
+            if (totalLines === 0) return;
+
+            const lineH = Math.max(1, Math.min(2, h / totalLines));
+            const colors: Record<string, string> = {
+                keyword: '#c084fc', string: '#34d399', comment: '#4b5563',
+                number: '#f59e0b', type: '#38bdf8', default: '#64748b',
+            };
+
+            for (let i = 1; i <= totalLines; i++) {
+                const line = doc.line(i);
+                const text = line.text;
+                if (!text.trim()) continue;
+
+                const y = (i - 1) * lineH;
+                if (y > h) break;
+
+                // Determine color based on simple heuristics
+                const trimmed = text.trimStart();
+                let color = colors.default;
+                if (trimmed.startsWith('//') || trimmed.startsWith('/*') || trimmed.startsWith('*')) color = colors.comment;
+                else if (/^(import|export|const|let|var|function|class|if|for|while|return|async|await)\b/.test(trimmed)) color = colors.keyword;
+                else if (/['"`]/.test(trimmed)) color = colors.string;
+                else if (/\d/.test(trimmed.charAt(0))) color = colors.number;
+
+                ctx.fillStyle = color;
+                // Draw a thin line representing the code
+                const indent = (text.length - trimmed.length) * 0.5;
+                const lineLen = Math.min(trimmed.length * 0.4, w - 4);
+                ctx.globalAlpha = 0.6;
+                ctx.fillRect(2 + indent, y, lineLen, Math.max(lineH - 0.5, 0.5));
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        updateViewport() {
+            const { view, wrapper, viewport } = this;
+            const scrollEl = view.scrollDOM;
+            const totalH = scrollEl.scrollHeight;
+            const visibleH = scrollEl.clientHeight;
+            const scrollTop = scrollEl.scrollTop;
+            const mapH = wrapper.getBoundingClientRect().height;
+
+            if (totalH <= visibleH) {
+                viewport.style.top = '0px';
+                viewport.style.height = `${mapH}px`;
+                return;
+            }
+
+            const ratio = mapH / totalH;
+            viewport.style.top = `${scrollTop * ratio}px`;
+            viewport.style.height = `${Math.max(8, visibleH * ratio)}px`;
+        }
+
+        onMouseDown = (e: MouseEvent) => {
+            if (e.target === this.viewport) return;
+            e.preventDefault();
+            this.isDragging = true;
+            this.scrollToY(e.clientY);
+
+            const onMove = (e: MouseEvent) => {
+                if (this.isDragging) this.scrollToY(e.clientY);
+            };
+            const onUp = () => {
+                this.isDragging = false;
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        };
+
+        scrollToY(clientY: number) {
+            const rect = this.wrapper.getBoundingClientRect();
+            const fraction = (clientY - rect.top) / rect.height;
+            const scrollEl = this.view.scrollDOM;
+            scrollEl.scrollTop = fraction * (scrollEl.scrollHeight - scrollEl.clientHeight);
+            this.updateViewport();
+        }
+
+        destroy() {
+            if (this.rafId) cancelAnimationFrame(this.rafId);
+            this.wrapper.remove();
+        }
+    });
 }
