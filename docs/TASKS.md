@@ -49,7 +49,7 @@
 - [x] ~~**Branch switching**~~ — toolbar button, slide-out drawer, base/compare selects, diff summary
 
 ## 🟡 Priority: Improve
-- [ ] **Canvas text rendering performance** — Profile and optimize `canvas-text.ts` for repos with 100+ files. Current rendering creates a canvas per card; consider shared atlas or WebGL text rendering for large repos.
+- [x] ~~**Canvas text rendering performance**~~ — ✅ DONE. 5 optimizations: (1) rAF batching — only one render per animation frame, (2) cached DPR as instance field, (3) pre-computed padded line number strings at init (eliminates O(visible) String+padStart allocations per frame), (4) cached long-line gradient — recreated only on resize (eliminates createLinearGradient per long line per frame), (5) hoisted options/lineHeight/contentX before loop.
 - [x] ~~**Keyboard shortcuts documentation**~~ — ✅ Already existed. `shortcuts-panel.ts` implements a `?` hotkey that opens a glassmorphism cheat sheet with 4 categories (Navigation, Selection, Cards, Tools). Wired in `page.client.tsx`, styled in `globals.css`.
 
 ## 🟢 Priority: Features
