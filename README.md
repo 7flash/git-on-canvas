@@ -42,6 +42,12 @@ All changed files laid out on an infinite canvas. Drag them next to each other. 
 | 🤖 **AI Chat** | Press `I` to open an AI sidebar that understands your current canvas context. |
 | ⌨️ **VIM-style Diff Nav** | `j`/`k` to jump between changes across files, `Shift+J`/`K` for file-level navigation. |
 | 🔎 **Cross-Card Search** | Press `/` to search across all visible file cards. Results highlighted in-place with match counts. |
+| ✏️ **Full Editor** | CodeMirror 6 with syntax highlighting, multi-tab, auto-save, git commit, and code minimap. |
+| ⇄ **Tab Diff** | Compare two open tabs side-by-side with LCS diff, change markers, synced scrolling. |
+| 🧭 **Symbol Outline** | Side panel showing all functions/classes/types in a file. Click to scroll. |
+| 🔀 **Dependency Graph** | `Ctrl+G` to toggle force-directed graph layout based on import relationships. |
+| 📝 **PR Review** | Comment threads on any line, stored in localStorage. |
+| 📁 **Card Grouping** | Collapse entire directories into compact summary cards to reduce clutter. |
 
 ## 🚀 Quick Start
 
