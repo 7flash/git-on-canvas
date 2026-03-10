@@ -54,7 +54,7 @@
 
 ## 🟢 Priority: Features
 - [x] ~~**Git blame integration**~~ — ✅ Already existed. `loadBlameView()` in file-modal.tsx with caching, color-coded authors, time-ago timestamps. API endpoint at `/api/repo/git-blame` with porcelain parsing.
-- [ ] **PR review mode** — Add ability to leave inline comments on diff lines (stored in localStorage or synced via WebSocket for collaborative review).
+- [x] ~~**PR review mode**~~ — ✅ DONE. `pr-review.ts` module with comment CRUD, localStorage persistence, glassmorphism comment thread popup. Canvas gutter click handler opens "💬 Line N" popup with input, resolve, and delete. Purple dot markers + count badges rendered in canvas gutter for lines with comments. Review store initialized per-repo. Browser verified on localhost:3335.
 - [ ] **Multi-repo workspace** — Support loading and switching between multiple repositories in a single canvas session (currently only one repo at a time).
 
 ## 📝 Architecture Notes
