@@ -98,6 +98,7 @@ function renderPreviewCard(path: string): HTMLElement | null {
         clone.style.position = 'relative';
         clone.style.left = '0';
         clone.style.top = '0';
+        clone.style.display = 'block'; // CRITICAL: cards are display:none in pill mode
         clone.style.visibility = 'visible';
         clone.style.contentVisibility = 'visible';
         clone.style.opacity = '1';
@@ -280,7 +281,7 @@ function onMouseMove(e: MouseEvent) {
     const element = pill || card;
 
     if (!element) {
-        hidePopup();
+        // Only log this occasionally to not spam
         return;
     }
 

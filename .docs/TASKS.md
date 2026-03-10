@@ -58,6 +58,12 @@
 - [x] ~~**Search: jump to file instead of editor**~~ — ✅ DONE. Clicking a search result navigates to the card on canvas (with layer switch) and scrolls to the matching line.
 - [x] ~~**Search: persist state**~~ — ✅ DONE. Panel hides instead of destroying on result click, restoring query/results when reopened.
 
+## 🟡 Open Tasks
+- [ ] **Dependency graph view** — The file dependency visualization was started (conversation 49e5cd72) but may need polish. Verify the force-directed graph layout, SVG connection rendering, and toggle button work end-to-end.
+- [ ] **File preview: scrollable content** — When hovering pills in zoomed-out mode, the preview popup should be scrollable so users can read through long files without zooming in.
+- [ ] **Production SaaS deploy** — Set up production deployment (Vercel/Fly.io/VPS). Currently only runs locally on port 3335.
+- [ ] **Card groups: directory collapse** — Card grouping (conversation f41ada72) collapses directories into summary cards. Verify persistence and expand/collapse animations work smoothly.
+
 ## 📌 Future Ideas
 - [ ] 🟢 **Shared layout sessions** — Replace current cursor tracking (broken: each user has own layout). Instead: share a link with unique session ID → recipients join read-only view of your layout. They can see your cursor but can't move files. This makes collaborative browsing meaningful.
 
