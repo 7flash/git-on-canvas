@@ -337,8 +337,9 @@ export class CanvasTextRenderer {
         const gutter = document.createElement('div');
         gutter.className = 'canvas-change-gutter';
         gutter.style.cssText = `
-            position: absolute; top: 0; right: 10px; bottom: 0;
-            width: 10px; z-index: 5; pointer-events: auto;
+            position: absolute; top: 0; right: 10px;
+            width: 10px; height: ${this.viewportHeight}px;
+            z-index: 5; pointer-events: auto;
         `;
 
         // Re-pin gutter on scroll
@@ -369,10 +370,14 @@ export class CanvasTextRenderer {
             marker.title = `${hunk.type === 'add' ? 'Added' : 'Deleted'} lines ${this.drawnLines[hunk.startIdx].num}–${this.drawnLines[hunk.endIdx].num}`;
 
             // Click → scroll to that hunk
+            marker.addEventListener('mousedown', (e) => { e.stopPropagation(); });
             marker.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const targetScroll = hunk.startIdx * this.lineHeight - this.viewportHeight / 4;
-                container.scrollTop = Math.max(0, targetScroll);
+                this.scrollTop = Math.max(0, targetScroll);
+                container.scrollTop = this.scrollTop;
+                this._updateScrollTrack();
+                this.render();
             });
 
             marker.addEventListener('mouseenter', () => {
@@ -391,14 +396,14 @@ export class CanvasTextRenderer {
         if (this.hunkRanges.length > 1) {
             const navContainer = document.createElement('div');
             navContainer.style.cssText = `
-                position: absolute; bottom: 4px; right: 24px;
+                position: absolute; top: ${this.viewportHeight - 44}px; right: 24px;
                 display: flex; flex-direction: column; gap: 2px;
                 z-index: 6; pointer-events: auto;
             `;
 
             // Re-pin nav on scroll
             container.addEventListener('scroll', () => {
-                navContainer.style.bottom = `${-container.scrollTop + 4}px`;
+                navContainer.style.top = `${container.scrollTop + this.viewportHeight - 44}px`;
             });
 
             let currentHunkIdx = -1;
@@ -414,6 +419,7 @@ export class CanvasTextRenderer {
                     display: flex; align-items: center; justify-content: center;
                     padding: 0;
                 `;
+                btn.addEventListener('mousedown', (e) => { e.stopPropagation(); });
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (direction === 'down') {
@@ -423,7 +429,10 @@ export class CanvasTextRenderer {
                     }
                     const hunk = this.hunkRanges[currentHunkIdx];
                     const targetScroll = hunk.startIdx * this.lineHeight - this.viewportHeight / 4;
-                    container.scrollTop = Math.max(0, targetScroll);
+                    this.scrollTop = Math.max(0, targetScroll);
+                    container.scrollTop = this.scrollTop;
+                    this._updateScrollTrack();
+                    this.render();
                 });
                 return btn;
             };
