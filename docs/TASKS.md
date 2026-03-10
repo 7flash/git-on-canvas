@@ -1,12 +1,10 @@
 # GitMaps Tasks & Ideas
 
-## 🟡 Priority: Improve
-- [ ] **Hover popup flicker near edge** — Moving the mouse near long-line fade edges can cause the hover popup to flicker between visible and hidden states. Add a debounce or hysteresis zone.
-
 ## 🟢 Priority: Features
 - [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
 
 ## ✅ Completed
+- [x] ~~**Hover popup flicker near edge**~~ — ✅ DONE. Added hysteresis (keeps popup visible while cursor stays on same line), 80ms show debounce, and 200ms delayed hide. Uses `activeLineIdx` tracking to prevent the popup from flickering when mouse is near the fade boundary.
 - [x] ~~**Card pinning**~~ — ✅ DONE. Right-click → "📌 Pin card". Pinned cards stay visible as full cards even below LOD pill threshold. Orange-tinted border + floating 📌 badge. Persisted to `localStorage('gitmaps:pinnedCards')`. `togglePinCard`, `isPinned`, `getPinnedCards` exported from viewport-culling.ts.
 - [x] ~~**File dependency graph**~~ — ✅ Already done. Backend `/api/repo/imports` scans ES/CJS/CSS/Python imports. Frontend `autoDetectImports()` creates connections. Toggle in settings + toolbar button.
 - [x] ~~**Diff nav visual feedback**~~ — ✅ DONE. ▲/▼ buttons now flash the gutter marker bright with glow, draw a semi-transparent highlight over the hunk lines for 500ms, and show a "2/5" position counter between the arrows.
