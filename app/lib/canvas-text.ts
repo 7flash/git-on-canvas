@@ -24,6 +24,10 @@ export class CanvasTextRenderer {
     private maxLineWidth: number = 0;
     private fontSize: number = 12;
     private hoverPopup: HTMLElement | null = null;
+    /** Dynamic gutter: diff marker (6px) + line number chars + padding */
+    private gutterLeft: number = 6;
+    private lineNumWidth: number = 42;
+    private get contentX() { return this.gutterLeft + this.lineNumWidth; }
 
     constructor(container: HTMLElement, options: CanvasTextOptions) {
         this.options = options;
@@ -49,10 +53,12 @@ export class CanvasTextRenderer {
             this.drawnLines.push({ index: i, content: this.lines[i], num: i + 1 });
         }
 
+        // Compute dynamic gutter width based on max line number digits
+        this._recomputeGutter();
+
         // Compute max line width for horizontal scroll
-        const gutterW = 6 + 42; // left gutter + line numbers
         for (const dl of this.drawnLines) {
-            const w = gutterW + dl.content.length * this.charWidth + 20;
+            const w = this.contentX + dl.content.length * this.charWidth + 20;
             if (w > this.maxLineWidth) this.maxLineWidth = w;
         }
 
@@ -169,11 +175,11 @@ export class CanvasTextRenderer {
                 this.charWidth = this.fontSize * 0.6;
                 this.lineHeight = this.fontSize + 8;
                 this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
-                // Recompute max line width
-                const gW = 6 + 42;
+                // Recompute gutter and max line width
+                this._recomputeGutter();
                 this.maxLineWidth = 0;
                 for (const dl of this.drawnLines) {
-                    const w = gW + dl.content.length * this.charWidth + 20;
+                    const w = this.contentX + dl.content.length * this.charWidth + 20;
                     if (w > this.maxLineWidth) this.maxLineWidth = w;
                 }
                 // Update scroll shim
@@ -188,6 +194,16 @@ export class CanvasTextRenderer {
         }) as EventListener);
 
         this.render();
+    }
+
+    /** Recompute gutter width based on font size and line count */
+    private _recomputeGutter() {
+        const maxNum = this.drawnLines.length > 0
+            ? this.drawnLines[this.drawnLines.length - 1].num
+            : 1;
+        const digits = Math.max(3, String(maxNum).length);
+        // gutter = diff marker (6px) + line num chars + padding (12px)
+        this.lineNumWidth = digits * this.charWidth + 12;
     }
 
     /** Build a custom scrollbar track on the right side */
@@ -426,8 +442,15 @@ export class CanvasTextRenderer {
 
         container.addEventListener('mousemove', (e) => {
             const rect = container.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left + this.scrollLeft;
-            const mouseY = e.clientY - rect.top + this.scrollTop;
+
+            // The container may be inside a CSS-scaled parent (GalaxyDraw zoom).
+            // getBoundingClientRect returns scaled dimensions, so we need the
+            // scale factor to convert mouse position to unscaled content coords.
+            const scaleX = container.offsetWidth > 0 ? rect.width / container.offsetWidth : 1;
+            const scaleY = container.offsetHeight > 0 ? rect.height / container.offsetHeight : 1;
+
+            const mouseX = (e.clientX - rect.left) / scaleX + this.scrollLeft;
+            const mouseY = (e.clientY - rect.top) / scaleY + this.scrollTop;
 
             // Which line is under the cursor?
             const lineIdx = Math.floor(mouseY / this.lineHeight);
@@ -437,8 +460,7 @@ export class CanvasTextRenderer {
             }
 
             const lineData = this.drawnLines[lineIdx];
-            const gutterW = 6 + 42;
-            const linePixelWidth = gutterW + lineData.content.length * this.charWidth;
+            const linePixelWidth = this.contentX + lineData.content.length * this.charWidth;
 
             // Show popup for long lines that extend beyond viewport
             const isLongLine = linePixelWidth > this.viewportWidth + this.scrollLeft;
@@ -549,7 +571,8 @@ export class CanvasTextRenderer {
         const endIndex = Math.min(this.drawnLines.length, startIndex + Math.ceil(this.viewportHeight / this.lineHeight) + 4);
 
         // Left gutter width for diff markers
-        const gutterW = 6;
+        const diffGutterW = this.gutterLeft;
+        const numDigits = Math.max(3, String(this.drawnLines.length > 0 ? this.drawnLines[this.drawnLines.length - 1].num : 1).length);
 
         for (let i = startIndex; i < endIndex; i++) {
             const y = (i * this.lineHeight) - this.scrollTop;
@@ -564,36 +587,36 @@ export class CanvasTextRenderer {
                 this.ctx.fillRect(0, y, w, this.lineHeight);
                 // Left gutter marker (green bar)
                 this.ctx.fillStyle = 'rgba(46, 160, 67, 0.8)';
-                this.ctx.fillRect(0, y, gutterW, this.lineHeight);
+                this.ctx.fillRect(0, y, diffGutterW, this.lineHeight);
             } else if (isDeleted) {
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 0.15)'; // diff-del bg
                 this.ctx.fillRect(0, y, w, this.lineHeight);
                 // Left gutter marker (red bar)
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 0.8)';
-                this.ctx.fillRect(0, y, gutterW, this.lineHeight);
+                this.ctx.fillRect(0, y, diffGutterW, this.lineHeight);
             }
 
             // Deleted-before marker (red triangle indicator)
             if (hasDelBefore) {
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 1)';
                 // Draw a small red wedge at the top of this line
-                this.ctx.fillRect(0, y, gutterW, 3);
+                this.ctx.fillRect(0, y, diffGutterW, 3);
                 // Draw a wider indicator line across
                 this.ctx.fillStyle = 'rgba(248, 81, 73, 0.4)';
-                this.ctx.fillRect(gutterW, y, w - gutterW, 1);
+                this.ctx.fillRect(diffGutterW, y, w - diffGutterW, 1);
             }
 
             // Line numbers (fixed position, not affected by horizontal scroll)
             this.ctx.fillStyle = '#6e7681'; // muted text
-            const numStr = String(lineData.num).padStart(4, ' ');
-            this.ctx.fillText(numStr, gutterW + 6, y + 4);
+            const numStr = String(lineData.num).padStart(numDigits, ' ');
+            this.ctx.fillText(numStr, diffGutterW + 2, y + 4);
 
             // Content (offset by horizontal scroll)
             this.ctx.fillStyle = isAdded ? '#7ee787' : isDeleted ? '#ffa198' : '#c9d1d9';
-            this.ctx.fillText(lineData.content, gutterW + 42 - this.scrollLeft, y + 4);
+            this.ctx.fillText(lineData.content, this.contentX - this.scrollLeft, y + 4);
 
             // Long line indicator (fade gradient at right edge)
-            const contentWidth = gutterW + 42 + lineData.content.length * this.charWidth - this.scrollLeft;
+            const contentWidth = this.contentX + lineData.content.length * this.charWidth - this.scrollLeft;
             if (contentWidth > w) {
                 const grad = this.ctx.createLinearGradient(w - 30, 0, w, 0);
                 grad.addColorStop(0, 'transparent');

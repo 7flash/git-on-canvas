@@ -1333,10 +1333,11 @@ body {
 }
 
 /* ─── Card states ─────────────────────────────────── */
-.file-card.selected {
-    outline: 2px solid var(--info);
-    outline-offset: 2px;
-    box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+.file-card.selected,
+.gd-card.gd-card--selected {
+    outline: 4px solid rgba(124, 58, 237, 0.85);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px var(--accent-glow), 0 0 24px rgba(124, 58, 237, 0.5);
 }
 
 .file-card.resizing {
@@ -1859,9 +1860,9 @@ body {
 /* Selected card highlight */
 .file-card.selected {
     border-color: var(--accent-primary);
-    outline: 3px solid rgba(124, 58, 237, 0.6);
-    outline-offset: 2px;
-    box-shadow: 0 0 0 2px var(--accent-glow), var(--shadow-md);
+    outline: 4px solid rgba(124, 58, 237, 0.85);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 3px var(--accent-glow), 0 0 24px rgba(124, 58, 237, 0.5), var(--shadow-md);
     z-index: 5 !important;
 }
 

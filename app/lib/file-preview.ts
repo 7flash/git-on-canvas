@@ -67,6 +67,10 @@ function ensurePopup(): HTMLElement {
         _isHoveringPopup = false;
         hidePopup();
     });
+    // Capture wheel events to scroll popup content, not zoom canvas
+    popup.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+    }, { passive: false });
     document.body.appendChild(popup);
     return popup;
 }
@@ -338,7 +342,10 @@ export function initFilePreview(viewportEl: HTMLElement, ctx?: CanvasContext) {
 
     // Hide on zoom change (catches scroll-zoom)
     viewportEl.addEventListener('wheel', () => {
+        // Don't hide popup if user is hovering/scrolling it
+        if (_isHoveringPopup) return;
         setTimeout(() => {
+            if (_isHoveringPopup) return;
             const gd = getGalaxyDrawState();
             if (gd && gd.zoom >= PREVIEW_ZOOM_THRESHOLD) {
                 hidePopup();

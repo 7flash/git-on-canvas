@@ -769,14 +769,47 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
             if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.connect-btn')) return;
             const filePath = card.dataset.path || '';
             const multi = e.shiftKey || e.ctrlKey;
-            ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: multi });
-            // Sync CardManager's selection set SYNCHRONOUSLY for multi-drag
-            // Using async import() here caused a race condition where
-            // CardManager.setupDrag read an empty selection set
+
             try {
                 const { getCardManager } = require('./galaxydraw-bridge');
                 const cm = getCardManager();
-                if (cm) cm.select(filePath, multi);
+                if (cm) {
+                    const alreadySelected = cm.selected.has(filePath);
+
+                    if (multi) {
+                        // Shift/Ctrl click: toggle selection
+                        if (alreadySelected) {
+                            cm.deselect(filePath);
+                        } else {
+                            cm.select(filePath, true);
+                        }
+                        ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: true });
+                    } else if (alreadySelected && cm.selected.size > 1) {
+                        // Clicking already-selected card in a multi-selection:
+                        // Don't deselect yet — user might be starting a multi-drag.
+                        // Deselect on mouseup if no drag occurred.
+                        let dragged = false;
+                        const onMove = () => { dragged = true; };
+                        const onUp = () => {
+                            window.removeEventListener('mousemove', onMove);
+                            window.removeEventListener('mouseup', onUp);
+                            if (!dragged) {
+                                // No drag happened — deselect all others
+                                cm.deselectAll();
+                                cm.select(filePath, false);
+                                ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+                                updateSelectionHighlights(ctx);
+                                updateArrangeToolbar(ctx);
+                            }
+                        };
+                        window.addEventListener('mousemove', onMove);
+                        window.addEventListener('mouseup', onUp);
+                    } else {
+                        // Normal click: deselect all, select this one
+                        cm.select(filePath, false);
+                        ctx.actor.send({ type: 'SELECT_CARD', path: filePath, shift: false });
+                    }
+                }
             } catch { }
             updateSelectionHighlights(ctx);
             updateArrangeToolbar(ctx);
