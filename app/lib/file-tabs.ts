@@ -300,4 +300,19 @@ function renderTabBar() {
 
         tabBarEl!.appendChild(tabEl);
     });
+
+    // Diff button — only when 2+ tabs are open
+    if (openTabs.length >= 2) {
+        const diffBtn = document.createElement('button');
+        diffBtn.className = 'file-tab file-tab-diff-btn';
+        diffBtn.title = 'Compare files (Diff)';
+        diffBtn.innerHTML = '<span style="font-size:11px">⇄ Diff</span>';
+        diffBtn.style.cssText = 'margin-left: auto; opacity: 0.6; font-size: 11px; border: 1px dashed rgba(139,92,246,0.3);';
+        diffBtn.addEventListener('click', () => {
+            import('./tab-diff').then(({ openTabDiffSelector }) => openTabDiffSelector());
+        });
+        diffBtn.addEventListener('mouseenter', () => { diffBtn.style.opacity = '1'; });
+        diffBtn.addEventListener('mouseleave', () => { diffBtn.style.opacity = '0.6'; });
+        tabBarEl!.appendChild(diffBtn);
+    }
 }
