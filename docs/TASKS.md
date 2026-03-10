@@ -1,9 +1,12 @@
 # GitMaps Tasks & Ideas
 
 ## 🟡 Priority: Improve
-- [ ] **Popup font size in settings** — Add a font size control for the long-line hover popup in the settings modal.
-- [ ] **Cross-layer file navigation** — When clicking a changed file in the diff bar that's on another layer, should jump to that layer first then navigate to the card.
 - [ ] **Nested folder selection** — "Select all from folder" context menu should show a nested submenu of ancestor directories so you can select at any tree level, not just the immediate parent.
+
+## ✅ Completed
+- [x] ~~**Settings modal JSX refactor**~~ — ✅ DONE. Converted from innerHTML string template to proper JSX components using melina/client render.
+- [x] ~~**Popup font size in settings**~~ — ✅ DONE. New `popupFontSize` setting (10-24px slider) reads from localStorage, live-updates popup on change.
+- [x] ~~**Cross-layer file navigation**~~ — ✅ DONE. `jumpToFile` now calls `navigateToFileInLayer` when file not found on current layer, switches layers and retries.
 
 ## 🟢 Priority: Features
 - [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
