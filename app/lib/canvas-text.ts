@@ -97,13 +97,16 @@ export class CanvasTextRenderer {
         this.viewportHeight = rect.height;
         this.viewportWidth = rect.width;
 
-        // Scroll shim — tall div giving the container scrollable height AND width
+        // Scroll shim — tall div giving the container scrollable height (vertical only)
         const scrollShim = document.createElement('div');
         scrollShim.className = 'canvas-scroll-shim';
         scrollShim.style.height = `${this.drawnLines.length * this.lineHeight}px`;
-        scrollShim.style.width = `${Math.max(this.maxLineWidth, rect.width)}px`;
+        scrollShim.style.width = '1px';
         scrollShim.style.pointerEvents = 'none';
         container.appendChild(scrollShim);
+
+        // Hide horizontal scrollbar
+        container.style.overflowX = 'hidden';
 
         // Custom scrollbar track for vertical position indicator
         this._buildScrollTrack(container);
@@ -116,10 +119,8 @@ export class CanvasTextRenderer {
 
         container.addEventListener('scroll', () => {
             this.scrollTop = container.scrollTop;
-            this.scrollLeft = container.scrollLeft;
             // Pin canvas to the visible area of the scrolling container
             this.canvas.style.top = `${this.scrollTop}px`;
-            this.canvas.style.left = `${this.scrollLeft}px`;
             this._updateScrollTrack();
             this.render();
         });
@@ -132,17 +133,8 @@ export class CanvasTextRenderer {
             e.preventDefault();
             e.stopPropagation();
             const maxScrollY = (this.drawnLines.length * this.lineHeight) - this.viewportHeight;
-            const maxScrollX = Math.max(0, this.maxLineWidth - this.viewportWidth);
-
-            // Shift+wheel = horizontal scroll
-            if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                this.scrollLeft = Math.max(0, Math.min(maxScrollX, this.scrollLeft + (e.deltaX || e.deltaY)));
-            } else {
-                this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
-            }
-
+            this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
             container.scrollTop = this.scrollTop;
-            container.scrollLeft = this.scrollLeft;
             this._updateScrollTrack();
             this.render();
         }, { passive: false });
@@ -214,7 +206,7 @@ export class CanvasTextRenderer {
             position: absolute; top: 0; right: 0; width: 8px;
             height: 100%; z-index: 10; pointer-events: auto;
             background: rgba(255, 255, 255, 0.03);
-            border-radius: 4px; opacity: 0;
+            border-radius: 4px; opacity: 0.5;
             transition: opacity 0.2s;
         `;
 
@@ -223,7 +215,7 @@ export class CanvasTextRenderer {
         thumb.style.cssText = `
             position: absolute; right: 1px; width: 6px;
             min-height: 24px; border-radius: 3px;
-            background: rgba(124, 58, 237, 0.4);
+            background: rgba(124, 58, 237, 0.5);
             transition: background 0.15s;
             cursor: pointer;
         `;
@@ -231,24 +223,26 @@ export class CanvasTextRenderer {
         track.appendChild(thumb);
         container.appendChild(track);
 
-        // Show scrollbar on hover and while scrolling
+        // Scrollbar is always minimally visible; brightens on hover/scroll
         let hideTimeout: any = null;
+        const BASELINE_OPACITY = '0.5';
+        const ACTIVE_OPACITY = '1';
         const showTrack = () => {
-            track.style.opacity = '1';
+            track.style.opacity = ACTIVE_OPACITY;
             if (hideTimeout) clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(() => { track.style.opacity = '0'; }, 1500);
+            hideTimeout = setTimeout(() => { track.style.opacity = BASELINE_OPACITY; }, 1500);
         };
 
         container.addEventListener('scroll', showTrack);
         container.addEventListener('mouseenter', showTrack);
         track.addEventListener('mouseenter', () => {
-            track.style.opacity = '1';
-            thumb.style.background = 'rgba(124, 58, 237, 0.6)';
+            track.style.opacity = ACTIVE_OPACITY;
+            thumb.style.background = 'rgba(124, 58, 237, 0.7)';
             if (hideTimeout) clearTimeout(hideTimeout);
         });
         track.addEventListener('mouseleave', () => {
-            thumb.style.background = 'rgba(124, 58, 237, 0.4)';
-            hideTimeout = setTimeout(() => { track.style.opacity = '0'; }, 800);
+            thumb.style.background = 'rgba(124, 58, 237, 0.5)';
+            hideTimeout = setTimeout(() => { track.style.opacity = BASELINE_OPACITY; }, 800);
         });
 
         // Click on track to jump
@@ -332,6 +326,9 @@ export class CanvasTextRenderer {
 
         const totalLines = this.drawnLines.length;
         if (totalLines === 0) return;
+
+        // Remove any existing change gutter (prevents duplicates on re-render)
+        container.querySelector('.canvas-change-gutter')?.remove();
 
         // Gutter container — overlays on the right side of the card
         const gutter = document.createElement('div');
@@ -540,11 +537,14 @@ export class CanvasTextRenderer {
             this.hoverPopup.innerHTML = popupHTML;
             this.hoverPopup.style.display = 'block';
 
-            // Position popup near cursor
+            // Position popup ABOVE cursor by default, fall below only near top edge
             let px = e.clientX + 12;
-            let py = e.clientY + 12;
+            // Measure popup height after setting content
+            const popupRect = this.hoverPopup.getBoundingClientRect();
+            const popupH = popupRect.height || 120;
+            let py = e.clientY - popupH - 8; // above cursor
+            if (py < 8) py = e.clientY + 16; // fall below if not enough room
             if (px + 700 > window.innerWidth) px = e.clientX - 400;
-            if (py + 300 > window.innerHeight) py = e.clientY - 200;
             this.hoverPopup.style.left = `${px}px`;
             this.hoverPopup.style.top = `${py}px`;
         });

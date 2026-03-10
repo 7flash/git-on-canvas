@@ -894,6 +894,19 @@ export function setupConnectionDrag(ctx: CanvasContext, card: HTMLElement, fileP
     setupLineClickConnection(ctx, card, filePath);
 }
 
+// ─── Start connection from context menu ─────────────────
+export function startConnectionFrom(ctx: CanvasContext, filePath: string) {
+    const card = ctx.fileCards.get(filePath);
+    if (!card) return;
+
+    // Set pending connection from line 1 of the file
+    pendingConnection = { sourceFile: filePath, sourceLine: 1, sourceCard: card };
+    card.classList.add('connecting-source');
+
+    // Open the target file picker
+    _showTargetFilePicker(ctx, filePath);
+}
+
 // ─── Auto-detect import connections ─────────────────────
 export async function autoDetectImports(ctx: CanvasContext) {
     return measure('connections:autoDetect', async () => {

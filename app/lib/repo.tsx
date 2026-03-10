@@ -59,11 +59,12 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             const landing = document.getElementById('landingOverlay');
             if (landing) landing.style.display = 'none';
 
-            // Use replaceState instead of location.hash to avoid triggering
-            // Melina's navigation interceptor (popstate) which would replace
-            // the entire DOM and invalidate ctx.canvas references.
-            history.replaceState(null, '', '#' + encodeURIComponent(repoPath));
+            // Set URL hash to a friendly slug (folder name) instead of full path
+            const repoSlug = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repoPath;
+            history.replaceState(null, '', '#' + encodeURIComponent(repoSlug));
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
+            // Also store slug→path mapping for URL-based loading
+            localStorage.setItem(`gitcanvas:slug:${repoSlug}`, repoPath);
             updateStatusBarRepo(repoPath);
             // Save to recent repos list
             const recentKey = 'gitcanvas:recentRepos';

@@ -68,8 +68,8 @@ export function setPathExpanded(filePath: string, expanded: boolean) {
 }
 
 function _getExpandedStorageKey(): string | null {
-    const hash = decodeURIComponent(window.location.hash.replace('#', ''));
-    const repo = hash || localStorage.getItem('gitcanvas:lastRepo');
+    const hashSlug = decodeURIComponent(window.location.hash.replace('#', ''));
+    const repo = (hashSlug && localStorage.getItem(`gitcanvas:slug:${hashSlug}`)) || localStorage.getItem('gitcanvas:lastRepo');
     if (!repo) return null;
     return `gitcanvas:expanded:${repo}`;
 }
@@ -874,7 +874,8 @@ export function createAllFileCard(ctx: CanvasContext, file: any, x: number, y: n
     }
 
     // ── Diff marker strip (scrollbar annotations for changed lines) ──
-    if ((addedLines.size > 0 || deletedBeforeLine.size > 0) && !isAllAdded && file.content) {
+    // Skip when canvas-text mode is active — CanvasTextRenderer builds its own gutter
+    if ((addedLines.size > 0 || deletedBeforeLine.size > 0) && !isAllAdded && file.content && !useCanvasText) {
         const totalLines = file.content.split('\n').length;
         _buildDiffMarkerStrip(card, body, addedLines, totalLines, deletedBeforeLine, file.hunks);
     }

@@ -34,10 +34,12 @@ function ContextMenu({ onAction, onActionLayer, isInActiveLayer }: { onAction: (
         <>
             <button className="ctx-item" onClick={() => onAction('copy-path')}>📋 Copy path</button>
             <button className="ctx-item" onClick={() => onAction('select')}>☑️ Select</button>
+            <button className="ctx-item" onClick={() => onAction('select-folder')}>📁 Select all from folder</button>
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('expand')}>📖 Open in Editor</button>
             <button className="ctx-item" onClick={() => onAction('edit')}>✏️ Edit file</button>
             <button className="ctx-item" onClick={() => onAction('blame')}>👤 Git blame</button>
+            <button className="ctx-item" onClick={() => onAction('connect')}>🔗 Connect to...</button>
             <button className="ctx-item" onClick={() => onAction('fit-content')}>📏 Fit content</button>
             <button className="ctx-item" onClick={() => onAction('fit-screen')}>📺 Fit screen</button>
             <div className="ctx-divider"></div>
@@ -128,6 +130,30 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
             _fitScreenSize(ctx);
         } else if (action === 'history') {
             showFileHistory(ctx, filePath);
+        } else if (action === 'connect') {
+            // Start connection from this file
+            import('./connections').then(({ startConnectionFrom }) => {
+                if (startConnectionFrom) startConnectionFrom(ctx, filePath);
+            }).catch(() => {
+                showToast('Connections module not available', 'error');
+            });
+        } else if (action === 'select-folder') {
+            // Select all files from the same directory
+            const dir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
+            const allPaths = Array.from(ctx.fileCards.keys());
+            const deferredPaths = Array.from(ctx.deferredCards.keys());
+            const allFilePaths = [...new Set([...allPaths, ...deferredPaths])];
+            const folderFiles = allFilePaths.filter(p => {
+                const pDir = p.includes('/') ? p.substring(0, p.lastIndexOf('/')) : '';
+                return pDir === dir;
+            });
+            // Select all matching files
+            folderFiles.forEach((p, i) => {
+                ctx.actor.send({ type: 'SELECT_CARD', path: p, shift: i > 0 });
+            });
+            _updateSelectionHighlights(ctx);
+            _updateArrangeToolbar(ctx);
+            showToast(`Selected ${folderFiles.length} files from ${dir || 'root'}`, 'info');
         } else if (action === 'delete') {
             deleteFile(ctx, filePath, card);
         } else if (action === 'rename') {
@@ -137,15 +163,21 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
 
     function handleActionLayer(layerId: string) {
         menu.remove();
+        // Get all currently selected files for batch move
+        const selectedCards = ctx.snap().context.selectedCards || [];
+        const filesToMove = selectedCards.length > 1 ? selectedCards : [filePath];
+
         if (layerId === 'new') {
             const name = prompt('Enter a name for the new layer:');
             if (!name) return;
             createLayer(ctx, name);
-            // Use the last created layer's ID (createLayer pushes to end)
             const newLayerId = layerState.layers[layerState.layers.length - 1].id;
-            moveFileToLayer(ctx, newLayerId, filePath);
+            filesToMove.forEach(fp => moveFileToLayer(ctx, newLayerId, fp));
+            showToast(`Moved ${filesToMove.length} file(s) to "${name}"`, 'info');
         } else {
-            moveFileToLayer(ctx, layerId, filePath);
+            const layer = layerState.layers.find(l => l.id === layerId);
+            filesToMove.forEach(fp => moveFileToLayer(ctx, layerId, fp));
+            showToast(`Moved ${filesToMove.length} file(s) to "${layer?.name || layerId}"`, 'info');
         }
     }
 

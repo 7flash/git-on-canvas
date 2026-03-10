@@ -13,6 +13,8 @@
 
 **See every file at once.** Pan, zoom, drag — arrange your codebase the way *you* think about it, not the way the file system forces you to.
 
+🌐 **Try it now:** [gitmaps.xyz](https://gitmaps.xyz) — no install required
+
 ---
 
 ## The Problem
@@ -39,18 +41,23 @@ All changed files laid out on an infinite canvas. Drag them next to each other. 
 | 📁 **Layers** | Group files into focused subsets. Each layer remembers its own viewport position. |
 | 🤖 **AI Chat** | Press `I` to open an AI sidebar that understands your current canvas context. |
 | ⌨️ **VIM-style Diff Nav** | `j`/`k` to jump between changes across files, `Shift+J`/`K` for file-level navigation. |
+| 🔎 **Cross-Card Search** | Press `/` to search across all visible file cards. Results highlighted in-place with match counts. |
 
 ## 🚀 Quick Start
 
 ```sh
-# Clone and install
+# One-liner (requires Bun)
+npx gitmaps
+# → http://localhost:3335
+```
+
+Or clone for development:
+
+```sh
 git clone https://github.com/7flash/git-on-canvas.git
 cd galaxy-canvas
 bun install
-
-# Start the dev server
 bun run dev
-# → http://localhost:3335
 ```
 
 Open a repository by entering its path in the sidebar dropdown, or navigate directly:
@@ -66,7 +73,8 @@ Or import from GitHub — click the GitHub icon, paste a repo URL, and it clones
 | Key | Action |
 |-----|--------|
 | `←` `→` | Previous / next commit |
-| `Ctrl+K` or `/` | Command palette — fuzzy file search |
+| `Ctrl+K` | Command palette — fuzzy file search |
+| `/` or `Ctrl+F` | Cross-card text search |
 | `j` / `k` | Next / previous diff hunk (VIM-style) |
 | `Shift+J` / `Shift+K` | Next / previous changed file |
 | `W` | Fit selected cards to screen |

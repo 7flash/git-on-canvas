@@ -26,7 +26,7 @@ const SHOW_DELAY_MS = 180;
 const OFFSET_X = 16;
 const OFFSET_Y = 16;
 const POPUP_MAX_W = 520;
-const POPUP_MAX_H = 480;
+const POPUP_MAX_H = 600;
 
 // ─── State ───────────────────────────────────────────────
 let popup: HTMLElement | null = null;
@@ -70,6 +70,9 @@ function ensurePopup(): HTMLElement {
     // Capture wheel events to scroll popup content, not zoom canvas
     popup.addEventListener('wheel', (e) => {
         e.stopPropagation();
+        // Manually scroll the popup content
+        popup.scrollTop += e.deltaY;
+        e.preventDefault();
     }, { passive: false });
     document.body.appendChild(popup);
     return popup;

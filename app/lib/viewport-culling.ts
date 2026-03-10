@@ -265,27 +265,24 @@ export function performViewportCulling(ctx: CanvasContext) {
             // Transitioning to pill mode: immediately hide ALL full cards
             // Must be synchronous to prevent content from leaking through at low zoom
             for (const [path, card] of ctx.fileCards) {
-                card.style.contentVisibility = 'hidden';
-                card.style.visibility = 'hidden';
+                card.style.display = 'none';
                 card.dataset.culled = 'true';
             }
         } else {
-            // Transitioning to full mode: immediately hide pills that have
-            // materialized full cards (prevents duplicate rendering), then
-            // fade out remaining pills
-            for (const [path, pill] of pillCards) {
-                if (ctx.fileCards.has(path)) {
-                    // Full card exists — hide pill immediately to prevent overlap
-                    pill.style.opacity = '0';
-                    pill.style.display = 'none';
-                    pill.remove();
-                    pillCards.delete(path);
-                }
+            // Transitioning to full mode:
+            // 1. Force-show ALL materialized full cards (they were hidden in pill mode)
+            for (const [path, card] of ctx.fileCards) {
+                card.style.display = '';
+                card.style.contentVisibility = '';
+                card.style.visibility = '';
+                card.dataset.culled = 'false';
             }
-            // Fade out any remaining pills (deferred-only cards)
-            fadeOutPills(() => {
-                clearAllPills(ctx);
-            });
+            // 2. Remove all pills immediately (no fade — avoids ghost overlap)
+            for (const [path, pill] of pillCards) {
+                pill.style.display = 'none';
+                pill.remove();
+            }
+            pillCards.clear();
         }
         _currentLodMode = newLodMode;
     }
@@ -294,8 +291,7 @@ export function performViewportCulling(ctx: CanvasContext) {
     for (const [path, card] of ctx.fileCards) {
         if (isLowZoom) {
             // In pill mode: ALWAYS force-hide full cards (catches newly materialized ones too)
-            card.style.contentVisibility = 'hidden';
-            card.style.visibility = 'hidden';
+            card.style.display = 'none';
             card.dataset.culled = 'true';
             culled++;
             continue;
@@ -659,11 +655,17 @@ function updatePillSelectionHighlights(ctx: CanvasContext) {
     const selected = ctx.snap().context.selectedCards;
     for (const [path, pill] of pillCards) {
         if (selected.includes(path)) {
-            pill.style.outline = '3px solid var(--accent-primary, #7c3aed)';
-            pill.style.outlineOffset = '2px';
+            pill.style.outline = '8px solid rgba(124, 58, 237, 1)';
+            pill.style.outlineOffset = '6px';
+            pill.style.boxShadow = '0 0 0 6px rgba(124, 58, 237, 0.5), 0 0 60px 20px rgba(124, 58, 237, 0.6), 0 0 100px 40px rgba(124, 58, 237, 0.3)';
+            pill.style.zIndex = '100';
+            pill.style.filter = 'brightness(1.3)';
         } else {
             pill.style.outline = '';
             pill.style.outlineOffset = '';
+            pill.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+            pill.style.zIndex = '';
+            pill.style.filter = '';
         }
     }
     // Also update full card highlights

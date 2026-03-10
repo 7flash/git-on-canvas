@@ -119,19 +119,22 @@ export default function mount(): () => void {
                 }
             };
 
-            // Check URL hash for repo path
-            const hashRepo = decodeURIComponent(window.location.hash.replace('#', ''));
-            if (hashRepo) {
+            // Check URL hash for repo slug (or legacy full path)
+            const hashValue = decodeURIComponent(window.location.hash.replace('#', ''));
+            if (hashValue) {
+                // Resolve slug to full path (check localStorage mapping)
+                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${hashValue}`) || hashValue;
+
                 // Hide landing immediately since we have a repo
                 const landing = document.getElementById('landingOverlay');
                 if (landing) landing.style.display = 'none';
 
                 const sel = document.getElementById('repoSelect') as HTMLSelectElement;
-                if (sel) sel.value = hashRepo;
+                if (sel) sel.value = resolvedPath;
 
                 // Init layers based on repo
-                ctx.actor.send({ type: 'LOAD_REPO', path: hashRepo }); // Hack to set repoPath in context early
-                ctx.snap().context.repoPath = hashRepo;
+                ctx.actor.send({ type: 'LOAD_REPO', path: resolvedPath });
+                ctx.snap().context.repoPath = resolvedPath;
                 await loadSavedPositions(ctx); // reload positions for this repo
                 if (disposed) return;
                 await applySharedLayout(ctx);
@@ -142,8 +145,8 @@ export default function mount(): () => void {
                 updateZoomUI(ctx);
 
                 if (!disposed) {
-                    loadRepository(ctx, hashRepo);
-                    updateFavoriteStar(hashRepo);
+                    loadRepository(ctx, resolvedPath);
+                    updateFavoriteStar(resolvedPath);
                 }
             } else {
                 const saved = localStorage.getItem('gitcanvas:lastRepo');
@@ -151,9 +154,11 @@ export default function mount(): () => void {
                     const sel2 = document.getElementById('repoSelect') as HTMLSelectElement;
                     if (sel2) sel2.value = saved;
 
-                    // Use replaceState to avoid triggering the hashchange listener
-                    // (setting location.hash directly would fire hashchange → double load)
-                    history.replaceState(null, '', '#' + encodeURIComponent(saved));
+                    // Set URL hash to friendly slug instead of full path
+                    const savedSlug = saved.replace(/\\/g, '/').split('/').filter(Boolean).pop() || saved;
+                    history.replaceState(null, '', '#' + encodeURIComponent(savedSlug));
+                    // Store slug→path mapping
+                    localStorage.setItem(`gitcanvas:slug:${savedSlug}`, saved);
 
                     ctx.actor.send({ type: 'LOAD_REPO', path: saved });
                     ctx.snap().context.repoPath = saved;
@@ -176,12 +181,13 @@ export default function mount(): () => void {
             // Listen for hash changes
             window.addEventListener('hashchange', () => {
                 if (disposed) return;
-                const path = decodeURIComponent(window.location.hash.replace('#', ''));
-                if (path && path !== ctx.snap().context.repoPath) {
+                const hashSlug = decodeURIComponent(window.location.hash.replace('#', ''));
+                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${hashSlug}`) || hashSlug;
+                if (resolvedPath && resolvedPath !== ctx.snap().context.repoPath) {
                     const sel3 = document.getElementById('repoSelect') as HTMLSelectElement;
-                    if (sel3) sel3.value = path;
-                    loadRepository(ctx, path);
-                    updateFavoriteStar(path);
+                    if (sel3) sel3.value = resolvedPath;
+                    loadRepository(ctx, resolvedPath);
+                    updateFavoriteStar(resolvedPath);
                 }
             });
         });
