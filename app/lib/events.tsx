@@ -812,8 +812,8 @@ export function setupEventListeners(ctx: CanvasContext) {
                 return;
             }
 
-            // Ctrl+O or Ctrl+K = File search / command palette
-            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key.toLowerCase() === 'o' || e.key.toLowerCase() === 'k')) {
+            // Ctrl+O or Ctrl+K or Ctrl+P = File search / command palette
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key.toLowerCase() === 'o' || e.key.toLowerCase() === 'k' || e.key.toLowerCase() === 'p')) {
                 e.preventDefault();
                 openFileSearch(ctx);
                 return;

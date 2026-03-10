@@ -1,7 +1,7 @@
 /**
- * Command Palette — Ctrl+K file search with fuzzy matching
+ * Command Palette — Ctrl+K / Ctrl+P file search with fuzzy matching
  * 
- * - Ctrl+K opens the palette overlay
+ * - Ctrl+K or Ctrl+P opens the palette overlay
  * - Type to fuzzy-search file names
  * - Arrow keys to navigate, Enter to jump, Escape to close
  * - Supports both fileCards (DOM) and deferredCards (virtualized)
@@ -248,8 +248,8 @@ export function isCommandPaletteOpen(): boolean {
 
 export function initCommandPalette(ctx: CanvasContext): void {
     document.addEventListener('keydown', (e) => {
-        // Ctrl+K or Cmd+K
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        // Ctrl+K, Ctrl+P, or Cmd+K/Cmd+P
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'p')) {
             e.preventDefault();
             e.stopPropagation();
             if (isCommandPaletteOpen()) {

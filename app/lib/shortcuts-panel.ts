@@ -11,8 +11,9 @@ const SHORTCUTS = [
     {
         category: 'Navigation', items: [
             { keys: ['Ctrl', 'K'], description: 'Quick file search (command palette)' },
-            { keys: ['/'], description: 'Search file contents' },
-            { keys: ['Ctrl', 'F'], description: 'Search file contents' },
+            { keys: ['Ctrl', 'P'], description: 'Quick file search (VS Code style)' },
+            { keys: ['Ctrl', 'O'], description: 'Quick file search' },
+            { keys: ['Ctrl', 'F'], description: 'Global text search' },
             { keys: ['←', '→'], description: 'Navigate commits' },
             { keys: ['Space + Drag'], description: 'Pan canvas' },
             { keys: ['Scroll'], description: 'Zoom in/out' },
@@ -40,7 +41,8 @@ const SHORTCUTS = [
     },
     {
         category: 'Tools', items: [
-            { keys: ['I'], description: 'Toggle AI chat' },
+            { keys: ['H'], description: 'Toggle git heatmap (no selection)' },
+            { keys: ['Ctrl', 'N'], description: 'Create new file' },
             { keys: ['Shift + Click line'], description: 'Start connection' },
             { keys: ['Ctrl', 'Shift', 'E'], description: 'Export canvas as PNG' },
             { keys: ['Ctrl', 'Shift', 'V'], description: 'Export viewport as PNG' },
