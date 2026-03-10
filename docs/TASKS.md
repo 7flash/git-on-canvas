@@ -10,6 +10,8 @@
 ## 🟢 Priority: Features
 - [ ] **File dependency graph view** — Visualize import relationships as a force-directed graph layout. Users could toggle between spatial layout and dependency graph.
 - [ ] **Quick file switcher (Ctrl+P)** — Fuzzy file finder like VS Code's Ctrl+P. Type to search across all files in the repo, Enter to navigate to the card.
+- [ ] **Card minimap indicator** — Show a tiny colored dot on each card corner indicating changes (green=added, yellow=modified, red=deleted) visible even at low zoom.
+- [ ] **Sticky zoom controls** — Zoom slider + fit-all button in a floating pill near the bottom-right, always accessible without hunting for the toolbar.
 
 ## ✅ Completed
 - [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
