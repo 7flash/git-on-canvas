@@ -148,7 +148,7 @@ function _rebuildMinimap(ctx: CanvasContext) {
         // Skip cards with invalid positions (NaN poisons Math.min/max)
         if (isNaN(x) || isNaN(y)) return;
         const w = card.offsetWidth || 580;
-        const h = card.offsetHeight || 200;
+        const h = card.offsetHeight || 700;
         const name = path.split('/').pop() || path;
         const parts = path.split('/');
         const displayPath = parts.length > 1 ? parts.slice(-2).join('/') : name;

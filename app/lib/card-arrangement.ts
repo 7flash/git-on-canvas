@@ -69,7 +69,7 @@ function getSelectedCardsInfo(ctx: CanvasContext): CardInfo[] {
     if (infos.length < selected.length) {
         selected.forEach(path => {
             if (seen.has(path)) return;
-            const pill = document.querySelector(`.file-card-pill[data-path="${CSS.escape(path)}"]`) as HTMLElement;
+            const pill = document.querySelector(`.file-pill[data-path="${CSS.escape(path)}"]`) as HTMLElement;
             if (pill) {
                 const x = parseFloat(pill.style.left);
                 const y = parseFloat(pill.style.top);
@@ -104,7 +104,7 @@ function applyPosition(ctx: CanvasContext, info: CardInfo, newX: number, newY: n
     }
 
     // Update pill element
-    const pill = document.querySelector(`.file-card-pill[data-path="${CSS.escape(info.path)}"]`) as HTMLElement;
+    const pill = document.querySelector(`.file-pill[data-path="${CSS.escape(info.path)}"]`) as HTMLElement;
     if (pill) {
         pill.style.left = `${newX}px`;
         pill.style.top = `${newY}px`;

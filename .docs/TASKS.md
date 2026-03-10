@@ -51,6 +51,15 @@
 - [x] ~~**Performance measurement dashboard**~~ — ✅ DONE. Live FPS with sparkline graph, DOM count, zoom %, heap memory.
 - [x] ~~**Connection rendering performance**~~ — ✅ DONE. rAF coalescing.
 - [x] ~~**Folding state persistence**~~ — ✅ DONE. Unified expanded state into positions system.
+- [x] ~~**Minimap: update on card drag**~~ — ✅ DONE. Added `forceMinimapRebuild()` call after card/pill drag ends in both `cards.tsx` and `viewport-culling.ts`.
+- [x] ~~**Minimap: proper rectangles for pills**~~ — ✅ DONE. Fixed fallback height from 200→700 when cards are hidden in pill mode.
+- [x] ~~**Layer bar: show active layer**~~ — ✅ DONE. Non-active layers hidden when not hovered; active layer always visible.
+- [x] ~~**G/H/V hotkeys in pill mode**~~ — ✅ DONE. Fixed `.file-card-pill` → `.file-pill` selector mismatch in `card-arrangement.ts`.
+- [x] ~~**Search: jump to file instead of editor**~~ — ✅ DONE. Clicking a search result navigates to the card on canvas (with layer switch) and scrolls to the matching line.
+- [x] ~~**Search: persist state**~~ — ✅ DONE. Panel hides instead of destroying on result click, restoring query/results when reopened.
+
+## 📌 Future Ideas
+- [ ] 🟢 **Shared layout sessions** — Replace current cursor tracking (broken: each user has own layout). Instead: share a link with unique session ID → recipients join read-only view of your layout. They can see your cursor but can't move files. This makes collaborative browsing meaningful.
 
 ## 📝 Architecture Notes
 - **Dev server**: `bgrun --name galaxy-canvas --command "bun run dev" --directory "c:\Code\galaxy-canvas"` on port 3335

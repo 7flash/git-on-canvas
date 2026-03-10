@@ -15,14 +15,27 @@ let _ctx: CanvasContext | null = null;
 /** Toggle the search panel */
 export function toggleGlobalSearch(ctx: CanvasContext) {
     _ctx = ctx;
-    if (_panel) {
+    // Panel exists and is visible → close it
+    if (_panel && _panel.style.display !== 'none') {
         closeSearch();
     } else {
+        // Panel doesn't exist or is hidden → open/restore it
         openSearch();
     }
 }
 
 function openSearch() {
+    // If panel was hidden (not destroyed), restore it
+    if (_panel && _panel.style.display === 'none') {
+        _panel.style.display = 'flex';
+        document.addEventListener('keydown', _onEsc);
+        requestAnimationFrame(() => _panel?.classList.add('visible'));
+        // Re-focus search input
+        const input = _panel.querySelector('#gsSearchInput') as HTMLInputElement;
+        input?.focus();
+        return;
+    }
+
     if (_panel) return;
 
     _panel = document.createElement('div');
@@ -82,10 +95,11 @@ export function closeSearch() {
     if (!_panel) return;
     document.removeEventListener('keydown', _onEsc);
     _panel.classList.remove('visible');
-    // Wait for slide-out animation
+    // Hide instead of destroy — preserves query + results
     setTimeout(() => {
-        _panel?.remove();
-        _panel = null;
+        if (_panel) {
+            _panel.style.display = 'none';
+        }
     }, 200);
     if (_abortController) { _abortController.abort(); _abortController = null; }
     if (_searchTimeout) { clearTimeout(_searchTimeout); _searchTimeout = null; }
@@ -228,37 +242,44 @@ function getFileIcon(name: string): string {
     return icons[ext] || '📄';
 }
 
-/** Open a file from search results in the editor modal */
+/** Jump to a file on the canvas from search results */
 function openFileFromSearch(filePath: string, line: number) {
     if (!_ctx) return;
 
-    // Create a minimal file stub
-    const file = {
-        path: filePath,
-        name: filePath.split('/').pop() || filePath,
-        content: '',
-        lines: 0,
-    };
+    // Jump to the file on the canvas (handles layer switching and centering)
+    import('./canvas').then(({ jumpToFile }) => {
+        jumpToFile(_ctx!, filePath);
 
-    // Import and open the file modal
-    import('./file-modal').then(({ openFileModal }) => {
-        openFileModal(_ctx!, file, 'edit');
-        // Scroll to line after editor loads
+        // After jump animation settles, scroll to the matching line
         if (line > 1) {
             setTimeout(() => {
-                const editContainer = document.getElementById('modalEditContainer');
-                const editor = (editContainer as any)?._cmEditor;
-                if (editor?.view) {
-                    const lineInfo = editor.view.state.doc.line(Math.min(line, editor.view.state.doc.lines));
-                    editor.view.dispatch({
-                        selection: { anchor: lineInfo.from },
-                        scrollIntoView: true,
-                    });
+                const card = _ctx?.fileCards.get(filePath);
+                if (!card) return;
+                const body = card.querySelector('.file-card-body') as HTMLElement;
+                if (!body) return;
+                // Find the line element
+                const lineEl = body.querySelector(`[data-line="${line}"]`) as HTMLElement;
+                if (lineEl) {
+                    lineEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                    // Flash highlight
+                    lineEl.style.background = 'rgba(124, 58, 237, 0.3)';
+                    setTimeout(() => { lineEl.style.background = ''; }, 2000);
                 }
-            }, 500);
+            }, 600); // Wait for jump animation
         }
     });
 
-    // Close search panel
-    closeSearch();
+    // Hide panel but don't destroy — preserve state
+    if (_panel) {
+        _panel.classList.remove('visible');
+        _panel.style.pointerEvents = 'none';
+        _panel.style.opacity = '0';
+        setTimeout(() => {
+            if (_panel) {
+                _panel.style.display = 'none';
+                _panel.style.pointerEvents = '';
+                _panel.style.opacity = '';
+            }
+        }, 200);
+    }
 }

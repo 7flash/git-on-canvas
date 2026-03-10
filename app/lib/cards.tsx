@@ -9,7 +9,7 @@ import type { CanvasContext } from './context';
 import { escapeHtml, getFileIcon, getFileIconClass, showToast } from './utils';
 import { hideSelectedFiles } from './hidden-files';
 import { savePosition, getPositionKey, isPathExpandedInPositions, setPathExpandedInPositions } from './positions';
-import { updateMinimap, updateCanvasTransform, updateZoomUI, jumpToFile } from './canvas';
+import { updateMinimap, updateCanvasTransform, updateZoomUI, jumpToFile, forceMinimapRebuild } from './canvas';
 import { updateStatusBarSelected } from './status-bar';
 import { renderConnections, scheduleRenderConnections, setupConnectionDrag, hasPendingConnection } from './connections';
 import { highlightSyntax, buildModalDiffHTML } from './syntax';
@@ -226,6 +226,8 @@ export function setupCardInteraction(ctx: CanvasContext, card: HTMLElement, comm
                 savePosition(ctx, commitHash, info.path, x, y);
             });
             moveStartPositions = [];
+            // Force minimap rebuild so dot positions reflect the drag result
+            forceMinimapRebuild(ctx);
         }
 
         action = null;

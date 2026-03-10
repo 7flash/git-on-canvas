@@ -5254,19 +5254,24 @@ body {
     transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
-/* When not hovered, shrink to a compact indicator */
+/* When not hovered, hide non-active items but show active layer name */
 #layersBarContainer:not(:hover) .layers-bar {
-    max-width: 160px;
-    overflow: hidden;
-    opacity: 0.5;
-    transition: max-width 0.3s ease, opacity 0.2s ease;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+#layersBarContainer:not(:hover) .layers-bar-item:not(.active) {
+    display: none;
+}
+
+#layersBarContainer:not(:hover) .layers-bar-add {
+    display: none;
 }
 
 /* On hover, expand to full width */
 #layersBarContainer:hover .layers-bar {
-    max-width: 800px;
     opacity: 1;
-    transition: max-width 0.3s ease, opacity 0.15s ease;
+    transition: opacity 0.15s ease;
 }
 
 .layers-bar {

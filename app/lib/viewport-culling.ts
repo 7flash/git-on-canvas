@@ -694,6 +694,9 @@ export function setupPillInteraction(ctx: CanvasContext) {
                 savePosition(ctx, 'allfiles', info.path, newX, newY);
             });
             pillMoveInfos = [];
+            // Force minimap rebuild so dot positions reflect the drag result
+            const { forceMinimapRebuild } = require('./canvas');
+            forceMinimapRebuild(ctx);
         }
 
         pillAction = null;
