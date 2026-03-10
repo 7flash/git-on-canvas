@@ -42,6 +42,30 @@
 - [x] ~~**File diff between tabs**~~ — ✅ DONE. `tab-diff.ts` (210 lines) with LCS-based diff algorithm, side-by-side synced scroll, change markers (+/−), glassmorphic overlay. Auto-diffs 2 tabs, picker for 3+. "⇄ Diff" button in tab bar.
 - [x] ~~**Symbol outline panel**~~ — ✅ Already existed. `symbol-outline.ts` (213 lines) extracts functions/classes/interfaces/types/enums from JS/TS/Python/CSS/JSON/Markdown. Rendered in file modal with color-coded icons and click-to-scroll.
 - [x] ~~**Keyboard shortcuts overlay**~~ — ✅ Already existed. `shortcuts-panel.ts` implements `?` hotkey with glassmorphism cheat sheet.
+- [x] ~~**Remove comment feature**~~ — ✅ DONE. Stripped pr-review.ts and all references from canvas-text.ts, page.client.tsx. Comment popups no longer interfere with connections.
+- [x] ~~**URL routing: path-based**~~ — ✅ DONE. Changed from `#slug` hash to `/slug` path routing. Dynamic `[slug]/page.tsx` route. Legacy hash URLs auto-migrate. `popstate` replaces `hashchange`.
+- [x] ~~**Remove SQLite tables**~~ — ✅ DONE. Deleted `/api/connections` and `/api/positions` SQLite routes. Connections now use localStorage keyed by repo path (`gitcanvas:connections:{repoPath}`).
+- [x] ~~**Landing page: dimensional metaphor**~~ — ✅ DONE. Redesigned to tell the 4D story: 1D (Lines) → 2D (Canvas/transclusion) → 3D (Layers/z-axis) → Connections (knots) → 4D (Git/time). Plus "AI code review at scale" pitch section.
+- [x] ~~**Default layer renamed**~~ — ✅ DONE. "All Files (Default)" → "Main". Context menu "Remove from Layer" → "↩ Move to Main".
+- [x] ~~**Delete api/repo/browse**~~ — ✅ DONE. Unused endpoint removed.
+- [x] ~~**File preview: 120-line limit**~~ — ✅ DONE. Preview popup now renders with `isExpanded=true` to show ALL lines, not just the first 120.
+
+## 🔴 Priority: Fix
+- [x] ~~**File preview: popup visibility**~~ — ✅ DONE. Root cause: cards in pill mode have `display:none`, cloning them produced zero-size popup. Added `display:block` to cloned card.
+- [x] ~~**File preview: scrollable content**~~ — ✅ DONE. Popup stays stationary (no cursor-chasing), wheel events forwarded from viewport to popup when preview is visible.
+- [ ] **Changed files panel empty** — After selecting a commit, the changed files panel shows nothing. Needs investigation.
+- [ ] **Connections creation UX** — Connections work via Alt+click to start, then click another file's line. The comment popup interference is now fixed (pr-review removed). Need to verify and improve discoverability.
+- [ ] **Wheel event hijacking** — `onViewportWheel` in `file-preview.ts` blocks ALL canvas zooming when popup is visible. Should only intercept when mouse is over the popup.
+- [ ] **G hotkey overlaps in zoomed-out mode** — Grid arrangement uses pill `offsetHeight` (~24px) instead of full card height (~700px) in pill mode, causing vertical overlap. Need to use stored/default card height for grid spacing.
+- [ ] **Ctrl+A select all files** — Not implemented. Should select all visible file cards on the canvas.
+
+## 🟡 Open Tasks
+- [ ] **Migrate execAsync → Bun.$** — Several API routes use `execAsync` from `child_process`. Should use `Bun.$` for cleaner shell commands.
+- [ ] **Migrate child_process → Bun.spawn** — Replace `child_process` usage with native `Bun.spawn` for process management.
+- [ ] **Dependency graph view** — File dependency visualization started but may need polish. Verify force-directed graph, SVG connection rendering, and toggle button.
+- [ ] **Production SaaS deploy** — Set up production deployment (Vercel/Fly.io/VPS). Currently only runs locally on port 3335.
+- [ ] **Card groups: directory collapse** — Card grouping collapses directories into summary cards. Verify persistence and animations.
+- [ ] **Rename galaxydraw → xydraw** — Publish the canvas engine as `xydraw` on npm. Rename all references.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.
@@ -58,29 +82,15 @@
 - [x] ~~**Search: jump to file instead of editor**~~ — ✅ DONE. Clicking a search result navigates to the card on canvas (with layer switch) and scrolls to the matching line.
 - [x] ~~**Search: persist state**~~ — ✅ DONE. Panel hides instead of destroying on result click, restoring query/results when reopened.
 
-## 🔴 Priority: Fix
-- [ ] **Changed files panel empty** — After selecting a commit, the changed files panel shows nothing. Needs investigation: may be a data flow issue where `populateChangedFilesPanel()` isn’t called, or `ctx.commitFilesData` is stale after re-renders.
-- [ ] **Connections creation UX broken** — When creating a connection, clicking a line in a file shows a comment popup instead of selecting the line for the connection endpoint. The entire comment feature is unused/useless and should be removed. Connections are the core feature — they’re what ties the dimensional space together.
-- [ ] **Wheel event hijacking** — The `onViewportWheel` handler in `file-preview.ts` uses `{ passive: false }` + `preventDefault()` when popup is visible. This blocks ALL canvas zooming when a preview popup is shown. Need to only intercept when mouse is actually near/over the popup.
-
-## 🟡 Open Tasks
-- [x] ~~**File preview: popup visibility**~~ — ✅ DONE. Root cause: cards in pill mode have `display:none`, cloning them produced zero-size popup. Added `display:block` to cloned card.
-- [x] ~~**File preview: scrollable content**~~ — ✅ DONE. Popup stays stationary (no cursor-chasing), wheel events forwarded from viewport to popup when preview is visible.
-- [ ] **Dependency graph view** — The file dependency visualization was started (conversation 49e5cd72) but may need polish. Verify the force-directed graph layout, SVG connection rendering, and toggle button work end-to-end.
-- [ ] **Production SaaS deploy** — Set up production deployment (Vercel/Fly.io/VPS). Currently only runs locally on port 3335.
-- [ ] **Card groups: directory collapse** — Card grouping (conversation f41ada72) collapses directories into summary cards. Verify persistence and expand/collapse animations work smoothly.
-- [ ] **Remove comment feature** — The line-comment popups are useless and interfere with connection creation. Strip the comment UI entirely.
-- [ ] **URL routing: use owner/repo format** — Currently uses `#starwar` slug from folder name. Should use `/7flash/starwar` or `#7flash/starwar` to match GitHub convention. The slug→path mapping via localStorage is fragile.
-- [ ] **Remove SQLite tables for connections/positions** — Connections and positions are already stored in localStorage. Clean up any leftover server-side SQLite tables/APIs that are no longer used.
-
 ## 📌 Future Ideas
-- [ ] 🟢 **Shared layout sessions** — Replace current cursor tracking (broken: each user has own layout). Instead: share a link with unique session ID → recipients join read-only view of your layout. They can see your cursor but can’t move files. This makes collaborative browsing meaningful.
-- [ ] 🟢 **Landing page: dimensional metaphor** — Explain GitMaps as a dimensional navigation system: files are 1D (lines of code), canvas is 2D (spatial layout), layers are 3D (z-axis focus), connections let you navigate through this 3D space, and git/time is the 4th dimension. Like literally tying files together through the z-axis of layers.
+- [ ] 🟢 **Shared layout sessions** — Replace current cursor tracking (broken: each user has own layout). Instead: share a link with unique session ID → recipients join read-only view of your layout.
 
 ## 📝 Architecture Notes
-- **Dev server**: `bgrun --name galaxy-canvas --command "bun run dev" --directory "c:\Code\galaxy-canvas"` on port 3335
+- **Dev server**: `bgrun --name gitmaps` on port 3335
 - **Client orchestrator**: `app/page.client.tsx` → imports modules from `app/lib/`
 - **State**: XState machine in `app/state/machine.js`
 - **Canvas**: Direct DOM manipulation for performance (no VDOM for file cards)
 - **Landing page**: `app/page.tsx` (server-rendered), styles in `app/globals.css`
 - **Rendering**: Viewport culling + line-limiting for large files, VISIBLE_LINE_LIMIT=120
+- **URL routing**: Path-based (`/slug`) with `[slug]/page.tsx` dynamic route. Legacy `#slug` auto-migrates.
+- **Storage**: All client state in localStorage (positions, connections, layers, hidden files)
