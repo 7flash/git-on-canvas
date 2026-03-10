@@ -42,6 +42,8 @@ const SHORTCUTS = [
     {
         category: 'Tools', items: [
             { keys: ['H'], description: 'Toggle git heatmap (no selection)' },
+            { keys: ['Shift', 'P'], description: 'Performance overlay' },
+            { keys: ['Ctrl', 'G'], description: 'Toggle dependency graph' },
             { keys: ['Ctrl', 'N'], description: 'Create new file' },
             { keys: ['Shift + Click line'], description: 'Start connection' },
             { keys: ['Ctrl', 'Shift', 'E'], description: 'Export canvas as PNG' },
