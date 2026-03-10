@@ -281,7 +281,7 @@ function onMouseMove(e: MouseEvent) {
     const element = pill || card;
 
     if (!element) {
-        // Only log this occasionally to not spam
+        hidePopup();
         return;
     }
 
@@ -292,19 +292,8 @@ function onMouseMove(e: MouseEvent) {
     }
 
     if (path === currentCardPath) {
-        // Already showing for this card — just reposition
-        if (popup && popup.style.opacity === '1') {
-            const vw = window.innerWidth;
-            const vh = window.innerHeight;
-            let x = e.clientX + OFFSET_X;
-            let y = e.clientY + OFFSET_Y;
-            if (x + POPUP_MAX_W > vw - 12) x = e.clientX - POPUP_MAX_W - OFFSET_X;
-            if (y + POPUP_MAX_H > vh - 12) y = e.clientY - POPUP_MAX_H - OFFSET_Y;
-            x = Math.max(8, x);
-            y = Math.max(8, y);
-            popup.style.left = `${x}px`;
-            popup.style.top = `${y}px`;
-        }
+        // Already showing for this card — DON'T reposition.
+        // Keep popup stationary so user can move their mouse to it for scrolling.
         return;
     }
 
@@ -328,6 +317,29 @@ function onMouseOut(e: MouseEvent) {
     hidePopup();
 }
 
+/**
+ * Wheel handler on the viewport — forward scroll to popup if it's visible,
+ * otherwise let the canvas handle zoom as normal.
+ */
+function onViewportWheel(e: WheelEvent) {
+    // If popup is visible and has content, forward the scroll to it
+    if (popup && popup.style.opacity === '1' && currentCardPath) {
+        e.preventDefault();
+        e.stopPropagation();
+        popup.scrollTop += e.deltaY;
+        return;
+    }
+    // Otherwise check if zoom crossed threshold
+    if (_isHoveringPopup) return;
+    setTimeout(() => {
+        if (_isHoveringPopup) return;
+        const gd = getGalaxyDrawState();
+        if (gd && gd.zoom >= PREVIEW_ZOOM_THRESHOLD) {
+            hidePopup();
+        }
+    }, 50);
+}
+
 // ─── Public API ──────────────────────────────────────────
 
 /**
@@ -344,18 +356,8 @@ export function initFilePreview(viewportEl: HTMLElement, ctx?: CanvasContext) {
     viewportEl.addEventListener('mousemove', onMouseMove, { passive: true });
     viewportEl.addEventListener('mouseout', onMouseOut, { passive: true });
 
-    // Hide on zoom change (catches scroll-zoom)
-    viewportEl.addEventListener('wheel', () => {
-        // Don't hide popup if user is hovering/scrolling it
-        if (_isHoveringPopup) return;
-        setTimeout(() => {
-            if (_isHoveringPopup) return;
-            const gd = getGalaxyDrawState();
-            if (gd && gd.zoom >= PREVIEW_ZOOM_THRESHOLD) {
-                hidePopup();
-            }
-        }, 50);
-    }, { passive: true });
+    // Wheel: forward scroll to popup when visible, otherwise let canvas zoom
+    viewportEl.addEventListener('wheel', onViewportWheel, { passive: false });
 
     console.log('[file-preview] Initialized — full card preview below', (PREVIEW_ZOOM_THRESHOLD * 100).toFixed(0) + '% zoom');
 }
@@ -366,6 +368,7 @@ export function initFilePreview(viewportEl: HTMLElement, ctx?: CanvasContext) {
 export function destroyFilePreview(viewportEl: HTMLElement) {
     viewportEl.removeEventListener('mousemove', onMouseMove);
     viewportEl.removeEventListener('mouseout', onMouseOut);
+    viewportEl.removeEventListener('wheel', onViewportWheel);
     if (popup) {
         popup.remove();
         popup = null;
