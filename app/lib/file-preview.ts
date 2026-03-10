@@ -320,18 +320,35 @@ function onMouseOut(e: MouseEvent) {
 }
 
 /**
- * Passive wheel handler — just check if zoom crossed threshold to hide popup.
- * Does NOT intercept or preventDefault — canvas zooming always works normally.
- * The popup has its own wheel listener for scrolling its content.
+ * Wheel handler on viewport:
+ *  - If popup visible + mouse over pill/placeholder + NO Ctrl → scroll popup
+ *  - If Ctrl held → always let canvas zoom (never intercept)
+ *  - If zoom crosses threshold → hide popup
  */
-function onViewportWheel() {
-    if (!currentCardPath) return;
-    setTimeout(() => {
-        const gd = getGalaxyDrawState();
-        if (gd && gd.zoom >= PREVIEW_ZOOM_THRESHOLD) {
-            hidePopup();
+function onViewportWheel(e: WheelEvent) {
+    // Ctrl+wheel = zoom → never intercept
+    if (e.ctrlKey || e.metaKey) {
+        // Check if zoom crossed threshold after a tick
+        if (currentCardPath) {
+            setTimeout(() => {
+                const gd = getGalaxyDrawState();
+                if (gd && gd.zoom >= PREVIEW_ZOOM_THRESHOLD) hidePopup();
+            }, 50);
         }
-    }, 50);
+        return;
+    }
+
+    // If popup is visible and mouse is over a pill/card → scroll the popup
+    if (popup && popup.style.opacity === '1' && currentCardPath) {
+        const target = e.target as HTMLElement;
+        const overPill = target.closest?.('.file-pill') || target.closest?.('.file-card') || target.closest?.('.file-preview-popup');
+        if (overPill) {
+            e.preventDefault();
+            e.stopPropagation();
+            popup.scrollTop += e.deltaY;
+            return;
+        }
+    }
 }
 
 // ─── Public API ──────────────────────────────────────────
@@ -350,8 +367,8 @@ export function initFilePreview(viewportEl: HTMLElement, ctx?: CanvasContext) {
     viewportEl.addEventListener('mousemove', onMouseMove, { passive: true });
     viewportEl.addEventListener('mouseout', onMouseOut, { passive: true });
 
-    // Passive wheel listener — only hides popup on zoom change, never blocks events
-    viewportEl.addEventListener('wheel', onViewportWheel, { passive: true });
+    // Wheel: scroll popup when hovering pill, Ctrl+wheel always zooms
+    viewportEl.addEventListener('wheel', onViewportWheel, { passive: false });
 
     console.log('[file-preview] Initialized — full card preview below', (PREVIEW_ZOOM_THRESHOLD * 100).toFixed(0) + '% zoom');
 }

@@ -35,11 +35,14 @@ function getSelectedCardsInfo(ctx: CanvasContext): CardInfo[] {
             const x = parseFloat(card.style.left);
             const y = parseFloat(card.style.top);
             if (isNaN(x) || isNaN(y)) return;
+            // In pill mode, card is display:none — use stored size or default
+            const pos = ctx.positions?.get(path);
+            const def = ctx.deferredCards?.get(path);
             infos.push({
                 path, card,
                 x, y,
-                w: card.offsetWidth || 580,
-                h: card.offsetHeight || 400,
+                w: pos?.width || def?.size?.width || card.offsetWidth || 580,
+                h: pos?.height || def?.size?.height || card.offsetHeight || 700,
             });
         }
     });
@@ -74,11 +77,14 @@ function getSelectedCardsInfo(ctx: CanvasContext): CardInfo[] {
                 const x = parseFloat(pill.style.left);
                 const y = parseFloat(pill.style.top);
                 if (isNaN(x) || isNaN(y)) return;
+                // Pills are tiny (~24px) — use stored size or default card size
+                const pos = ctx.positions?.get(path);
+                const def = ctx.deferredCards?.get(path);
                 infos.push({
                     path, card: null,
                     x, y,
-                    w: pill.offsetWidth || 580,
-                    h: pill.offsetHeight || 400,
+                    w: pos?.width || def?.size?.width || 580,
+                    h: pos?.height || def?.size?.height || 700,
                 });
             }
         });
