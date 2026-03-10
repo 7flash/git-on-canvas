@@ -114,6 +114,10 @@ function SettingsPanel({ settings }: { settings: GitCanvasSettings }) {
 
                 {/* Interface Section */}
                 <SettingsSection title="Interface">
+                    <SettingsRow label="Theme" desc="Dark or light appearance">
+                        <ToggleGroup id="settingTheme" value={settings.theme}
+                            options={[{ value: 'dark', label: '🌙 Dark' }, { value: 'light', label: '☀️ Light' }]} />
+                    </SettingsRow>
                     <SettingsRow label="Control Mode" desc="Simple: drag=pan / Advanced: space+drag=pan">
                         <ToggleGroup id="settingControlMode" value={settings.controlMode}
                             options={[{ value: 'simple', label: 'Simple' }, { value: 'advanced', label: 'Advanced' }]} />
@@ -210,6 +214,17 @@ export function openSettingsModal(ctx?: any) {
             btn.classList.add('active');
             updateSettings({ controlMode: btn.dataset.value as 'simple' | 'advanced' });
             applyControlMode(btn.dataset.value as string);
+        });
+    });
+
+    // Wire theme toggle
+    const themeBtns = _modal.querySelectorAll('#settingTheme .settings-toggle-btn');
+    themeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            themeBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateSettings({ theme: btn.dataset.value as 'dark' | 'light' });
+            applyTheme(btn.dataset.value as string);
         });
     });
 
@@ -330,8 +345,9 @@ function applyMinimap(show: boolean) {
     if (minimap) (minimap as HTMLElement).style.display = show ? '' : 'none';
 }
 
-function applyCardWidth(width: number) {
-    document.documentElement.style.setProperty('--card-width', `${width}px`);
+export function applyCardWidth(width: number) {
+    document.documentElement.style.setProperty('--card-width', width + 'px');
+    window.dispatchEvent(new CustomEvent('gitcanvas:card-width-changed', { detail: width }));
     document.querySelectorAll('.file-card').forEach(card => {
         const el = card as HTMLElement;
         if (!el.style.height || el.style.height === '') {
@@ -340,11 +356,17 @@ function applyCardWidth(width: number) {
     });
 }
 
+/** Apply theme to document */
+export function applyTheme(theme: string) {
+    document.documentElement.setAttribute('data-theme', theme);
+}
+
 /** Apply all settings on startup */
 export function applyAllSettings(ctx?: any) {
     const s = getSettings();
     applyFontSize(s.fontSize);
     applyCardWidth(s.cardWidth);
+    applyTheme(s.theme);
     if (ctx) {
         ctx.useCanvasText = s.renderMode === 'canvas';
     }

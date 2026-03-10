@@ -44,6 +44,28 @@
     --sidebar-width: 320px;
 }
 
+/* Light Theme Override */
+[data-theme="light"] {
+    --bg-primary: #f8f9fc;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #eef0f4;
+    --bg-elevated: #e4e6ec;
+    --bg-card: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(240, 242, 248, 0.98));
+
+    --text-primary: #1a1a2e;
+    --text-secondary: #4a5568;
+    --text-muted: #718096;
+
+    --border-subtle: rgba(0, 0, 0, 0.06);
+    --border-default: rgba(0, 0, 0, 0.1);
+    --border-accent: rgba(124, 58, 237, 0.25);
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.12);
+    --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15);
+}
+
 * {
     margin: 0;
     padding: 0;
