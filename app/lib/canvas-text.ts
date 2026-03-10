@@ -132,9 +132,20 @@ export class CanvasTextRenderer {
             if (e.ctrlKey || e.metaKey) return;
             e.preventDefault();
             e.stopPropagation();
+
+            const maxScrollX = Math.max(0, this.maxLineWidth - this.viewportWidth);
             const maxScrollY = (this.drawnLines.length * this.lineHeight) - this.viewportHeight;
-            this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
-            container.scrollTop = this.scrollTop;
+
+            // Shift+wheel or trackpad horizontal gesture → horizontal scroll
+            if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+                const dx = e.shiftKey ? e.deltaY : e.deltaX;
+                this.scrollLeft = Math.max(0, Math.min(maxScrollX, this.scrollLeft + dx));
+            } else {
+                // Normal vertical scroll
+                this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
+                container.scrollTop = this.scrollTop;
+            }
+
             this._updateScrollTrack();
             this.render();
         }, { passive: false });
@@ -245,15 +256,60 @@ export class CanvasTextRenderer {
             hideTimeout = setTimeout(() => { track.style.opacity = BASELINE_OPACITY; }, 800);
         });
 
-        // Click on track to jump
+        // Click on track background to jump, drag thumb to scrub
+        let dragging = false;
+        let dragStartY = 0;
+        let dragStartScroll = 0;
+
         track.addEventListener('mousedown', (e) => {
             e.preventDefault();
             e.stopPropagation();
             const trackRect = track.getBoundingClientRect();
-            const clickY = e.clientY - trackRect.top;
-            const totalContent = this.drawnLines.length * this.lineHeight;
-            const scrollPct = clickY / trackRect.height;
-            container.scrollTop = scrollPct * (totalContent - this.viewportHeight);
+            const thumbRect = thumb.getBoundingClientRect();
+
+            // Check if click is on the thumb
+            if (e.clientY >= thumbRect.top && e.clientY <= thumbRect.bottom) {
+                // Start dragging the thumb
+                dragging = true;
+                dragStartY = e.clientY;
+                dragStartScroll = this.scrollTop;
+                thumb.style.background = 'rgba(124, 58, 237, 0.9)';
+                track.style.opacity = ACTIVE_OPACITY;
+
+                const onDragMove = (me: MouseEvent) => {
+                    if (!dragging) return;
+                    const totalContent = this.drawnLines.length * this.lineHeight;
+                    const maxScroll = totalContent - this.viewportHeight;
+                    const thumbH = parseFloat(thumb.style.height) || 24;
+                    const trackH = trackRect.height - thumbH;
+                    const dy = me.clientY - dragStartY;
+                    const scrollDelta = (dy / trackH) * maxScroll;
+                    this.scrollTop = Math.max(0, Math.min(maxScroll, dragStartScroll + scrollDelta));
+                    container.scrollTop = this.scrollTop;
+                    this._updateScrollTrack();
+                    this.render();
+                };
+
+                const onDragEnd = () => {
+                    dragging = false;
+                    thumb.style.background = 'rgba(124, 58, 237, 0.5)';
+                    window.removeEventListener('mousemove', onDragMove);
+                    window.removeEventListener('mouseup', onDragEnd);
+                    hideTimeout = setTimeout(() => { track.style.opacity = BASELINE_OPACITY; }, 800);
+                };
+
+                window.addEventListener('mousemove', onDragMove);
+                window.addEventListener('mouseup', onDragEnd);
+            } else {
+                // Click on track background → jump to position
+                const clickY = e.clientY - trackRect.top;
+                const totalContent = this.drawnLines.length * this.lineHeight;
+                const scrollPct = clickY / trackRect.height;
+                this.scrollTop = Math.max(0, scrollPct * (totalContent - this.viewportHeight));
+                container.scrollTop = this.scrollTop;
+                this._updateScrollTrack();
+                this.render();
+            }
         });
 
         // Pin track on scroll
@@ -637,6 +693,38 @@ export class CanvasTextRenderer {
                 this.ctx.fillStyle = 'rgba(124, 58, 237, 0.4)';
                 this.ctx.fillRect(w - 3, y + 3, 2, this.lineHeight - 6);
             }
+
+            // Left-edge fade when scrolled right (content clipped on left)
+            if (this.scrollLeft > 0) {
+                const contentLeft = this.contentX - this.scrollLeft;
+                if (contentLeft < this.contentX) {
+                    const gradL = this.ctx.createLinearGradient(this.contentX, 0, this.contentX + 30, 0);
+                    gradL.addColorStop(0, 'rgba(15, 15, 25, 0.8)');
+                    gradL.addColorStop(1, 'transparent');
+                    this.ctx.fillStyle = gradL;
+                    this.ctx.fillRect(this.contentX, y, 30, this.lineHeight);
+                }
+            }
+        }
+
+        // ── Horizontal scroll indicator bar at bottom ──
+        if (this.maxLineWidth > this.viewportWidth) {
+            const maxScrollX = this.maxLineWidth - this.viewportWidth;
+            const barWidth = Math.max(40, (this.viewportWidth / this.maxLineWidth) * (w - 40));
+            const barLeft = 20 + (this.scrollLeft / maxScrollX) * (w - 40 - barWidth);
+            const barY = h - 6;
+
+            // Track
+            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+            this.ctx.beginPath();
+            this.ctx.roundRect(20, barY, w - 40, 4, 2);
+            this.ctx.fill();
+
+            // Thumb
+            this.ctx.fillStyle = this.scrollLeft > 0 ? 'rgba(124, 58, 237, 0.5)' : 'rgba(124, 58, 237, 0.2)';
+            this.ctx.beginPath();
+            this.ctx.roundRect(barLeft, barY, barWidth, 4, 2);
+            this.ctx.fill();
         }
     }
 }

@@ -1,9 +1,24 @@
 # GitMaps Tasks & Ideas
 
-## ✅ All Tasks Complete!
+## 🔴 Priority: Fix
+- [ ] **Canvas scrollbar thumb drag** — Dragging the custom scrollbar thumb doesn't scrub smoothly. Need to add a `mousedown` → `mousemove` → `mouseup` drag handler on the thumb so users can scrub scroll position by dragging.
+- [ ] **Hover popup flicker near edge** — Moving the mouse near long-line fade edges can cause the hover popup to flicker between visible and hidden states. Add a debounce or hysteresis zone.
 
-Every planned feature has been implemented and tested:
+## 🟡 Priority: Improve
+- [ ] **Canvas text horizontal scroll** — Currently horizontal scroll is locked (overflowX: hidden). Consider adding shift+wheel or trackpad horizontal panning for wide files.
+- [ ] **Pill card hover preview** — At zoomed-out pill view, hovering over a pill could show a tooltip with file stats (lines, changes, language).
+- [ ] **Diff nav buttons visual feedback** — The ▲/▼ buttons could briefly highlight the current hunk after navigation to provide clearer visual feedback.
 
+## 🟢 Priority: Features
+- [ ] **File dependency graph** — Use import analysis to auto-create connections between files that import each other.
+- [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
+- [ ] **Card pinning** — Pin important cards so they stay visible regardless of zoom level.
+
+## ✅ Completed
+- [x] ~~**Scrollbar invisible when not hovering**~~ — ✅ DONE. Custom scrollbar now maintains baseline 0.5 opacity, brightens on hover/scroll, fades back to baseline instead of 0.
+- [x] ~~**Duplicate diff marker columns**~~ — ✅ DONE. Canvas-text mode now skips the DOM diff-marker-strip since CanvasTextRenderer already builds its own change gutter. Added `!useCanvasText` guard.
+- [x] ~~**Hover popup positioning**~~ — ✅ DONE. Hover popup for long lines and deleted diffs now appears above cursor by default, falling below only when near the top edge of the screen.
+- [x] ~~**Pill selection highlight not visible**~~ — ✅ DONE. Zoomed-out pill selection uses 8px outline, 6px offset, massive triple box-shadow glow (60px + 100px spread), z-index 100, and brightness(1.3) filter for maximum visibility at low zoom.
 - [x] **Minimap broken (NaN poisoning)** — `isNaN()` guards in minimap rebuild, fitAllFiles, createAllFileCard
 - [x] **FitAll → NaN% zoom** — same NaN poisoning fix
 - [x] **Canvas text = default** — changed from opt-in to default
@@ -40,3 +55,5 @@ Every planned feature has been implemented and tested:
 - **Framework**: GalaxyDraw engine in `packages/galaxydraw/`
 - **Dev**: `bgrun --restart galaxy-canvas` (port 3335)
 - **Bridge**: `galaxydraw-bridge.ts` — adapter between CanvasState and CanvasContext
+- **Canvas text rendering**: `canvas-text.ts` — custom scrollbar track, change gutter, hover popup
+- **Diff markers**: Two systems — DOM `card-diff-markers.ts` (for non-canvas mode) and canvas `_buildChangeGutter()` (for canvas-text mode). Only one is active at a time.
