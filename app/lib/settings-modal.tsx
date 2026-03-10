@@ -3,9 +3,147 @@
  * Settings Modal — gear icon opens a premium settings panel
  * with organized toggle switches and sliders.
  */
+import { render } from 'melina/client';
 import { getSettings, updateSettings, resetSettings, type GitCanvasSettings } from './settings';
 
 let _modal: HTMLElement | null = null;
+
+// ─── JSX Components ─────────────────────────────────────
+
+function ToggleGroup({ id, value, options }: {
+    id: string;
+    value: string;
+    options: { value: string; label: string }[];
+}) {
+    return (
+        <div className="settings-toggle-group" id={id}>
+            {options.map(opt => (
+                <button
+                    key={opt.value}
+                    className={`settings-toggle-btn ${value === opt.value ? 'active' : ''}`}
+                    data-value={opt.value}
+                >
+                    {opt.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function Slider({ id, valueId, min, max, step, value, suffix }: {
+    id: string; valueId: string;
+    min: number; max: number; step: number;
+    value: number; suffix: string;
+}) {
+    return (
+        <div className="settings-slider-group">
+            <input type="range" id={id} className="settings-slider"
+                min={String(min)} max={String(max)} step={String(step)} value={String(value)} />
+            <span className="settings-slider-value" id={valueId}>{value}{suffix}</span>
+        </div>
+    );
+}
+
+function Switch({ id, checked }: { id: string; checked: boolean }) {
+    return (
+        <label className="settings-switch">
+            <input type="checkbox" id={id} checked={checked} />
+            <span className="settings-switch-slider"></span>
+        </label>
+    );
+}
+
+function SettingsRow({ label, desc, children }: {
+    label: string; desc: string; children: any;
+}) {
+    return (
+        <div className="settings-row">
+            <div className="settings-label">
+                <span className="settings-label-text">{label}</span>
+                <span className="settings-label-desc">{desc}</span>
+            </div>
+            {children}
+        </div>
+    );
+}
+
+function SettingsSection({ title, children }: { title: string; children: any }) {
+    return (
+        <div className="settings-section">
+            <h3 className="settings-section-title">{title}</h3>
+            {children}
+        </div>
+    );
+}
+
+function SettingsPanel({ settings }: { settings: GitCanvasSettings }) {
+    const cardCols = Math.round(settings.cardWidth / 7.2);
+    return (
+        <div className="settings-modal">
+            <div className="settings-header">
+                <h2 className="settings-title">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3" />
+                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                    </svg>
+                    Settings
+                </h2>
+                <button className="settings-close" id="closeSettings">✕</button>
+            </div>
+            <div className="settings-body">
+                {/* Rendering Section */}
+                <SettingsSection title="Rendering">
+                    <SettingsRow label="Text Rendering" desc="Canvas (fast) or DOM (rich interactions)">
+                        <ToggleGroup id="settingRenderMode" value={settings.renderMode}
+                            options={[{ value: 'canvas', label: 'Canvas' }, { value: 'dom', label: 'DOM' }]} />
+                    </SettingsRow>
+                    <SettingsRow label="Font Size" desc="Code font size in pixels">
+                        <Slider id="settingFontSize" valueId="fontSizeValue"
+                            min={10} max={18} step={1} value={settings.fontSize} suffix="px" />
+                    </SettingsRow>
+                    <SettingsRow label="Popup Font Size" desc="Font size for hover popup previews">
+                        <Slider id="settingPopupFontSize" valueId="popupFontSizeValue"
+                            min={10} max={24} step={1} value={settings.popupFontSize} suffix="px" />
+                    </SettingsRow>
+                    <SettingsRow label="Card Width" desc="Character columns per card (like editors)">
+                        <Slider id="settingCardWidth" valueId="cardWidthValue"
+                            min={40} max={120} step={5} value={cardCols} suffix=" cols" />
+                    </SettingsRow>
+                </SettingsSection>
+
+                {/* Interface Section */}
+                <SettingsSection title="Interface">
+                    <SettingsRow label="Control Mode" desc="Simple: drag=pan / Advanced: space+drag=pan">
+                        <ToggleGroup id="settingControlMode" value={settings.controlMode}
+                            options={[{ value: 'simple', label: 'Simple' }, { value: 'advanced', label: 'Advanced' }]} />
+                    </SettingsRow>
+                    <SettingsRow label="Show Minimap" desc="Overview map in the corner">
+                        <Switch id="settingMinimap" checked={settings.showMinimap} />
+                    </SettingsRow>
+                    <SettingsRow label="Show Connections" desc="Lines between importing files">
+                        <Switch id="settingConnections" checked={settings.showConnections} />
+                    </SettingsRow>
+                    <SettingsRow label="Auto-detect Imports" desc="Scan files for imports on load">
+                        <Switch id="settingAutoImports" checked={settings.autoDetectImports} />
+                    </SettingsRow>
+                </SettingsSection>
+
+                {/* Advanced Section */}
+                <SettingsSection title="Advanced">
+                    <SettingsRow label="Max Visible Lines" desc="Lines shown per card before virtual scroll">
+                        <Slider id="settingMaxLines" valueId="maxLinesValue"
+                            min={30} max={500} step={10} value={settings.maxVisibleLines} suffix="" />
+                    </SettingsRow>
+                </SettingsSection>
+            </div>
+            <div className="settings-footer">
+                <button className="settings-reset-btn" id="settingsReset">Reset to Defaults</button>
+                <span className="settings-footer-note">Changes are saved automatically</span>
+            </div>
+        </div>
+    );
+}
 
 /** Open the settings modal */
 export function openSettingsModal(ctx?: any) {
@@ -17,7 +155,6 @@ export function openSettingsModal(ctx?: any) {
     _modal = document.createElement('div');
     _modal.id = 'settingsModal';
     _modal.className = 'settings-modal-backdrop';
-    // Force inline positioning to guarantee correct placement regardless of CSS containment
     Object.assign(_modal.style, {
         position: 'fixed',
         top: '0',
@@ -31,132 +168,9 @@ export function openSettingsModal(ctx?: any) {
         alignItems: 'center',
         justifyContent: 'center',
     });
-    _modal.innerHTML = `
-        <div class="settings-modal">
-            <div class="settings-header">
-                <h2 class="settings-title">
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"/>
-                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-                    </svg>
-                    Settings
-                </h2>
-                <button class="settings-close" id="closeSettings">✕</button>
-            </div>
-            <div class="settings-body">
-                <!-- Rendering Section -->
-                <div class="settings-section">
-                    <h3 class="settings-section-title">Rendering</h3>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Text Rendering</span>
-                            <span class="settings-label-desc">Canvas (fast) or DOM (rich interactions)</span>
-                        </div>
-                        <div class="settings-toggle-group" id="settingRenderMode">
-                            <button class="settings-toggle-btn ${settings.renderMode === 'canvas' ? 'active' : ''}" data-value="canvas">Canvas</button>
-                            <button class="settings-toggle-btn ${settings.renderMode === 'dom' ? 'active' : ''}" data-value="dom">DOM</button>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Font Size</span>
-                            <span class="settings-label-desc">Code font size in pixels</span>
-                        </div>
-                        <div class="settings-slider-group">
-                            <input type="range" id="settingFontSize" class="settings-slider" min="10" max="18" step="1" value="${settings.fontSize}" />
-                            <span class="settings-slider-value" id="fontSizeValue">${settings.fontSize}px</span>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Popup Font Size</span>
-                            <span class="settings-label-desc">Font size for hover popup previews</span>
-                        </div>
-                        <div class="settings-slider-group">
-                            <input type="range" id="settingPopupFontSize" class="settings-slider" min="10" max="24" step="1" value="${settings.popupFontSize}" />
-                            <span class="settings-slider-value" id="popupFontSizeValue">${settings.popupFontSize}px</span>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Card Width</span>
-                            <span class="settings-label-desc">Character columns per card (like editors)</span>
-                        </div>
-                        <div class="settings-slider-group">
-                            <input type="range" id="settingCardWidth" class="settings-slider" min="40" max="120" step="5" value="${Math.round(settings.cardWidth / 7.2)}" />
-                            <span class="settings-slider-value" id="cardWidthValue">${Math.round(settings.cardWidth / 7.2)} cols</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Interface Section -->
-                <div class="settings-section">
-                    <h3 class="settings-section-title">Interface</h3>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Control Mode</span>
-                            <span class="settings-label-desc">Simple: drag=pan / Advanced: space+drag=pan</span>
-                        </div>
-                        <div class="settings-toggle-group" id="settingControlMode">
-                            <button class="settings-toggle-btn ${settings.controlMode === 'simple' ? 'active' : ''}" data-value="simple">Simple</button>
-                            <button class="settings-toggle-btn ${settings.controlMode === 'advanced' ? 'active' : ''}" data-value="advanced">Advanced</button>
-                        </div>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Show Minimap</span>
-                            <span class="settings-label-desc">Overview map in the corner</span>
-                        </div>
-                        <label class="settings-switch">
-                            <input type="checkbox" id="settingMinimap" ${settings.showMinimap ? 'checked' : ''} />
-                            <span class="settings-switch-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Show Connections</span>
-                            <span class="settings-label-desc">Lines between importing files</span>
-                        </div>
-                        <label class="settings-switch">
-                            <input type="checkbox" id="settingConnections" ${settings.showConnections ? 'checked' : ''} />
-                            <span class="settings-switch-slider"></span>
-                        </label>
-                    </div>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Auto-detect Imports</span>
-                            <span class="settings-label-desc">Scan files for imports on load</span>
-                        </div>
-                        <label class="settings-switch">
-                            <input type="checkbox" id="settingAutoImports" ${settings.autoDetectImports ? 'checked' : ''} />
-                            <span class="settings-switch-slider"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <!-- Advanced Section -->
-                <div class="settings-section">
-                    <h3 class="settings-section-title">Advanced</h3>
-                    <div class="settings-row">
-                        <div class="settings-label">
-                            <span class="settings-label-text">Max Visible Lines</span>
-                            <span class="settings-label-desc">Lines shown per card before virtual scroll</span>
-                        </div>
-                        <div class="settings-slider-group">
-                            <input type="range" id="settingMaxLines" class="settings-slider" min="30" max="500" step="10" value="${settings.maxVisibleLines}" />
-                            <span class="settings-slider-value" id="maxLinesValue">${settings.maxVisibleLines}</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="settings-footer">
-                <button class="settings-reset-btn" id="settingsReset">Reset to Defaults</button>
-                <span class="settings-footer-note">Changes are saved automatically</span>
-            </div>
-        </div>
-    `;
 
     document.body.appendChild(_modal);
+    render(<SettingsPanel settings={settings} />, _modal);
 
     // Wire close
     const close = () => { if (_modal) { _modal.remove(); _modal = null; } };
@@ -208,7 +222,7 @@ export function openSettingsModal(ctx?: any) {
     const cardWidthValue = _modal.querySelector('#cardWidthValue')!;
     cardWidthSlider?.addEventListener('input', () => {
         const cols = parseInt(cardWidthSlider.value);
-        const px = Math.round(cols * 7.2); // char width * columns
+        const px = Math.round(cols * 7.2);
         cardWidthValue.textContent = `${cols} cols`;
         updateSettings({ cardWidth: px });
         applyCardWidth(px);
@@ -241,7 +255,6 @@ export function openSettingsModal(ctx?: any) {
     // Wire reset
     _modal.querySelector('#settingsReset')!.addEventListener('click', () => {
         const defaults = resetSettings();
-        // Re-open modal to refresh all values
         close();
         setTimeout(() => openSettingsModal(ctx), 50);
     });
@@ -277,10 +290,8 @@ function applyMinimap(show: boolean) {
 
 function applyCardWidth(width: number) {
     document.documentElement.style.setProperty('--card-width', `${width}px`);
-    // Update all existing file cards that don't have manual widths
     document.querySelectorAll('.file-card').forEach(card => {
         const el = card as HTMLElement;
-        // Only update cards that weren't manually resized (no explicit height)
         if (!el.style.height || el.style.height === '') {
             el.style.width = `${width}px`;
         }
@@ -295,7 +306,5 @@ export function applyAllSettings(ctx?: any) {
     if (ctx) {
         ctx.useCanvasText = s.renderMode === 'canvas';
     }
-    // Minimap: delay slightly to wait for DOM
     requestAnimationFrame(() => applyMinimap(s.showMinimap));
 }
-
