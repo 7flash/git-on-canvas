@@ -1,11 +1,7 @@
 # GitMaps Tasks & Ideas
 
-## 🔴 Priority: Fix
-- [ ] **Hover popup flicker near edge** — Moving the mouse near long-line fade edges can cause the hover popup to flicker between visible and hidden states. Add a debounce or hysteresis zone.
-
 ## 🟡 Priority: Improve
-- [ ] **Pill card hover preview** — At zoomed-out pill view, hovering over a pill could show a tooltip with file stats (lines, changes, language).
-- [ ] **Diff nav buttons visual feedback** — The ▲/▼ buttons could briefly highlight the current hunk after navigation to provide clearer visual feedback.
+- [ ] **Hover popup flicker near edge** — Moving the mouse near long-line fade edges can cause the hover popup to flicker between visible and hidden states. Add a debounce or hysteresis zone.
 
 ## 🟢 Priority: Features
 - [ ] **File dependency graph** — Use import analysis to auto-create connections between files that import each other.
@@ -13,6 +9,8 @@
 - [ ] **Card pinning** — Pin important cards so they stay visible regardless of zoom level.
 
 ## ✅ Completed
+- [x] ~~**Diff nav visual feedback**~~ — ✅ DONE. ▲/▼ buttons now flash the gutter marker bright with glow, draw a semi-transparent highlight over the hunk lines for 500ms, and show a "2/5" position counter between the arrows.
+- [x] ~~**Pill card hover preview**~~ — ✅ Already done via `file-preview.ts` — shows FULL card preview (not just stats) when hovering over pills at low zoom.
 - [x] ~~**Horizontal scroll (Shift+wheel/trackpad)**~~ — ✅ DONE. Shift+wheel pans content horizontally. Trackpad horizontal gestures also work (deltaX detection). Left-edge fade gradient appears when scrolled right. Canvas-rendered horizontal scrollbar indicator at bottom shows position.
 - [x] ~~**Scrollbar thumb drag**~~ — ✅ DONE. Dragging the vertical scrollbar thumb now smoothly scrubs scroll position. Click on track background jumps to position. Thumb highlights purple during drag.
 - [x] ~~**Scrollbar invisible when not hovering**~~ — ✅ DONE. Custom scrollbar now maintains baseline 0.5 opacity, brightens on hover/scroll, fades back to baseline instead of 0.
