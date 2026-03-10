@@ -320,21 +320,13 @@ function onMouseOut(e: MouseEvent) {
 }
 
 /**
- * Wheel handler on the viewport — forward scroll to popup if it's visible,
- * otherwise let the canvas handle zoom as normal.
+ * Passive wheel handler — just check if zoom crossed threshold to hide popup.
+ * Does NOT intercept or preventDefault — canvas zooming always works normally.
+ * The popup has its own wheel listener for scrolling its content.
  */
-function onViewportWheel(e: WheelEvent) {
-    // If popup is visible and has content, forward the scroll to it
-    if (popup && popup.style.opacity === '1' && currentCardPath) {
-        e.preventDefault();
-        e.stopPropagation();
-        popup.scrollTop += e.deltaY;
-        return;
-    }
-    // Otherwise check if zoom crossed threshold
-    if (_isHoveringPopup) return;
+function onViewportWheel() {
+    if (!currentCardPath) return;
     setTimeout(() => {
-        if (_isHoveringPopup) return;
         const gd = getGalaxyDrawState();
         if (gd && gd.zoom >= PREVIEW_ZOOM_THRESHOLD) {
             hidePopup();
@@ -358,8 +350,8 @@ export function initFilePreview(viewportEl: HTMLElement, ctx?: CanvasContext) {
     viewportEl.addEventListener('mousemove', onMouseMove, { passive: true });
     viewportEl.addEventListener('mouseout', onMouseOut, { passive: true });
 
-    // Wheel: forward scroll to popup when visible, otherwise let canvas zoom
-    viewportEl.addEventListener('wheel', onViewportWheel, { passive: false });
+    // Passive wheel listener — only hides popup on zoom change, never blocks events
+    viewportEl.addEventListener('wheel', onViewportWheel, { passive: true });
 
     console.log('[file-preview] Initialized — full card preview below', (PREVIEW_ZOOM_THRESHOLD * 100).toFixed(0) + '% zoom');
 }
