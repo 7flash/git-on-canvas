@@ -11,7 +11,7 @@
 - [ ] **File dependency graph view** — Visualize import relationships as a force-directed graph layout. Users could toggle between spatial layout and dependency graph.
 - [x] ~~**Quick file switcher (Ctrl+P)**~~ — ✅ DONE. Already existed as `command-palette.ts` (Ctrl+K/Ctrl+O). Added Ctrl+P as additional VS Code-style shortcut. Updated shortcuts panel with accurate keybindings, removed stale entries (I, /).
 - [ ] **Card minimap indicator** — Show a tiny colored dot on each card corner indicating changes (green=added, yellow=modified, red=deleted) visible even at low zoom.
-- [ ] **Sticky zoom controls** — Zoom slider + fit-all button in a floating pill near the bottom-right, always accessible without hunting for the toolbar.
+- [x] ~~**Sticky zoom controls**~~ — ✅ DONE. Glassmorphism floating pill in bottom-right with zoom ±, slider, percentage, and fit-all button. Always visible, synced with sidebar controls.
 
 ## ✅ Completed
 - [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
