@@ -56,6 +56,7 @@
 - [x] ~~**Git blame integration**~~ — ✅ Already existed. `loadBlameView()` in file-modal.tsx with caching, color-coded authors, time-ago timestamps. API endpoint at `/api/repo/git-blame` with porcelain parsing.
 - [x] ~~**PR review mode**~~ — ✅ DONE. `pr-review.ts` module with comment CRUD, localStorage persistence, glassmorphism comment thread popup. Canvas gutter click handler opens "💬 Line N" popup with input, resolve, and delete. Purple dot markers + count badges rendered in canvas gutter for lines with comments. Review store initialized per-repo. Browser verified on localhost:3335.
 - [x] ~~**Multi-repo workspace**~~ — ✅ Already existed. `multi-repo.ts` (287 lines): `registerRepo()` calculates bounding boxes, `getNextRepoOffset()` positions repos with 800px gaps, `renderRepoTabs()` creates color-coded tab switcher, `createZoneLabel()` renders floating zone labels. Wired into `repo.tsx` for automatic registration on load.
+- [x] ~~**Git heatmap visualization**~~ — ✅ DONE. `heatmap.ts` + `/api/repo/git-heatmap` API. Runs `git log --name-only --since=90d` to count commit frequency per file. Cards are color-coded cold (blue) → hot (red) via HSL gradient with glow effects. Fire emoji badges show commit counts. Toggle with `H` key (when no cards selected). CSS injected dynamically. Toast feedback.
 
 ## 📝 Architecture Notes
 - **Canvas//DOM split**: Canvas text for cards, DOM for popup previews & modals

@@ -725,7 +725,23 @@ export function setupEventListeners(ctx: CanvasContext) {
             // Arrangement hotkeys
             if (e.key === 'h' || e.key === 'H') {
                 const selected = ctx.snap().context.selectedCards;
-                if (selected.length >= 2) { e.preventDefault(); arrangeRow(ctx); }
+                if (selected.length >= 2) {
+                    e.preventDefault(); arrangeRow(ctx);
+                } else if (selected.length === 0) {
+                    // Toggle git heatmap overlay
+                    e.preventDefault();
+                    const repoPath = ctx.snap().context.repoPath;
+                    if (repoPath) {
+                        import('./heatmap').then(async ({ toggleHeatmap, injectHeatmapCSS }) => {
+                            injectHeatmapCSS();
+                            const active = await toggleHeatmap(repoPath);
+                            import('./utils').then(m => m.showToast(
+                                active ? '🔥 Heatmap ON — hot files glow red' : 'Heatmap OFF',
+                                'info'
+                            ));
+                        });
+                    }
+                }
             }
             if (e.key === 'v' || e.key === 'V') {
                 const selected = ctx.snap().context.selectedCards;
