@@ -63,6 +63,9 @@ export function updateCanvasTransform(ctx: CanvasContext) {
             }));
         }, 300);
     }
+
+    // Notify cursor sharing of viewport change
+    window.dispatchEvent(new Event('gitcanvas:viewport-changed'));
 }
 
 // ─── Update zoom slider UI ──────────────────────────────
