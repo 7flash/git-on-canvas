@@ -352,6 +352,9 @@ export function togglePerfOverlay(ctx: CanvasContext) {
 export function setupPerfOverlay(ctx: CanvasContext) {
     _ctx = ctx;
     window.addEventListener('keydown', (e: KeyboardEvent) => {
+        // Don't steal Shift+P from text inputs
+        const tag = (e.target as HTMLElement)?.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable) return;
         if (e.shiftKey && e.key === 'P') {
             e.preventDefault();
             togglePerfOverlay(ctx);
