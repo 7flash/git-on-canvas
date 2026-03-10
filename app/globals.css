@@ -3762,9 +3762,20 @@ body {
     top: 44px;
     right: 8px;
     width: 380px;
+    min-width: 240px;
+    max-width: 600px;
     max-height: calc(100% - 56px - 140px);
     z-index: 300;
     animation: slideInRight 0.2s ease;
+    resize: horizontal;
+    overflow: auto;
+    direction: rtl;
+    /* resize handle on left side (toward canvas) */
+}
+
+#canvasChat>* {
+    direction: ltr;
+    /* restore normal text direction for children */
 }
 
 @keyframes slideInRight {

@@ -5,7 +5,7 @@
 
 ## 🟡 Priority: Improve
 - [x] ~~**Layer bubble occludes cards**~~ — ✅ DONE. CSS auto-minimize: `max-width: 160px` + `opacity: 0.5` when not hovered, expands to full `800px` on `:hover` with smooth 300ms transitions. Reduces visual footprint by ~80% during normal canvas work.
-- [ ] **Canvas AI panel UX** — The AI chat panel covers ~25% of the canvas when open. Consider making it resizable, or a floating window that can be repositioned/minimized.
+- [x] ~~**Canvas AI panel UX**~~ — ✅ DONE. Panel now resizable (`resize: horizontal`, 240–600px range) with `direction: rtl` trick for left-side resize handle. Users can shrink the panel to just 240px or expand to 600px.
 
 ## 🟢 Priority: Features
 - [ ] **File dependency graph view** — Visualize import relationships as a force-directed graph layout. Users could toggle between spatial layout and dependency graph.
