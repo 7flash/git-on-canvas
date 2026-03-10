@@ -39,7 +39,7 @@
 - [x] ~~**Multi-tab editor**~~ — ✅ DONE. Tab bar with file icons, names, close buttons. Ctrl+Tab/Ctrl+Shift+Tab cycling, middle-click close, scroll position per tab. Go-to-definition opens as new tab.
 - [x] ~~**File breadcrumb navigation**~~ — ✅ DONE. Clickable directory segments in modal header. Click opens dropdown with sibling files/dirs. Drill into subdirs. Opens files as new tabs.
 - [x] ~~**Git blame view**~~ — ✅ DONE. "Blame" tab with porcelain API. Color-coded authors, grouped commits, relative timestamps, author legend, cached data.
-- [ ] **File diff between tabs** — Select two open tabs and diff them side-by-side.
+- [x] ~~**File diff between tabs**~~ — ✅ DONE. `tab-diff.ts` (210 lines) with LCS-based diff algorithm, side-by-side synced scroll, change markers (+/−), glassmorphic overlay. Auto-diffs 2 tabs, picker for 3+. "⇄ Diff" button in tab bar.
 - [x] ~~**Symbol outline panel**~~ — ✅ Already existed. `symbol-outline.ts` (213 lines) extracts functions/classes/interfaces/types/enums from JS/TS/Python/CSS/JSON/Markdown. Rendered in file modal with color-coded icons and click-to-scroll.
 - [x] ~~**Keyboard shortcuts overlay**~~ — ✅ Already existed. `shortcuts-panel.ts` implements `?` hotkey with glassmorphism cheat sheet.
 
