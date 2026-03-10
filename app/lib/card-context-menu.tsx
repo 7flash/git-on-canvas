@@ -29,13 +29,43 @@ function lazyLoad() {
 }
 
 // ─── Context Menu JSX component ─────────────────────
-function ContextMenu({ onAction, onActionLayer, isInActiveLayer, pinned }: { onAction: (action: string) => void, onActionLayer: (layerId: string) => void, isInActiveLayer: boolean, pinned: boolean }) {
+function ContextMenu({ onAction, onActionLayer, onSelectFolder, isInActiveLayer, pinned, filePath }: {
+    onAction: (action: string) => void;
+    onActionLayer: (layerId: string) => void;
+    onSelectFolder: (dir: string) => void;
+    isInActiveLayer: boolean;
+    pinned: boolean;
+    filePath: string;
+}) {
     const customLayers = layerState.layers.filter(l => l.id !== 'default');
+
+    // Build ancestor directory chain: app/lib/utils/foo.ts → ['app/lib/utils', 'app/lib', 'app']
+    const parts = filePath.split('/');
+    const ancestors: string[] = [];
+    if (parts.length > 1) {
+        for (let i = parts.length - 2; i >= 0; i--) {
+            ancestors.push(parts.slice(0, i + 1).join('/'));
+        }
+    }
+
     return (
         <>
             <button className="ctx-item" onClick={() => onAction('copy-path')}>📋 Copy path</button>
             <button className="ctx-item" onClick={() => onAction('select')}>☑️ Select</button>
-            <button className="ctx-item" onClick={() => onAction('select-folder')}>📁 Select all from folder</button>
+            {ancestors.length > 0 ? (
+                <div className="ctx-item ctx-dropdown">
+                    <span>📁 Select from folder ▸</span>
+                    <div className="ctx-dropdown-content">
+                        {ancestors.map(dir => (
+                            <button key={dir} className="ctx-item" onClick={() => onSelectFolder(dir)}>
+                                📂 {dir}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ) : (
+                <button className="ctx-item" onClick={() => onSelectFolder('')}>📁 Select all (root)</button>
+            )}
             <button className="ctx-item" onClick={() => onAction('pin')}>{pinned ? '📌 Unpin card' : '📌 Pin card'}</button>
             <div className="ctx-divider"></div>
             <button className="ctx-item" onClick={() => onAction('expand')}>📖 Open in Editor</button>
@@ -139,23 +169,6 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
             }).catch(() => {
                 showToast('Connections module not available', 'error');
             });
-        } else if (action === 'select-folder') {
-            // Select all files from the same directory
-            const dir = filePath.includes('/') ? filePath.substring(0, filePath.lastIndexOf('/')) : '';
-            const allPaths = Array.from(ctx.fileCards.keys());
-            const deferredPaths = Array.from(ctx.deferredCards.keys());
-            const allFilePaths = [...new Set([...allPaths, ...deferredPaths])];
-            const folderFiles = allFilePaths.filter(p => {
-                const pDir = p.includes('/') ? p.substring(0, p.lastIndexOf('/')) : '';
-                return pDir === dir;
-            });
-            // Select all matching files
-            folderFiles.forEach((p, i) => {
-                ctx.actor.send({ type: 'SELECT_CARD', path: p, shift: i > 0 });
-            });
-            _updateSelectionHighlights(ctx);
-            _updateArrangeToolbar(ctx);
-            showToast(`Selected ${folderFiles.length} files from ${dir || 'root'}`, 'info');
         } else if (action === 'pin') {
             const nowPinned = togglePinCard(filePath);
             if (nowPinned) {
@@ -194,8 +207,25 @@ export function showCardContextMenu(ctx: CanvasContext, card: HTMLElement, x: nu
         }
     }
 
+    // Handler for folder selection (recursive — selects all files under chosen directory)
+    function handleSelectFolder(dir: string) {
+        menu.remove();
+        const allPaths = Array.from(ctx.fileCards.keys());
+        const deferredPaths = Array.from(ctx.deferredCards.keys());
+        const allFilePaths = [...new Set([...allPaths, ...deferredPaths])];
+        const folderFiles = dir
+            ? allFilePaths.filter(p => p.startsWith(dir + '/'))
+            : allFilePaths; // empty dir = root = select all
+        folderFiles.forEach((p, i) => {
+            ctx.actor.send({ type: 'SELECT_CARD', path: p, shift: i > 0 });
+        });
+        _updateSelectionHighlights(ctx);
+        _updateArrangeToolbar(ctx);
+        showToast(`Selected ${folderFiles.length} files from ${dir || 'root'}`, 'info');
+    }
+
     const pinned = isPinned(filePath);
-    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} isInActiveLayer={isInActiveLayer} pinned={pinned} />, menu);
+    render(<ContextMenu onAction={handleAction} onActionLayer={handleActionLayer} onSelectFolder={handleSelectFolder} isInActiveLayer={isInActiveLayer} pinned={pinned} filePath={filePath} />, menu);
     document.body.appendChild(menu);
 
     requestAnimationFrame(() => {
