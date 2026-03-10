@@ -585,6 +585,31 @@ export function setupEventListeners(ctx: CanvasContext) {
             updateZoomUI(ctx);
         });
 
+        // ── Sticky Zoom Pill controls ──
+        document.getElementById('stickyZoomSlider')?.addEventListener('input', (e) => {
+            ctx.actor.send({ type: 'SET_ZOOM', zoom: parseFloat((e.target as HTMLInputElement).value) });
+            updateCanvasTransform(ctx);
+            updateZoomUI(ctx);
+        });
+
+        document.getElementById('stickyZoomOut')?.addEventListener('click', () => {
+            const state = ctx.snap().context;
+            const newZoom = Math.max(0.1, state.zoom - 0.1);
+            ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
+            updateCanvasTransform(ctx);
+            updateZoomUI(ctx);
+        });
+
+        document.getElementById('stickyZoomIn')?.addEventListener('click', () => {
+            const state = ctx.snap().context;
+            const newZoom = Math.min(3, state.zoom + 0.1);
+            ctx.actor.send({ type: 'SET_ZOOM', zoom: newZoom });
+            updateCanvasTransform(ctx);
+            updateZoomUI(ctx);
+        });
+
+        document.getElementById('stickyFitAll')?.addEventListener('click', () => fitAllFiles(ctx));
+
         // Reset
         document.getElementById('resetView')?.addEventListener('click', () => {
             ctx.actor.send({ type: 'SET_ZOOM', zoom: 1 });

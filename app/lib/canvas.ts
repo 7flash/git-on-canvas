@@ -71,10 +71,20 @@ export function updateCanvasTransform(ctx: CanvasContext) {
 // ─── Update zoom slider UI ──────────────────────────────
 export function updateZoomUI(ctx: CanvasContext) {
     const state = ctx.snap().context;
+    const zoomPct = `${Math.round(state.zoom * 100)}%`;
+
+    // Sidebar slider
     const slider = document.getElementById('zoomSlider') as HTMLInputElement;
     const value = document.getElementById('zoomValue');
     if (slider) slider.value = state.zoom;
-    if (value) value.textContent = `${Math.round(state.zoom * 100)}%`;
+    if (value) value.textContent = zoomPct;
+
+    // Sticky zoom pill
+    const stickySlider = document.getElementById('stickyZoomSlider') as HTMLInputElement;
+    const stickyValue = document.getElementById('stickyZoomValue');
+    if (stickySlider) stickySlider.value = String(state.zoom);
+    if (stickyValue) stickyValue.textContent = zoomPct;
+
     updateStatusBarZoom(state.zoom);
 }
 

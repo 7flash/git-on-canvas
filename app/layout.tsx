@@ -288,6 +288,29 @@ export default function RootLayout({ children }: { children: any }) {
                             </button>
                         </div>
 
+                        {/* Sticky Zoom Controls — floating pill, bottom-right */}
+                        <div id="stickyZoomControls" className="sticky-zoom-pill">
+                            <button id="stickyZoomOut" className="sz-btn" title="Zoom out">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                            </button>
+                            <input type="range" id="stickyZoomSlider" className="sz-slider" min="0.1" max="3" step="0.05" defaultValue="1" />
+                            <button id="stickyZoomIn" className="sz-btn" title="Zoom in">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="12" y1="5" x2="12" y2="19" />
+                                    <line x1="5" y1="12" x2="19" y2="12" />
+                                </svg>
+                            </button>
+                            <span id="stickyZoomValue" className="sz-value">100%</span>
+                            <div className="sz-divider" />
+                            <button id="stickyFitAll" className="sz-btn sz-fit" title="Fit all cards">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                                </svg>
+                            </button>
+                        </div>
+
                         {/* Bottom Layers Bar */}
                         <div id="layersBarContainer"></div>
                     </main>
