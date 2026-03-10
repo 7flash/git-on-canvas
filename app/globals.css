@@ -5888,6 +5888,270 @@ body {
     color: var(--text-muted);
 }
 
+/* ─── Dimensions Section ─── */
+.landing-dimensions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 40px;
+    animation: landingSlideUp 0.5s 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dimension-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    text-align: center;
+    margin-bottom: 8px;
+    font-weight: 500;
+}
+
+.dimension-card {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    gap: 4px 14px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 16px 20px;
+    transition: border-color 0.3s, background 0.3s, transform 0.3s;
+    position: relative;
+    overflow: hidden;
+}
+
+.dimension-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(167, 139, 250, 0.04), transparent 60%);
+    pointer-events: none;
+}
+
+.dimension-card:hover {
+    border-color: rgba(167, 139, 250, 0.15);
+    background: rgba(255, 255, 255, 0.025);
+    transform: translateX(2px);
+}
+
+.dim-badge {
+    grid-row: 1 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    gap: 2px;
+}
+
+.dim-num {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+}
+
+.dim-axis {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.dim-visual {
+    display: none;
+    /* Hidden on small screens, shown in wide layout */
+}
+
+.dim-svg {
+    width: 100%;
+    height: auto;
+}
+
+.dimension-card h3 {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.dimension-card p {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+    grid-column: 2;
+}
+
+.dimension-card em {
+    color: #a78bfa;
+    font-style: normal;
+    font-weight: 600;
+}
+
+/* Specific dimension colors */
+.dim-1d:hover {
+    border-color: rgba(167, 139, 250, 0.2);
+}
+
+.dim-1d .dim-num {
+    background: linear-gradient(135deg, #a78bfa, #c084fc);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.dim-2d:hover {
+    border-color: rgba(96, 165, 250, 0.2);
+}
+
+.dim-2d .dim-num {
+    background: linear-gradient(135deg, #60a5fa, #818cf8);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.dim-3d:hover {
+    border-color: rgba(52, 211, 153, 0.2);
+}
+
+.dim-3d .dim-num {
+    background: linear-gradient(135deg, #34d399, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+.dim-conn:hover {
+    border-color: rgba(167, 139, 250, 0.25);
+}
+
+.dim-conn .dim-num {
+    background: linear-gradient(135deg, #f472b6, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    font-size: 1.5rem;
+}
+
+.dim-4d:hover {
+    border-color: rgba(124, 58, 237, 0.25);
+}
+
+.dim-4d .dim-num {
+    background: linear-gradient(135deg, #7c3aed, #a78bfa);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+/* Connection pulse animation */
+@keyframes connPulse {
+
+    0%,
+    100% {
+        r: 6;
+        opacity: 0.15;
+    }
+
+    50% {
+        r: 10;
+        opacity: 0.05;
+    }
+}
+
+.conn-pulse {
+    animation: connPulse 2s ease-in-out infinite;
+}
+
+/* ─── Pitch Section (AI code review) ─── */
+.landing-pitch {
+    text-align: center;
+    margin-bottom: 40px;
+    padding: 32px 24px;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.05), rgba(96, 165, 250, 0.03));
+    border: 1px solid rgba(167, 139, 250, 0.08);
+    border-radius: 16px;
+    position: relative;
+    overflow: hidden;
+    animation: landingSlideUp 0.5s 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.landing-pitch::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at center, rgba(167, 139, 250, 0.03), transparent 50%);
+    pointer-events: none;
+}
+
+.pitch-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #a78bfa;
+    background: rgba(167, 139, 250, 0.1);
+    border: 1px solid rgba(167, 139, 250, 0.15);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+
+.pitch-title {
+    font-family: var(--font-display);
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin: 0 0 12px;
+}
+
+.pitch-accent {
+    background: linear-gradient(135deg, #a78bfa, #60a5fa, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.pitch-body {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+/* ─── Wide layout: show visuals inline ─── */
+@media (min-width: 900px) {
+    .dimension-card {
+        grid-template-columns: auto 200px 1fr;
+        gap: 4px 20px;
+    }
+
+    .dim-visual {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        grid-row: 1 / 3;
+    }
+
+    .dimension-card h3 {
+        grid-column: 3;
+    }
+
+    .dimension-card p {
+        grid-column: 3;
+    }
+}
+
 /* Stats row */
 .landing-stats {
     display: flex;

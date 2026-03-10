@@ -51,10 +51,7 @@ async function getFeaturedRepos() {
 }
 
 export default function Page() {
-    // Use fallback values synchronously — Melina does NOT support async page components.
-    // The GitHub star counts are fetched client-side or pre-cached.
     const featuredRepos = _cachedRepos || FEATURED_REPOS_FALLBACK;
-    // Trigger async cache fill for next render
     getFeaturedRepos().catch(() => { });
 
     const langColors: Record<string, string> = {
@@ -107,39 +104,27 @@ export default function Page() {
 
                         <div className="landing-icon">
                             <svg viewBox="0 0 140 140" width="100" height="100" fill="none">
-                                {/* Outer ring with dash animation */}
                                 <circle cx="70" cy="70" r="64" stroke="url(#lgHero)" strokeWidth="1.5" opacity="0.2" strokeDasharray="6 8" className="ring-outer" />
                                 <circle cx="70" cy="70" r="48" stroke="url(#lgHero)" strokeWidth="1.2" opacity="0.15" strokeDasharray="4 6" className="ring-mid" />
                                 <circle cx="70" cy="70" r="30" stroke="url(#lgHero)" strokeWidth="1" opacity="0.1" />
-
-                                {/* Center glow core */}
                                 <circle cx="70" cy="70" r="8" fill="url(#lgHero)" opacity="0.9" className="core-glow" />
                                 <circle cx="70" cy="70" r="4" fill="#fff" opacity="0.8" />
-
-                                {/* Orbiting nodes with connection lines */}
                                 <g className="orbit-group">
                                     <line x1="70" y1="6" x2="70" y2="62" stroke="#a78bfa" strokeWidth="0.6" opacity="0.2" />
                                     <circle cx="70" cy="6" r="5" fill="#a78bfa" opacity="0.85" className="node-orbit n1" />
                                     <circle cx="70" cy="6" r="2" fill="#fff" opacity="0.6" />
-
                                     <line x1="126" y1="46" x2="76" y2="68" stroke="#60a5fa" strokeWidth="0.6" opacity="0.2" />
                                     <circle cx="126" cy="46" r="4.5" fill="#60a5fa" opacity="0.8" className="node-orbit n2" />
                                     <circle cx="126" cy="46" r="1.8" fill="#fff" opacity="0.5" />
-
                                     <line x1="112" y1="110" x2="74" y2="74" stroke="#34d399" strokeWidth="0.6" opacity="0.18" />
                                     <circle cx="112" cy="110" r="4" fill="#34d399" opacity="0.75" className="node-orbit n3" />
-
                                     <line x1="28" y1="110" x2="66" y2="74" stroke="#f472b6" strokeWidth="0.6" opacity="0.18" />
                                     <circle cx="28" cy="110" r="4" fill="#f472b6" opacity="0.65" className="node-orbit n4" />
-
                                     <line x1="14" y1="46" x2="64" y2="68" stroke="#fbbf24" strokeWidth="0.6" opacity="0.2" />
                                     <circle cx="14" cy="46" r="3.5" fill="#fbbf24" opacity="0.7" className="node-orbit n5" />
-
-                                    {/* Extra subtle node */}
                                     <circle cx="98" cy="20" r="2.5" fill="#818cf8" opacity="0.4" className="node-orbit n6" />
                                     <circle cx="42" cy="20" r="2" fill="#c084fc" opacity="0.35" />
                                 </g>
-
                                 <defs>
                                     <linearGradient id="lgHero" x1="0%" y1="0%" x2="100%" y2="100%">
                                         <stop offset="0%" stopColor="#a78bfa" />
@@ -159,72 +144,156 @@ export default function Page() {
                             <span className="title-maps">Maps</span>
                         </h1>
                         <p className="landing-subtitle">
-                            See your codebase in a new dimension.<br />
-                            <span className="subtitle-accent">Every file becomes a card. Every change tells a story.</span>
+                            Transcend the file tree. See your codebase in four dimensions.<br />
+                            <span className="subtitle-accent">Built for reviewing AI-generated code at scale.</span>
                         </p>
                     </div>
 
-                    {/* Feature Cards */}
-                    <div className="landing-features">
-                        <div className="feature-card fc-1">
-                            <div className="feature-glow"></div>
-                            <div className="feature-icon-wrap">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <rect x="3" y="3" width="7" height="7" rx="1" />
-                                    <rect x="14" y="3" width="7" height="7" rx="1" />
-                                    <rect x="3" y="14" width="7" height="7" rx="1" />
-                                    <rect x="14" y="14" width="7" height="7" rx="1" />
+                    {/* ─── The 4D Story ─── */}
+                    <div className="landing-dimensions">
+                        <div className="dimension-label">How GitMaps transcends hierarchical file systems</div>
+
+                        {/* 1D → Files */}
+                        <div className="dimension-card dim-1d">
+                            <div className="dim-badge">
+                                <span className="dim-num">1D</span>
+                                <span className="dim-axis">Lines</span>
+                            </div>
+                            <div className="dim-visual">
+                                <svg viewBox="0 0 200 60" fill="none" className="dim-svg">
+                                    <line x1="20" y1="20" x2="180" y2="20" stroke="#a78bfa" strokeWidth="2" opacity="0.6" />
+                                    <line x1="20" y1="30" x2="140" y2="30" stroke="#a78bfa" strokeWidth="2" opacity="0.4" />
+                                    <line x1="20" y1="40" x2="160" y2="40" stroke="#a78bfa" strokeWidth="2" opacity="0.3" />
+                                    <text x="10" y="17" fill="#6e7681" fontSize="8" fontFamily="monospace">1</text>
+                                    <text x="10" y="27" fill="#6e7681" fontSize="8" fontFamily="monospace">2</text>
+                                    <text x="10" y="37" fill="#6e7681" fontSize="8" fontFamily="monospace">3</text>
+                                    <rect x="25" y="16" width="50" height="7" rx="1" fill="#2ea043" opacity="0.3" />
                                 </svg>
                             </div>
-                            <h3>Spatial Code Review</h3>
-                            <p>Every file becomes a card on an infinite 2D canvas. Arrange, group, and navigate them spatially — not as a flat list.</p>
+                            <h3>Files are one-dimensional</h3>
+                            <p>Lines of code, read top to bottom. The atomic unit. Every file is fully rendered as a card you can read, edit, and scroll.</p>
                         </div>
 
-                        <div className="feature-card fc-2">
-                            <div className="feature-glow"></div>
-                            <div className="feature-icon-wrap">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="6" cy="6" r="3" />
-                                    <circle cx="18" cy="18" r="3" />
-                                    <path d="M8.59 13.51l6.83 6.83" />
-                                    <line x1="21" y1="3" x2="14" y2="10" />
-                                    <polyline points="21 10 21 3 14 3" />
+                        {/* 2D → Canvas */}
+                        <div className="dimension-card dim-2d">
+                            <div className="dim-badge">
+                                <span className="dim-num">2D</span>
+                                <span className="dim-axis">Canvas</span>
+                            </div>
+                            <div className="dim-visual">
+                                <svg viewBox="0 0 200 80" fill="none" className="dim-svg">
+                                    {/* File cards on canvas */}
+                                    <rect x="10" y="10" width="50" height="30" rx="4" fill="#1a1a2e" stroke="#a78bfa" strokeWidth="1" opacity="0.8" />
+                                    <text x="18" y="28" fill="#a78bfa" fontSize="7" fontFamily="monospace">auth.ts</text>
+                                    <rect x="75" y="5" width="50" height="30" rx="4" fill="#1a1a2e" stroke="#60a5fa" strokeWidth="1" opacity="0.8" />
+                                    <text x="80" y="23" fill="#60a5fa" fontSize="7" fontFamily="monospace">api.ts</text>
+                                    <rect x="140" y="15" width="50" height="30" rx="4" fill="#1a1a2e" stroke="#34d399" strokeWidth="1" opacity="0.8" />
+                                    <text x="145" y="33" fill="#34d399" fontSize="7" fontFamily="monospace">db.ts</text>
+                                    <rect x="40" y="48" width="50" height="30" rx="4" fill="#1a1a2e" stroke="#f472b6" strokeWidth="1" opacity="0.8" />
+                                    <text x="45" y="66" fill="#f472b6" fontSize="7" fontFamily="monospace">utils.ts</text>
+                                    <rect x="110" y="50" width="50" height="30" rx="4" fill="#1a1a2e" stroke="#fbbf24" strokeWidth="1" opacity="0.8" />
+                                    <text x="115" y="68" fill="#fbbf24" fontSize="7" fontFamily="monospace">types.ts</text>
+                                    {/* Movement arrows */}
+                                    <path d="M35 42 L35 48" stroke="#a78bfa" strokeWidth="0.8" opacity="0.4" strokeDasharray="2 2" />
+                                    <path d="M100 37 L100 50" stroke="#60a5fa" strokeWidth="0.8" opacity="0.4" strokeDasharray="2 2" />
                                 </svg>
                             </div>
-                            <h3>Interwingled Files</h3>
-                            <p>Draw connections between related lines across files. See how <code>auth.ts:42</code> relates to <code>middleware.ts:15</code> — visually.</p>
+                            <h3>Canvas breaks hierarchy</h3>
+                            <p>Files escape their folders. Arrange them spatially — group related code side by side regardless of directory structure. This is <em>transclusion</em>: all files rendered on the same surface.</p>
                         </div>
 
-                        <div className="feature-card fc-3">
-                            <div className="feature-glow"></div>
-                            <div className="feature-icon-wrap">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2" />
-                                    <line x1="12" y1="22" x2="12" y2="15.5" />
-                                    <polyline points="22 8.5 12 15.5 2 8.5" />
-                                    <polyline points="2 15.5 12 8.5 22 15.5" />
-                                    <line x1="12" y1="2" x2="12" y2="8.5" />
+                        {/* 3D → Layers */}
+                        <div className="dimension-card dim-3d">
+                            <div className="dim-badge">
+                                <span className="dim-num">3D</span>
+                                <span className="dim-axis">Layers</span>
+                            </div>
+                            <div className="dim-visual">
+                                <svg viewBox="0 0 200 90" fill="none" className="dim-svg">
+                                    {/* Stacked layers with perspective */}
+                                    <g opacity="0.3">
+                                        <rect x="30" y="10" width="140" height="25" rx="3" fill="#1a1a2e" stroke="#6e7681" strokeWidth="0.8" />
+                                        <text x="70" y="25" fill="#6e7681" fontSize="8" fontFamily="monospace">All files</text>
+                                    </g>
+                                    <g opacity="0.5">
+                                        <rect x="40" y="30" width="130" height="25" rx="3" fill="#1a1a2e" stroke="#60a5fa" strokeWidth="1" />
+                                        <text x="62" y="45" fill="#60a5fa" fontSize="8" fontFamily="monospace">Auth layer</text>
+                                    </g>
+                                    <g opacity="0.9">
+                                        <rect x="50" y="50" width="120" height="25" rx="3" fill="#1a1a2e" stroke="#a78bfa" strokeWidth="1.2" />
+                                        <text x="62" y="65" fill="#a78bfa" fontSize="8" fontFamily="monospace">API layer</text>
+                                        <circle cx="165" cy="62" r="3" fill="#a78bfa" opacity="0.6" />
+                                    </g>
+                                    {/* Z-axis arrow */}
+                                    <line x1="20" y1="15" x2="20" y2="70" stroke="#c084fc" strokeWidth="1" opacity="0.4" />
+                                    <polygon points="20,72 17,68 23,68" fill="#c084fc" opacity="0.4" />
+                                    <text x="8" y="44" fill="#c084fc" fontSize="7" fontFamily="monospace" opacity="0.5" transform="rotate(-90, 12, 44)">Z</text>
                                 </svg>
                             </div>
-                            <h3>Layers of Focus</h3>
-                            <p>Create layers to isolate subsets of files. "Auth layer" shows only auth-related changes. Switch context without losing position.</p>
+                            <h3>Layers add depth</h3>
+                            <p>Extract files into focus layers — independently from their folder. Auth, API, UI — each layer is a different plane in 3D space. Switch context without losing position.</p>
                         </div>
 
-                        <div className="feature-card fc-4">
-                            <div className="feature-glow"></div>
-                            <div className="feature-icon-wrap">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-                                    <polyline points="7.5 4.21 12 6.81 16.5 4.21" />
-                                    <polyline points="7.5 19.79 7.5 14.6 3 12" />
-                                    <polyline points="21 12 16.5 14.6 16.5 19.79" />
-                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                                    <line x1="12" y1="22.08" x2="12" y2="12" />
+                        {/* Connections → navigate 3D */}
+                        <div className="dimension-card dim-conn">
+                            <div className="dim-badge">
+                                <span className="dim-num">⟁</span>
+                                <span className="dim-axis">Knots</span>
+                            </div>
+                            <div className="dim-visual">
+                                <svg viewBox="0 0 200 80" fill="none" className="dim-svg">
+                                    {/* Two layers with a connection dot between them */}
+                                    <rect x="15" y="10" width="70" height="25" rx="3" fill="#1a1a2e" stroke="#60a5fa" strokeWidth="1" opacity="0.7" />
+                                    <text x="22" y="25" fill="#60a5fa" fontSize="7" fontFamily="monospace">auth.ts:42</text>
+                                    <rect x="115" y="45" width="70" height="25" rx="3" fill="#1a1a2e" stroke="#34d399" strokeWidth="1" opacity="0.7" />
+                                    <text x="120" y="60" fill="#34d399" fontSize="7" fontFamily="monospace">api.ts:15</text>
+                                    {/* Connection knot */}
+                                    <circle cx="100" cy="38" r="6" fill="#a78bfa" opacity="0.2" className="conn-pulse" />
+                                    <circle cx="100" cy="38" r="3" fill="#a78bfa" opacity="0.8" />
+                                    {/* Lines from dot to endpoints */}
+                                    <line x1="82" y1="27" x2="97" y2="35" stroke="#a78bfa" strokeWidth="1" opacity="0.4" strokeDasharray="3 2" />
+                                    <line x1="103" y1="41" x2="118" y2="50" stroke="#a78bfa" strokeWidth="1" opacity="0.4" strokeDasharray="3 2" />
                                 </svg>
                             </div>
-                            <h3>Clone & Explore</h3>
-                            <p>Paste any GitHub URL and explore it instantly. Real-time clone progress, smart caching, and full commit timeline navigation.</p>
+                            <h3>Connections tie it together</h3>
+                            <p>Knots that bind files across layers. A connection is a line through 3D space — hover the dot to see the related code. Navigate through the z-axis with a single click.</p>
                         </div>
+
+                        {/* 4D → Time */}
+                        <div className="dimension-card dim-4d">
+                            <div className="dim-badge">
+                                <span className="dim-num">4D</span>
+                                <span className="dim-axis">Time</span>
+                            </div>
+                            <div className="dim-visual">
+                                <svg viewBox="0 0 200 60" fill="none" className="dim-svg">
+                                    {/* Git timeline */}
+                                    <line x1="20" y1="30" x2="180" y2="30" stroke="#6e7681" strokeWidth="1" opacity="0.4" />
+                                    <circle cx="40" cy="30" r="4" fill="#7c3aed" opacity="0.5" />
+                                    <circle cx="70" cy="30" r="4" fill="#7c3aed" opacity="0.6" />
+                                    <circle cx="100" cy="30" r="5" fill="#7c3aed" opacity="0.8" />
+                                    <circle cx="130" cy="30" r="4" fill="#7c3aed" opacity="0.6" />
+                                    <circle cx="160" cy="30" r="6" fill="#a78bfa" opacity="1" />
+                                    <circle cx="160" cy="30" r="2.5" fill="#fff" opacity="0.7" />
+                                    {/* Labels */}
+                                    <text x="30" y="47" fill="#6e7681" fontSize="7" fontFamily="monospace">v1.0</text>
+                                    <text x="90" y="47" fill="#6e7681" fontSize="7" fontFamily="monospace">v2.0</text>
+                                    <text x="148" y="47" fill="#a78bfa" fontSize="7" fontFamily="monospace">HEAD</text>
+                                    {/* Branch */}
+                                    <path d="M100 26 Q110 10 130 26" stroke="#60a5fa" strokeWidth="1" fill="none" opacity="0.5" />
+                                    <circle cx="115" cy="14" r="3" fill="#60a5fa" opacity="0.5" />
+                                </svg>
+                            </div>
+                            <h3>Git is the fourth dimension</h3>
+                            <p>Move through commits while your spatial layout persists. See what changed, where it changed, and share your view with others via multiplayer.</p>
+                        </div>
+                    </div>
+
+                    {/* Surface pitch — AI code review */}
+                    <div className="landing-pitch">
+                        <div className="pitch-badge">For developers right now</div>
+                        <h2 className="pitch-title">Review AI-generated code<br /><span className="pitch-accent">without losing your mind</span></h2>
+                        <p className="pitch-body">AI agents generate thousands of lines across dozens of files. Traditional file trees can't keep up. GitMaps renders every file simultaneously on an infinite canvas — so you can see the full picture, spot patterns, and review changes spatially instead of one-file-at-a-time.</p>
                     </div>
 
                     {/* Featured Repos — Quick start */}
@@ -269,6 +338,11 @@ export default function Page() {
 
                     {/* Stats Row */}
                     <div className="landing-stats">
+                        <div className="landing-stat">
+                            <span className="stat-num">4D</span>
+                            <span className="stat-desc">Dimensional Space</span>
+                        </div>
+                        <div className="stat-divider"></div>
                         <div className="landing-stat">
                             <span className="stat-num">∞</span>
                             <span className="stat-desc">Infinite Canvas</span>
