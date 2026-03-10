@@ -561,7 +561,7 @@ export class CanvasTextRenderer {
                     padding: 8px 12px;
                     max-width: 700px;
                     max-height: 300px;
-                    overflow: auto;
+                    overflow: hidden;
                     font-family: "JetBrains Mono", Consolas, monospace;
                     font-size: ${this.fontSize}px;
                     line-height: 1.4;
@@ -570,16 +570,9 @@ export class CanvasTextRenderer {
                     box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(124, 58, 237, 0.15);
                     white-space: pre-wrap;
                     word-break: break-all;
-                    pointer-events: auto;
+                    pointer-events: none;
                 `;
                 document.body.appendChild(this.hoverPopup);
-
-                this.hoverPopup.addEventListener('mouseenter', () => {
-                    if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
-                });
-                this.hoverPopup.addEventListener('mouseleave', () => {
-                    scheduleHide();
-                });
             }
         };
 

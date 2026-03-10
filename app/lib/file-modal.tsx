@@ -16,7 +16,7 @@ import { loadDraft, clearDraft, startAutoSave, stopAutoSave } from './auto-save'
 import { isEditingAllowed, getProductionEditorNotice } from './production-mode';
 
 // ─── File expand modal ──────────────────────────────────
-export function openFileModal(ctx: CanvasContext, file: any, initialView?: string) {
+export function openFileModal(ctx: CanvasContext, file: any, initialView?: string, initialLine?: number) {
     const modal = document.getElementById('filePreviewModal');
     const pathEl = document.getElementById('previewFilePath');
     const contentEl = document.getElementById('previewContent');
@@ -450,6 +450,13 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
             // Store editor reference for content access
             (editContainer as any)._cmEditor = editor;
             editor.focus();
+
+            // Scroll to initial line if provided (preserves canvas view position)
+            if (initialLine && initialLine > 1) {
+                requestAnimationFrame(() => {
+                    editor.scrollToLine?.(initialLine);
+                });
+            }
 
             // Show draft restored notification
             if (restoredDraft && saveStatus) {

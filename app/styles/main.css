@@ -787,32 +787,15 @@ body {
 
 /* Canvas text mode scrollbar */
 .canvas-container {
-    scrollbar-width: thin;
-    scrollbar-color: rgba(124, 58, 237, 0.35) transparent;
+    scrollbar-width: none;
+    /* Hide native scrollbar — CanvasTextRenderer has its own */
     overflow: auto !important;
     overscroll-behavior: contain;
 }
 
 .canvas-container::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-}
-
-.canvas-container::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.02);
-}
-
-.canvas-container::-webkit-scrollbar-thumb {
-    background: rgba(124, 58, 237, 0.35);
-    border-radius: 4px;
-}
-
-.canvas-container::-webkit-scrollbar-thumb:hover {
-    background: rgba(124, 58, 237, 0.55);
-}
-
-.canvas-container::-webkit-scrollbar-corner {
-    background: transparent;
+    display: none;
+    /* Hide native scrollbar in webkit */
 }
 
 .file-path {
