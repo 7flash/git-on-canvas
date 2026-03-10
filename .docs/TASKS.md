@@ -40,8 +40,8 @@
 - [x] ~~**File breadcrumb navigation**~~ — ✅ DONE. Clickable directory segments in modal header. Click opens dropdown with sibling files/dirs. Drill into subdirs. Opens files as new tabs.
 - [x] ~~**Git blame view**~~ — ✅ DONE. "Blame" tab with porcelain API. Color-coded authors, grouped commits, relative timestamps, author legend, cached data.
 - [ ] **File diff between tabs** — Select two open tabs and diff them side-by-side.
-- [ ] **Symbol outline panel** — Side panel showing functions/classes/exports extracted from file content. Click to scroll to symbol.
-- [ ] **Keyboard shortcuts overlay** — Press `?` to show all available keyboard shortcuts in a modal overlay.
+- [x] ~~**Symbol outline panel**~~ — ✅ Already existed. `symbol-outline.ts` (213 lines) extracts functions/classes/interfaces/types/enums from JS/TS/Python/CSS/JSON/Markdown. Rendered in file modal with color-coded icons and click-to-scroll.
+- [x] ~~**Keyboard shortcuts overlay**~~ — ✅ Already existed. `shortcuts-panel.ts` implements `?` hotkey with glassmorphism cheat sheet.
 
 ## 🔴 Priority: Performance
 - [x] ~~**Canvas/WebGL text rendering**~~ — ✅ DONE. Developed `CanvasTextRenderer` to bypass DOM spans for file cards > 10,000 lines. The renderer uses virtualization to achieve stable 60 FPS panning even during large diff highlights, preserving styles and background layouts.
