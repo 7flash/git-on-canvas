@@ -1,7 +1,7 @@
 # GitMaps Tasks & Ideas
 
-## 🟡 Priority: Improve
-- [ ] **Nested folder selection** — "Select all from folder" context menu should show a nested submenu of ancestor directories so you can select at any tree level, not just the immediate parent.
+## ✅ Completed
+- [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
 
 ## ✅ Completed
 - [x] ~~**Settings modal JSX refactor**~~ — ✅ DONE. Converted from innerHTML string template to proper JSX components using melina/client render.
