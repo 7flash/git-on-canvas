@@ -93,8 +93,8 @@ function ContextMenu({ onAction, onActionLayer, onSelectFolder, isInActiveLayer,
                 </div>
             </div>
             {isInActiveLayer && (
-                <button className="ctx-item" onClick={() => onAction('remove-from-layer')} style="color: #ef4444">
-                    ✕ Remove from Layer
+                <button className="ctx-item" onClick={() => onAction('remove-from-layer')} style="color: #60a5fa">
+                    ↩ Move to Main
                 </button>
             )}
             <div className="ctx-divider"></div>

@@ -19,7 +19,7 @@ export const layerState = {
     activeLayerId: 'default' as string
 };
 
-const DEFAULT_LAYER: LayerData = { id: 'default', name: 'All Files (Default)', files: {} };
+const DEFAULT_LAYER: LayerData = { id: 'default', name: 'Main', files: {} };
 
 export function initLayers(ctx: CanvasContext) {
     // Load from local storage for now or maybe an API? Let's use localStorage to persist across commits.
@@ -186,7 +186,7 @@ export function setActiveLayer(ctx: CanvasContext, id: string) {
             ));
         }
     } else if (id === 'default') {
-        import('./utils').then(m => m.showToast('Switched to All Files', 'info'));
+        import('./utils').then(m => m.showToast('Switched to Main layer', 'info'));
     }
 }
 
