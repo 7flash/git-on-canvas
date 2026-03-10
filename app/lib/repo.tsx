@@ -59,9 +59,9 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             const landing = document.getElementById('landingOverlay');
             if (landing) landing.style.display = 'none';
 
-            // Set URL hash to a friendly slug (folder name) instead of full path
+            // Set URL path to a friendly slug (folder name) instead of hash
             const repoSlug = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repoPath;
-            history.replaceState(null, '', '#' + encodeURIComponent(repoSlug));
+            history.replaceState(null, '', '/' + encodeURIComponent(repoSlug));
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
             // Also store slug→path mapping for URL-based loading
             localStorage.setItem(`gitcanvas:slug:${repoSlug}`, repoPath);

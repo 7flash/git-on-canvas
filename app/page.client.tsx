@@ -75,7 +75,7 @@ export default function mount(): () => void {
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);
             updateHiddenUI(ctx);
-            await loadConnections(ctx);
+            loadConnections(ctx);
             if (disposed) return; // bail if cleaned up during await
 
             // Init auth UI
@@ -119,11 +119,20 @@ export default function mount(): () => void {
                 }
             };
 
-            // Check URL hash for repo slug (or legacy full path)
-            const hashValue = decodeURIComponent(window.location.hash.replace('#', ''));
-            if (hashValue) {
+            // Check URL path for repo slug (e.g. /starwar)
+            // Fallback: also check hash for legacy URLs (e.g. #starwar)
+            const pathSlug = decodeURIComponent(window.location.pathname.replace(/^\//, ''));
+            const hashSlug = decodeURIComponent(window.location.hash.replace('#', ''));
+            const urlSlug = pathSlug || hashSlug;
+
+            if (urlSlug) {
+                // Migrate legacy hash URL to path URL
+                if (hashSlug && !pathSlug) {
+                    history.replaceState(null, '', '/' + encodeURIComponent(hashSlug));
+                }
+
                 // Resolve slug to full path (check localStorage mapping)
-                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${hashValue}`) || hashValue;
+                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${urlSlug}`) || urlSlug;
 
                 // Hide landing immediately since we have a repo
                 const landing = document.getElementById('landingOverlay');
@@ -145,9 +154,6 @@ export default function mount(): () => void {
                 updateZoomUI(ctx);
 
                 if (!disposed) {
-                    import('./lib/pr-review').then(({ initReviewStore }) => {
-                        initReviewStore(hashValue);
-                    });
                     loadRepository(ctx, resolvedPath);
                     updateFavoriteStar(resolvedPath);
                 }
@@ -157,9 +163,9 @@ export default function mount(): () => void {
                     const sel2 = document.getElementById('repoSelect') as HTMLSelectElement;
                     if (sel2) sel2.value = saved;
 
-                    // Set URL hash to friendly slug instead of full path
+                    // Set URL path to friendly slug instead of full path
                     const savedSlug = saved.replace(/\\/g, '/').split('/').filter(Boolean).pop() || saved;
-                    history.replaceState(null, '', '#' + encodeURIComponent(savedSlug));
+                    history.replaceState(null, '', '/' + encodeURIComponent(savedSlug));
                     // Store slug→path mapping
                     localStorage.setItem(`gitcanvas:slug:${savedSlug}`, saved);
 
@@ -176,19 +182,16 @@ export default function mount(): () => void {
 
                     // Actually load the repo data
                     if (!disposed) {
-                        import('./lib/pr-review').then(({ initReviewStore }) => {
-                            initReviewStore(savedSlug);
-                        });
                         loadRepository(ctx, saved);
                     }
                 }
             }
 
-            // Listen for hash changes
-            window.addEventListener('hashchange', () => {
+            // Listen for popstate (back/forward navigation with path-based routing)
+            window.addEventListener('popstate', () => {
                 if (disposed) return;
-                const hashSlug = decodeURIComponent(window.location.hash.replace('#', ''));
-                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${hashSlug}`) || hashSlug;
+                const slug = decodeURIComponent(window.location.pathname.replace(/^\//, ''));
+                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${slug}`) || slug;
                 if (resolvedPath && resolvedPath !== ctx.snap().context.repoPath) {
                     const sel3 = document.getElementById('repoSelect') as HTMLSelectElement;
                     if (sel3) sel3.value = resolvedPath;

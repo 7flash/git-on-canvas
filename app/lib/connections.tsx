@@ -824,59 +824,50 @@ export function navigateToConnection(ctx: CanvasContext, conn: any, navigateTo: 
     });
 }
 
-// ─── Save connections to server ─────────────────────────
-export async function saveConnections(ctx: CanvasContext) {
+// ─── Save connections to localStorage ───────────────────
+export function saveConnections(ctx: CanvasContext) {
     const state = ctx.snap().context;
+    const repoPath = state.repoPath;
+    if (!repoPath) return;
     try {
-        await fetch('/api/connections', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ connections: state.connections })
-        });
+        const key = `gitcanvas:connections:${repoPath}`;
+        localStorage.setItem(key, JSON.stringify(state.connections));
     } catch (e) {
         measure('connections:saveError', () => e);
     }
 }
 
-// ─── Load connections from server ───────────────────────
-export async function loadConnections(ctx: CanvasContext) {
-    return measure('connections:load', async () => {
+// ─── Load connections from localStorage ─────────────────
+export function loadConnections(ctx: CanvasContext) {
+    return measure('connections:load', () => {
         try {
-            const response = await fetch('/api/connections');
-            if (!response.ok) return;
-            const data = await response.json();
+            const repoPath = ctx.snap().context.repoPath;
+            if (!repoPath) return;
+            const key = `gitcanvas:connections:${repoPath}`;
+            const stored = localStorage.getItem(key);
+            if (!stored) return;
 
-            if (data.connections && data.connections.length > 0) {
-                const conns = data.connections.map(c => ({
-                    id: c.conn_id,
-                    sourceFile: c.source_file,
-                    sourceLineStart: c.source_line_start,
-                    sourceLineEnd: c.source_line_end,
-                    targetFile: c.target_file,
-                    targetLineStart: c.target_line_start,
-                    targetLineEnd: c.target_line_end,
-                    comment: c.comment || '',
-                }));
+            const connections = JSON.parse(stored);
+            if (!Array.isArray(connections) || connections.length === 0) return;
 
-                conns.forEach(conn => {
-                    ctx.actor.send({
-                        type: 'START_CONNECTION',
-                        sourceFile: conn.sourceFile,
-                        lineStart: conn.sourceLineStart,
-                        lineEnd: conn.sourceLineEnd,
-                    });
-                    ctx.actor.send({
-                        type: 'COMPLETE_CONNECTION',
-                        targetFile: conn.targetFile,
-                        lineStart: conn.targetLineStart,
-                        lineEnd: conn.targetLineEnd,
-                        comment: conn.comment,
-                    });
+            connections.forEach(conn => {
+                ctx.actor.send({
+                    type: 'START_CONNECTION',
+                    sourceFile: conn.sourceFile,
+                    lineStart: conn.sourceLineStart,
+                    lineEnd: conn.sourceLineEnd,
                 });
+                ctx.actor.send({
+                    type: 'COMPLETE_CONNECTION',
+                    targetFile: conn.targetFile,
+                    lineStart: conn.targetLineStart,
+                    lineEnd: conn.targetLineEnd,
+                    comment: conn.comment || '',
+                });
+            });
 
-                renderConnections(ctx);
-                buildConnectionMarkers(ctx);
-            }
+            renderConnections(ctx);
+            buildConnectionMarkers(ctx);
         } catch (e) {
             measure('connections:loadError', () => e);
         }

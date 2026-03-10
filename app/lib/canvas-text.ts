@@ -5,7 +5,7 @@ export interface CanvasTextOptions {
     isAllAdded?: boolean;
     isAllDeleted?: boolean;
     visibleLineIndices?: Set<number>;
-    /** File path for PR review comments (if set, enables inline commenting) */
+    /** File path for connections (if set, enables line-click for connections) */
     filePath?: string;
 }
 
@@ -43,10 +43,7 @@ export class CanvasTextRenderer {
     private _longLineGradW: number = 0;
     /** rAF batching — only one render per animation frame */
     private _rafId: number = 0;
-    /** Cached file comments for rendering markers (refreshed on changes) */
-    private _fileComments: Map<number, import('./pr-review').ReviewComment[]> = new Map();
-    /** Unsubscribe from review change listener */
-    private _reviewUnsub: (() => void) | null = null;
+
 
     constructor(container: HTMLElement, options: CanvasTextOptions) {
         this.options = options;
@@ -221,46 +218,6 @@ export class CanvasTextRenderer {
                 this.render();
             }
         }) as EventListener);
-        // PR Review — load file comments and wire click handler
-        if (options.filePath) {
-            this._loadFileComments();
-            // Re-render when comments change
-            import('./pr-review').then(({ onReviewChange }) => {
-                this._reviewUnsub = onReviewChange(() => {
-                    this._loadFileComments();
-                    this.render();
-                });
-            });
-
-            // Click handler on gutter area — open comment popup
-            container.addEventListener('click', (e: MouseEvent) => {
-                if (!this.options.filePath) return;
-                const rect = container.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-
-                // Only trigger on gutter click (left of content area)
-                if (x > this.contentX) return;
-
-                // Calculate which line was clicked
-                const lineIdx = Math.floor((y + this.scrollTop) / this.lineHeight);
-                if (lineIdx < 0 || lineIdx >= this.drawnLines.length) return;
-
-                const lineData = this.drawnLines[lineIdx];
-                import('./pr-review').then(({ showCommentPopup }) => {
-                    showCommentPopup(
-                        this.options.filePath!,
-                        lineData.num,
-                        e.clientX,
-                        e.clientY,
-                        () => {
-                            this._loadFileComments();
-                            this.render();
-                        }
-                    );
-                });
-            });
-        }
 
         this.render();
     }
@@ -283,16 +240,7 @@ export class CanvasTextRenderer {
         }
     }
 
-    /** Load file comments from the review store */
-    private _loadFileComments() {
-        if (!this.options.filePath) {
-            this._fileComments = new Map();
-            return;
-        }
-        import('./pr-review').then(({ getAllFileComments }) => {
-            this._fileComments = getAllFileComments(this.options.filePath!);
-        });
-    }
+
 
     /** Build a custom scrollbar track on the right side */
     private _buildScrollTrack(container: HTMLElement) {
@@ -890,23 +838,7 @@ export class CanvasTextRenderer {
                 this.ctx.fillRect(w - 3, y + 3, 2, lh - 6);
             }
 
-            // PR Review comment marker (purple dot in gutter)
-            if (this._fileComments.has(lineNum)) {
-                const commentCount = this._fileComments.get(lineNum)!.length;
-                // Purple dot
-                this.ctx.beginPath();
-                this.ctx.arc(diffGutterW - 3, y + lh / 2, 3, 0, Math.PI * 2);
-                this.ctx.fillStyle = 'rgba(168, 139, 250, 0.9)';
-                this.ctx.fill();
-                // Count badge if > 1
-                if (commentCount > 1) {
-                    this.ctx.fillStyle = 'rgba(168, 139, 250, 0.7)';
-                    this.ctx.font = '9px sans-serif';
-                    this.ctx.fillText(String(commentCount), diffGutterW - 7, y + 2);
-                    // Restore font
-                    this.ctx.font = `${this.fontSize}px "JetBrains Mono", Consolas, monospace`;
-                }
-            }
+
         }
     }
 }

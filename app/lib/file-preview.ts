@@ -113,22 +113,24 @@ function renderPreviewCard(path: string): HTMLElement | null {
         delete clone.dataset.culled;
         delete clone.dataset.expanded;
 
-        // If the card used canvas-text rendering, re-render body as DOM HTML
-        const canvasContainer = clone.querySelector('.canvas-container');
-        if (canvasContainer) {
-            const { _getCardFileData, _buildFileContentHTML } = require('./cards');
-            const file = _getCardFileData(existingCard);
-            if (file?.content) {
-                const addedLines = file.addedLines || new Set();
-                const deletedBeforeLine = file.deletedBeforeLine || new Map();
-                const isAllAdded = file.status === 'added';
-                const isAllDeleted = file.status === 'deleted';
-                const html = _buildFileContentHTML(
-                    file.content, file.layerSections, addedLines, deletedBeforeLine,
-                    isAllAdded, isAllDeleted, false, file.lines
-                );
-                canvasContainer.outerHTML = html;
-            }
+        // Always re-render body with ALL lines (cards are 120-line limited)
+        const { _getCardFileData, _buildFileContentHTML } = require('./cards');
+        const file = _getCardFileData(existingCard);
+        if (file?.content) {
+            const addedLines = file.addedLines || new Set();
+            const deletedBeforeLine = file.deletedBeforeLine || new Map();
+            const isAllAdded = file.status === 'added';
+            const isAllDeleted = file.status === 'deleted';
+            const html = _buildFileContentHTML(
+                file.content, file.layerSections, addedLines, deletedBeforeLine,
+                isAllAdded, isAllDeleted, true, file.lines  // true = expanded, show ALL lines
+            );
+            // Replace body content with full file
+            const body = clone.querySelector('.file-card-body');
+            if (body) body.innerHTML = html;
+            // Also replace canvas-text container if present
+            const canvasContainer = clone.querySelector('.canvas-container');
+            if (canvasContainer) canvasContainer.outerHTML = html;
         }
 
         return clone;
