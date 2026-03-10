@@ -135,18 +135,11 @@ export class CanvasTextRenderer {
             e.preventDefault();
             e.stopPropagation();
 
-            const maxScrollX = Math.max(0, this.maxLineWidth - this.viewportWidth);
             const maxScrollY = (this.drawnLines.length * this.lineHeight) - this.viewportHeight;
 
-            // Shift+wheel or trackpad horizontal gesture → horizontal scroll
-            if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
-                const dx = e.shiftKey ? e.deltaY : e.deltaX;
-                this.scrollLeft = Math.max(0, Math.min(maxScrollX, this.scrollLeft + dx));
-            } else {
-                // Normal vertical scroll
-                this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
-                container.scrollTop = this.scrollTop;
-            }
+            // Vertical scroll only
+            this.scrollTop = Math.max(0, Math.min(maxScrollY, this.scrollTop + e.deltaY));
+            container.scrollTop = this.scrollTop;
 
             this._updateScrollTrack();
             this.render();
@@ -544,11 +537,9 @@ export class CanvasTextRenderer {
     /** Setup hover popup for long lines and diff markers */
     private _setupHoverPopup(container: HTMLElement) {
         let hideTimeout: any = null;
-        let showTimeout: any = null;
         let activeLineIdx = -1; // Track which line the popup is currently showing for
 
         const scheduleHide = () => {
-            if (showTimeout) { clearTimeout(showTimeout); showTimeout = null; }
             if (!hideTimeout) {
                 hideTimeout = setTimeout(() => {
                     this._hideHoverPopup();
@@ -558,19 +549,48 @@ export class CanvasTextRenderer {
             }
         };
 
+        const ensurePopup = () => {
+            if (!this.hoverPopup) {
+                this.hoverPopup = document.createElement('div');
+                this.hoverPopup.className = 'canvas-text-hover-popup';
+                this.hoverPopup.style.cssText = `
+                    position: fixed; z-index: 10000;
+                    background: rgba(15, 15, 25, 0.95);
+                    border: 1px solid rgba(124, 58, 237, 0.3);
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                    max-width: 700px;
+                    max-height: 300px;
+                    overflow: auto;
+                    font-family: "JetBrains Mono", Consolas, monospace;
+                    font-size: ${this.fontSize}px;
+                    line-height: 1.4;
+                    color: #c9d1d9;
+                    backdrop-filter: blur(8px);
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(124, 58, 237, 0.15);
+                    white-space: pre-wrap;
+                    word-break: break-all;
+                    pointer-events: auto;
+                `;
+                document.body.appendChild(this.hoverPopup);
+
+                this.hoverPopup.addEventListener('mouseenter', () => {
+                    if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
+                });
+                this.hoverPopup.addEventListener('mouseleave', () => {
+                    scheduleHide();
+                });
+            }
+        };
+
         container.addEventListener('mousemove', (e) => {
             const rect = container.getBoundingClientRect();
-
-            // The container may be inside a CSS-scaled parent (GalaxyDraw zoom).
-            // getBoundingClientRect returns scaled dimensions, so we need the
-            // scale factor to convert mouse position to unscaled content coords.
             const scaleX = container.offsetWidth > 0 ? rect.width / container.offsetWidth : 1;
             const scaleY = container.offsetHeight > 0 ? rect.height / container.offsetHeight : 1;
 
-            const mouseX = (e.clientX - rect.left) / scaleX + this.scrollLeft;
+            const mouseX = (e.clientX - rect.left) / scaleX;
             const mouseY = (e.clientY - rect.top) / scaleY + this.scrollTop;
 
-            // Which line is under the cursor?
             const lineIdx = Math.floor(mouseY / this.lineHeight);
             if (lineIdx < 0 || lineIdx >= this.drawnLines.length) {
                 scheduleHide();
@@ -579,17 +599,12 @@ export class CanvasTextRenderer {
 
             const lineData = this.drawnLines[lineIdx];
             const linePixelWidth = this.contentX + lineData.content.length * this.charWidth;
-
-            // Show popup for long lines that extend beyond viewport
-            const isLongLine = linePixelWidth > this.viewportWidth + this.scrollLeft;
-            // Or show popup for diff markers (deleted-before lines)
+            const isLongLine = linePixelWidth > this.viewportWidth;
             const hasDelBefore = this.options.deletedBeforeLine?.has(lineData.num);
 
             if (!isLongLine && !hasDelBefore) {
-                // Hysteresis: if popup is active for THIS line, keep showing it
-                // (prevents flicker when mouse is near the fade boundary)
+                // Hysteresis: keep popup for THIS line visible
                 if (activeLineIdx === lineIdx && this.hoverPopup?.style.display === 'block') {
-                    // Just reposition, don't hide
                     if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
                     return;
                 }
@@ -597,10 +612,10 @@ export class CanvasTextRenderer {
                 return;
             }
 
-            // Cancel any pending hide — we want to show
+            // Cancel any pending hide
             if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
 
-            // If already showing for this same line, just reposition
+            // Same line — just reposition
             if (activeLineIdx === lineIdx && this.hoverPopup?.style.display === 'block') {
                 let px = e.clientX + 12;
                 const popupRect = this.hoverPopup.getBoundingClientRect();
@@ -613,82 +628,43 @@ export class CanvasTextRenderer {
                 return;
             }
 
-            // Debounce show to prevent flash on quick mouse-through
-            if (showTimeout) clearTimeout(showTimeout);
-            const capturedE = { clientX: e.clientX, clientY: e.clientY };
-            showTimeout = setTimeout(() => {
-                showTimeout = null;
-                activeLineIdx = lineIdx;
+            // New line — update popup content instantly (no debounce)
+            activeLineIdx = lineIdx;
+            ensurePopup();
 
-                // Build popup content
-                if (!this.hoverPopup) {
-                    this.hoverPopup = document.createElement('div');
-                    this.hoverPopup.className = 'canvas-text-hover-popup';
-                    this.hoverPopup.style.cssText = `
-                        position: fixed; z-index: 10000;
-                        background: rgba(15, 15, 25, 0.95);
-                        border: 1px solid rgba(124, 58, 237, 0.3);
-                        border-radius: 6px;
-                        padding: 8px 12px;
-                        max-width: 700px;
-                        max-height: 300px;
-                        overflow: auto;
-                        font-family: "JetBrains Mono", Consolas, monospace;
-                        font-size: ${this.fontSize}px;
-                        line-height: 1.4;
-                        color: #c9d1d9;
-                        backdrop-filter: blur(8px);
-                        box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(124, 58, 237, 0.15);
-                        white-space: pre-wrap;
-                        word-break: break-all;
-                        pointer-events: auto;
-                        transition: opacity 0.15s ease;
-                    `;
-                    document.body.appendChild(this.hoverPopup);
+            let popupHTML = '';
 
-                    this.hoverPopup.addEventListener('mouseenter', () => {
-                        if (hideTimeout) { clearTimeout(hideTimeout); hideTimeout = null; }
-                    });
-                    this.hoverPopup.addEventListener('mouseleave', () => {
-                        scheduleHide();
-                    });
-                }
-
-                let popupHTML = '';
-
-                if (hasDelBefore) {
-                    const delLines = this.options.deletedBeforeLine!.get(lineData.num)!;
-                    popupHTML += `<div style="color: #f87171; font-size: 10px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${delLines.length} deleted line${delLines.length > 1 ? 's' : ''}</div>`;
-                    popupHTML += delLines.map(l =>
-                        `<div style="color: #ffa198; background: rgba(248,81,73,0.1); padding: 1px 4px; border-radius: 2px;">− ${l.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
-                    ).join('');
-                    if (isLongLine) {
-                        popupHTML += `<div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">`;
-                    }
-                }
-
+            if (hasDelBefore) {
+                const delLines = this.options.deletedBeforeLine!.get(lineData.num)!;
+                popupHTML += `<div style="color: #f87171; font-size: 10px; font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">${delLines.length} deleted line${delLines.length > 1 ? 's' : ''}</div>`;
+                popupHTML += delLines.map(l =>
+                    `<div style="color: #ffa198; background: rgba(248,81,73,0.1); padding: 1px 4px; border-radius: 2px;">− ${l.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`
+                ).join('');
                 if (isLongLine) {
-                    const isAdded = this.options.isAllAdded || (this.options.addedLines?.has(lineData.num));
-                    const lineColor = isAdded ? '#7ee787' : this.options.isAllDeleted ? '#ffa198' : '#c9d1d9';
-                    popupHTML += `<div style="color: rgba(110,118,129,0.7); font-size: 10px; margin-bottom: 2px;">Line ${lineData.num} (${lineData.content.length} chars)</div>`;
-                    popupHTML += `<div style="color: ${lineColor};">${lineData.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
-                    if (hasDelBefore) popupHTML += `</div>`;
+                    popupHTML += `<div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 6px;">`;
                 }
+            }
 
-                this.hoverPopup.innerHTML = popupHTML;
-                this.hoverPopup.style.display = 'block';
-                this.hoverPopup.style.opacity = '1';
+            if (isLongLine) {
+                const isAdded = this.options.isAllAdded || (this.options.addedLines?.has(lineData.num));
+                const lineColor = isAdded ? '#7ee787' : this.options.isAllDeleted ? '#ffa198' : '#c9d1d9';
+                popupHTML += `<div style="color: rgba(110,118,129,0.7); font-size: 10px; margin-bottom: 2px;">Line ${lineData.num} (${lineData.content.length} chars)</div>`;
+                popupHTML += `<div style="color: ${lineColor};">${lineData.content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+                if (hasDelBefore) popupHTML += `</div>`;
+            }
 
-                // Position popup ABOVE cursor by default, fall below only near top edge
-                let px = capturedE.clientX + 12;
-                const popupRect = this.hoverPopup.getBoundingClientRect();
-                const popupH = popupRect.height || 120;
-                let py = capturedE.clientY - popupH - 8;
-                if (py < 8) py = capturedE.clientY + 16;
-                if (px + 700 > window.innerWidth) px = capturedE.clientX - 400;
-                this.hoverPopup.style.left = `${px}px`;
-                this.hoverPopup.style.top = `${py}px`;
-            }, 80); // 80ms debounce before showing
+            this.hoverPopup!.innerHTML = popupHTML;
+            this.hoverPopup!.style.display = 'block';
+
+            // Position above cursor, fall below near top edge
+            let px = e.clientX + 12;
+            const popupRect = this.hoverPopup!.getBoundingClientRect();
+            const popupH = popupRect.height || 120;
+            let py = e.clientY - popupH - 8;
+            if (py < 8) py = e.clientY + 16;
+            if (px + 700 > window.innerWidth) px = e.clientX - 400;
+            this.hoverPopup!.style.left = `${px}px`;
+            this.hoverPopup!.style.top = `${py}px`;
         });
 
         container.addEventListener('mouseleave', () => {
@@ -774,12 +750,12 @@ export class CanvasTextRenderer {
             const numStr = String(lineData.num).padStart(numDigits, ' ');
             this.ctx.fillText(numStr, diffGutterW + 2, y + 4);
 
-            // Content (offset by horizontal scroll)
+            // Content (no horizontal scroll — hover popup handles long lines)
             this.ctx.fillStyle = isAdded ? '#7ee787' : isDeleted ? '#ffa198' : '#c9d1d9';
-            this.ctx.fillText(lineData.content, this.contentX - this.scrollLeft, y + 4);
+            this.ctx.fillText(lineData.content, this.contentX, y + 4);
 
             // Long line indicator (fade gradient at right edge)
-            const contentWidth = this.contentX + lineData.content.length * this.charWidth - this.scrollLeft;
+            const contentWidth = this.contentX + lineData.content.length * this.charWidth;
             if (contentWidth > w) {
                 const grad = this.ctx.createLinearGradient(w - 30, 0, w, 0);
                 grad.addColorStop(0, 'transparent');
@@ -791,38 +767,8 @@ export class CanvasTextRenderer {
                 this.ctx.fillStyle = 'rgba(124, 58, 237, 0.4)';
                 this.ctx.fillRect(w - 3, y + 3, 2, this.lineHeight - 6);
             }
-
-            // Left-edge fade when scrolled right (content clipped on left)
-            if (this.scrollLeft > 0) {
-                const contentLeft = this.contentX - this.scrollLeft;
-                if (contentLeft < this.contentX) {
-                    const gradL = this.ctx.createLinearGradient(this.contentX, 0, this.contentX + 30, 0);
-                    gradL.addColorStop(0, 'rgba(15, 15, 25, 0.8)');
-                    gradL.addColorStop(1, 'transparent');
-                    this.ctx.fillStyle = gradL;
-                    this.ctx.fillRect(this.contentX, y, 30, this.lineHeight);
-                }
-            }
         }
 
-        // ── Horizontal scroll indicator bar at bottom ──
-        if (this.maxLineWidth > this.viewportWidth) {
-            const maxScrollX = this.maxLineWidth - this.viewportWidth;
-            const barWidth = Math.max(40, (this.viewportWidth / this.maxLineWidth) * (w - 40));
-            const barLeft = 20 + (this.scrollLeft / maxScrollX) * (w - 40 - barWidth);
-            const barY = h - 6;
-
-            // Track
-            this.ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-            this.ctx.beginPath();
-            this.ctx.roundRect(20, barY, w - 40, 4, 2);
-            this.ctx.fill();
-
-            // Thumb
-            this.ctx.fillStyle = this.scrollLeft > 0 ? 'rgba(124, 58, 237, 0.5)' : 'rgba(124, 58, 237, 0.2)';
-            this.ctx.beginPath();
-            this.ctx.roundRect(barLeft, barY, barWidth, 4, 2);
-            this.ctx.fill();
-        }
+        // (horizontal scroll indicator removed — long lines use hover popup)
     }
 }
