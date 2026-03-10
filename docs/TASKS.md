@@ -5,9 +5,10 @@
 
 ## 🟢 Priority: Features
 - [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
-- [ ] **Card pinning** — Pin important cards so they stay visible regardless of zoom level.
 
 ## ✅ Completed
+- [x] ~~**Card pinning**~~ — ✅ DONE. Right-click → "📌 Pin card". Pinned cards stay visible as full cards even below LOD pill threshold. Orange-tinted border + floating 📌 badge. Persisted to `localStorage('gitmaps:pinnedCards')`. `togglePinCard`, `isPinned`, `getPinnedCards` exported from viewport-culling.ts.
+- [x] ~~**File dependency graph**~~ — ✅ Already done. Backend `/api/repo/imports` scans ES/CJS/CSS/Python imports. Frontend `autoDetectImports()` creates connections. Toggle in settings + toolbar button.
 - [x] ~~**Diff nav visual feedback**~~ — ✅ DONE. ▲/▼ buttons now flash the gutter marker bright with glow, draw a semi-transparent highlight over the hunk lines for 500ms, and show a "2/5" position counter between the arrows.
 - [x] ~~**Pill card hover preview**~~ — ✅ Already done via `file-preview.ts` — shows FULL card preview (not just stats) when hovering over pills at low zoom.
 - [x] ~~**Horizontal scroll (Shift+wheel/trackpad)**~~ — ✅ DONE. Shift+wheel pans content horizontally. Trackpad horizontal gestures also work (deltaX detection). Left-edge fade gradient appears when scrolled right. Canvas-rendered horizontal scrollbar indicator at bottom shows position.
