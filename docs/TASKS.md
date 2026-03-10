@@ -1,15 +1,20 @@
 # GitMaps Tasks & Ideas
 
+## 🟡 Priority: Improve
+- [ ] **Popup font size in settings** — Add a font size control for the long-line hover popup in the settings modal.
+- [ ] **Cross-layer file navigation** — When clicking a changed file in the diff bar that's on another layer, should jump to that layer first then navigate to the card.
+- [ ] **Nested folder selection** — "Select all from folder" context menu should show a nested submenu of ancestor directories so you can select at any tree level, not just the immediate parent.
+
 ## 🟢 Priority: Features
 - [ ] **Collaborative cursor sharing** — WebSocket-based live presence showing other users' cursors on the canvas.
 
 ## ✅ Completed
-- [x] ~~**Hover popup flicker near edge**~~ — ✅ DONE. Added hysteresis (keeps popup visible while cursor stays on same line), 80ms show debounce, and 200ms delayed hide. Uses `activeLineIdx` tracking to prevent the popup from flickering when mouse is near the fade boundary.
-- [x] ~~**Card pinning**~~ — ✅ DONE. Right-click → "📌 Pin card". Pinned cards stay visible as full cards even below LOD pill threshold. Orange-tinted border + floating 📌 badge. Persisted to `localStorage('gitmaps:pinnedCards')`. `togglePinCard`, `isPinned`, `getPinnedCards` exported from viewport-culling.ts.
-- [x] ~~**File dependency graph**~~ — ✅ Already done. Backend `/api/repo/imports` scans ES/CJS/CSS/Python imports. Frontend `autoDetectImports()` creates connections. Toggle in settings + toolbar button.
-- [x] ~~**Diff nav visual feedback**~~ — ✅ DONE. ▲/▼ buttons now flash the gutter marker bright with glow, draw a semi-transparent highlight over the hunk lines for 500ms, and show a "2/5" position counter between the arrows.
-- [x] ~~**Pill card hover preview**~~ — ✅ Already done via `file-preview.ts` — shows FULL card preview (not just stats) when hovering over pills at low zoom.
-- [x] ~~**Horizontal scroll (Shift+wheel/trackpad)**~~ — ✅ DONE. Shift+wheel pans content horizontally. Trackpad horizontal gestures also work (deltaX detection). Left-edge fade gradient appears when scrolled right. Canvas-rendered horizontal scrollbar indicator at bottom shows position.
+- [x] ~~**Popup non-blocking**~~ — ✅ DONE. `pointer-events: none` so popup never blocks cursor movement to adjacent lines.
+- [x] ~~**Popup wheel scroll**~~ — ✅ DONE. When popup has overflowing content, wheel events scroll the popup instead of the card body.
+- [x] ~~**Double scrollbar fix**~~ — ✅ DONE. Hidden native scrollbar (`scrollbar-width: none`) since CanvasTextRenderer has its own custom scroll track.
+- [x] ~~**Editor scroll position from canvas**~~ — ✅ DONE. Double-click on canvas card reads `getVisibleLine()` and passes `initialLine` to editor modal, which calls `scrollToLine` on CodeMirror.
+- [x] ~~**Horizontal scroll reverted**~~ — ✅ Removed. User prefers hover popup for long lines over horizontal scroll.
+- [x] ~~**Hover popup flicker near edge**~~ — ✅ DONE. Hysteresis + instant line-switch (no debounce), 200ms delayed hide.
 - [x] ~~**Scrollbar thumb drag**~~ — ✅ DONE. Dragging the vertical scrollbar thumb now smoothly scrubs scroll position. Click on track background jumps to position. Thumb highlights purple during drag.
 - [x] ~~**Scrollbar invisible when not hovering**~~ — ✅ DONE. Custom scrollbar now maintains baseline 0.5 opacity, brightens on hover/scroll, fades back to baseline instead of 0.
 - [x] ~~**Duplicate diff marker columns**~~ — ✅ DONE. Canvas-text mode now skips the DOM diff-marker-strip since CanvasTextRenderer already builds its own change gutter. Added `!useCanvasText` guard.
