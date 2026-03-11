@@ -7,9 +7,12 @@
 - [x] ~~**Layer bubble occludes cards**~~ — ✅ DONE. CSS auto-minimize: `max-width: 160px` + `opacity: 0.5` when not hovered, expands to full `800px` on `:hover` with smooth 300ms transitions. Reduces visual footprint by ~80% during normal canvas work.
 - [x] ~~**Canvas AI panel UX**~~ — ✅ DONE. Panel now resizable (`resize: horizontal`, 240–600px range) with `direction: rtl` trick for left-side resize handle. Users can shrink the panel to just 240px or expand to 600px.
 
+## 🔴 Priority: Fix
+- [ ] **DNS A record for gitmaps.xyz** — Domain resolves but no A record set. Need `gitmaps.xyz → 202.155.132.139` at registrar. Server is live and responding locally.
+
 ## 🟢 Priority: Features
-- [ ] **Deploy gitmaps.xyz** — Landing page + Caddy config ready. Serve landing at /, app at /owner/repo.
-- [ ] **Performance profiling on large repos** — Test with 500+ file repos, profile rendering pipeline bottlenecks.
+- [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, bgrun-managed (port 3335), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. Added `/:owner/:repo` dynamic route. Pending: DNS A record.
+- [x] ~~**Performance profiling on large repos**~~ — ✅ DONE. Perf overlay (Shift+P) enhanced with: frame time (ms/frame), connection line count, render budget bar (cull+render vs 16.67ms budget), culling timing instrumentation via `reportRenderTiming()`. Color-coded thresholds for all metrics.
 - [ ] **Offline mode / PWA** — Service worker for caching, allow basic browsing when offline.
 
 ## ✅ Completed

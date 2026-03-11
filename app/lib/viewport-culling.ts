@@ -515,7 +515,11 @@ export function scheduleViewportCulling(ctx: CanvasContext) {
     _cullRafPending = true;
     requestAnimationFrame(() => {
         _cullRafPending = false;
+        const t0 = performance.now();
         performViewportCulling(ctx);
+        const elapsed = performance.now() - t0;
+        // Report to perf overlay (lazy import avoids circular dep)
+        try { require('./perf-overlay').reportRenderTiming('cull', elapsed); } catch { }
     });
 }
 

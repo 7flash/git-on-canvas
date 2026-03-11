@@ -26,10 +26,21 @@ let _lastFpsTime = 0;
 let _currentFps = 0;
 let _fpsHistory: number[] = [];
 const FPS_HISTORY_LENGTH = 60; // 1 second of history at 60fps
+let _lastFrameTime = 0; // ms per frame
 
 // DOM count tracking (expensive, sample every ~500ms)
 let _lastDomCount = 0;
 let _lastDomTime = 0;
+
+// Render timing (external instrumentation can set these)
+let _lastCullTimeMs = 0;
+let _lastRenderTimeMs = 0;
+
+/** Set cull/render timing from external code (viewport-culling, connections) */
+export function reportRenderTiming(phase: 'cull' | 'render', ms: number) {
+    if (phase === 'cull') _lastCullTimeMs = ms;
+    else _lastRenderTimeMs = ms;
+}
 
 // ── DOM Elements (cached) ──────────────────────────────────
 let _elFps: HTMLElement;
@@ -39,6 +50,10 @@ let _elDom: HTMLElement;
 let _elCards: HTMLElement;
 let _elZoom: HTMLElement;
 let _elMemory: HTMLElement;
+let _elFrameTime: HTMLElement;
+let _elConnections: HTMLElement;
+let _elRenderBudget: HTMLElement;
+let _elRenderBudgetBar: HTMLElement;
 
 /**
  * Creates the overlay DOM once.
@@ -90,6 +105,23 @@ function createOverlay(): HTMLElement {
             <div class="perf-stat">
                 <div class="perf-label">Zoom</div>
                 <div class="perf-value" id="perf-zoom">--</div>
+            </div>
+            <div class="perf-stat">
+                <div class="perf-label">Frame</div>
+                <div class="perf-value" id="perf-frametime">--</div>
+            </div>
+            <div class="perf-stat">
+                <div class="perf-label">Lines</div>
+                <div class="perf-value" id="perf-connections">--</div>
+            </div>
+        </div>
+        <div class="perf-stat" style="margin-top:6px;">
+            <div class="perf-label">Render Budget</div>
+            <div style="display:flex;align-items:center;gap:6px">
+                <div class="perf-value" id="perf-render-budget" style="min-width:50px">--</div>
+                <div class="perf-bar-wrap" style="flex:1">
+                    <div class="perf-bar" id="perf-render-budget-bar" style="width:0%;background:#22c55e;"></div>
+                </div>
             </div>
         </div>
         <div class="perf-stat" style="margin-top:6px;">
@@ -147,6 +179,10 @@ function createOverlay(): HTMLElement {
     _elCards = el.querySelector('#perf-cards')!;
     _elZoom = el.querySelector('#perf-zoom')!;
     _elMemory = el.querySelector('#perf-memory')!;
+    _elFrameTime = el.querySelector('#perf-frametime')!;
+    _elConnections = el.querySelector('#perf-connections')!;
+    _elRenderBudget = el.querySelector('#perf-render-budget')!;
+    _elRenderBudgetBar = el.querySelector('#perf-render-budget-bar')!;
 
     // Close button
     el.querySelector('#perf-close')!.addEventListener('click', () => togglePerfOverlay(_ctx!));
@@ -250,6 +286,17 @@ function drawFpsGraph() {
 function measureFrame(timestamp: number) {
     if (!_visible || !_ctx) return;
 
+    // Frame time (ms since last frame)
+    if (_lastFrameTime > 0) {
+        const frameMs = timestamp - _lastFrameTime;
+        const frameMsRounded = Math.round(frameMs * 10) / 10;
+        _elFrameTime.textContent = frameMsRounded + 'ms';
+        if (frameMs > 33) _elFrameTime.style.color = '#ef4444'; // < 30fps
+        else if (frameMs > 20) _elFrameTime.style.color = '#fbbf24'; // < 50fps
+        else _elFrameTime.style.color = '#e0e0f0';
+    }
+    _lastFrameTime = timestamp;
+
     _frameCount++;
 
     // Calculate FPS every 500ms
@@ -295,6 +342,16 @@ function measureFrame(timestamp: number) {
         _elCards.style.color = culled > 0 ? '#22c55e' : '#e0e0f0';
     }
 
+    // Connection line count
+    const svgLayer = _ctx.connectionLayer || document.querySelector('.connections-layer');
+    if (svgLayer) {
+        const lineCount = svgLayer.querySelectorAll('line, path').length;
+        _elConnections.textContent = lineCount.toLocaleString();
+        if (lineCount > 1000) _elConnections.style.color = '#ef4444';
+        else if (lineCount > 500) _elConnections.style.color = '#fbbf24';
+        else _elConnections.style.color = '#e0e0f0';
+    }
+
     // Zoom level
     if (_ctx.snap) {
         try {
@@ -302,6 +359,24 @@ function measureFrame(timestamp: number) {
             const zoomPct = Math.round(state.zoom * 100);
             _elZoom.textContent = zoomPct + '%';
         } catch (_) { }
+    }
+
+    // Render budget: cull + render time vs 16.67ms target
+    const totalRenderMs = _lastCullTimeMs + _lastRenderTimeMs;
+    if (totalRenderMs > 0) {
+        const budgetPct = Math.min((totalRenderMs / 16.67) * 100, 100);
+        _elRenderBudget.textContent = totalRenderMs.toFixed(1) + 'ms';
+        _elRenderBudgetBar.style.width = budgetPct + '%';
+        if (totalRenderMs > 16.67) {
+            _elRenderBudget.style.color = '#ef4444';
+            _elRenderBudgetBar.style.background = '#ef4444';
+        } else if (totalRenderMs > 10) {
+            _elRenderBudget.style.color = '#fbbf24';
+            _elRenderBudgetBar.style.background = '#fbbf24';
+        } else {
+            _elRenderBudget.style.color = '#22c55e';
+            _elRenderBudgetBar.style.background = '#22c55e';
+        }
     }
 
     // Memory (Chrome only)
