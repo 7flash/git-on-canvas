@@ -73,6 +73,23 @@ bun install
 mkdir -p /repos
 echo "  ✓ /repos directory ready (for cloned GitHub repos)"
 
+# ─── 4b. Clone landing page ─────────────────────────────
+echo ""
+echo "→ Setting up landing page..."
+LANDING_DIR="/srv/landing"
+LANDING_REPO="https://github.com/7flash/gonc-landing.git"
+
+if [ -d "$LANDING_DIR/.git" ]; then
+    echo "  Updating existing landing page..."
+    cd "$LANDING_DIR" && git pull --ff-only
+else
+    echo "  Cloning landing page..."
+    mkdir -p /srv
+    git clone "$LANDING_REPO" "$LANDING_DIR"
+fi
+cd "$INSTALL_DIR"
+echo "  ✓ Landing page at $LANDING_DIR"
+
 # ─── 5. Configure Caddy ────────────────────────────────
 echo ""
 echo "→ Configuring Caddy reverse proxy..."
