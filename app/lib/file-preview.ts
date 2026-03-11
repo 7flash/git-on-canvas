@@ -270,6 +270,13 @@ function onMouseMove(e: MouseEvent) {
     if (!isPreviewEnabled) return;
     if (_isHoveringPopup) return; // Don't hide while interacting with popup
 
+    // Suppress popup during canvas panning (middle-button drag, space-held, isDragging)
+    if (e.buttons & 4) { hidePopup(); return; } // middle mouse button held
+    if (e.buttons & 1) { hidePopup(); return; } // left mouse button held (dragging)
+    const viewport = document.querySelector('.canvas-viewport');
+    if (viewport?.classList.contains('space-panning')) { hidePopup(); return; }
+    if (_ctx?.isDragging) { hidePopup(); return; }
+
     const gdState = getGalaxyDrawState();
     if (!gdState || gdState.zoom >= PREVIEW_ZOOM_THRESHOLD) {
         hidePopup();
