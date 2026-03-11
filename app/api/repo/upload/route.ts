@@ -1,9 +1,6 @@
 import { mkdir, writeFile } from "fs/promises";
 import * as path from "path";
-import { exec } from "child_process";
-import { promisify } from "util";
-
-const execAsync = promisify(exec);
+import { $ } from "bun";
 
 export async function POST(req: Request) {
     try {
@@ -35,15 +32,15 @@ export async function POST(req: Request) {
         }
 
         // Initialize a Git repository so galaxy-canvas can read it
-        await execAsync(`git init`, { cwd: repoPath });
+        await $`git init`.cwd(repoPath);
 
         // Setup dummy user info, otherwise git commits will fail if not globally set
-        await execAsync(`git config user.name "Galaxy Canvas"`, { cwd: repoPath });
-        await execAsync(`git config user.email "bot@galaxycanvas.local"`, { cwd: repoPath });
+        await $`git config user.name "Galaxy Canvas"`.cwd(repoPath);
+        await $`git config user.email "bot@galaxycanvas.local"`.cwd(repoPath);
 
         // Add all files and commit
-        await execAsync(`git add .`, { cwd: repoPath });
-        await execAsync(`git commit -m "Initial drop imported by drag-and-drop"`, { cwd: repoPath });
+        await $`git add .`.cwd(repoPath);
+        await $`git commit -m "Initial drop imported by drag-and-drop"`.cwd(repoPath);
 
         return Response.json({ path: repoPath, success: true });
     } catch (e: any) {

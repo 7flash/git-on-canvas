@@ -57,11 +57,11 @@
 - [ ] **Connections creation UX** — Connections work via Alt+click to start, then click another file's line. The comment popup interference is now fixed (pr-review removed). Need to verify and improve discoverability.
 - [x] ~~**Wheel event hijacking**~~ — ✅ DONE. `onViewportWheel` in `file-preview.ts` used to intercept wheel events over pills; disabled it so two-finger trackpad panning on canvas works perfectly.
 - [x] ~~**G hotkey overlaps in zoomed-out mode**~~ — ✅ DONE. Grid arrangement now accounts for `display: none` or short pill heights by defaulting to `580x700`.
-- [ ] **Ctrl+A select all files** — Not implemented. Should select all visible file cards on the canvas.
+- [x] ~~**Ctrl+A select all files**~~ — ✅ DONE. `events.tsx` natively selects all mounted DOM elements (`fileCards`) and all `deferredCards` within the active view.
 
 ## 🟡 Open Tasks
-- [ ] **Migrate execAsync → Bun.$** — Several API routes use `execAsync` from `child_process`. Should use `Bun.$` for cleaner shell commands.
-- [ ] **Migrate child_process → Bun.spawn** — Replace `child_process` usage with native `Bun.spawn` for process management.
+- [x] ~~**Migrate execAsync → Bun.$**~~ — ✅ DONE. Cleaned up `/api/repo/upload/route.ts` to use Bun's native shell execution.
+- [x] ~~**Migrate child_process → Bun.spawn**~~ — ✅ DONE. `clone-stream` API now streams `git clone` progress natively through `Bun.spawn` and Web Streams.
 - [ ] **Dependency graph view** — File dependency visualization started but may need polish. Verify force-directed graph, SVG connection rendering, and toggle button.
 - [ ] **Production SaaS deploy** — Set up production deployment (Vercel/Fly.io/VPS). Currently only runs locally on port 3335.
 - [ ] **Card groups: directory collapse** — Card grouping collapses directories into summary cards. Verify persistence and animations.

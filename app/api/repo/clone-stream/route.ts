@@ -1,7 +1,7 @@
 import { measure } from 'measure-fn';
 import path from 'path';
 import fs from 'fs';
-import { spawn } from 'child_process';
+
 
 const CLONES_DIR = path.join(process.cwd(), 'git-canvas', 'repos');
 
@@ -46,8 +46,8 @@ export async function POST(req: Request) {
     if (fs.existsSync(path.join(targetPath, '.git'))) {
         return measure('api:repo:clone-stream:cached', async () => {
             try {
-                const pull = spawn('git', ['pull'], { cwd: targetPath, stdio: 'pipe' });
-                await new Promise<void>((resolve) => pull.on('close', resolve));
+                const pull = Bun.spawn(['git', 'pull'], { cwd: targetPath, stdio: ['ignore', 'pipe', 'pipe'] });
+                await pull.exited;
                 console.log(`[clone-stream] Updated existing repo: ${repoName}`);
             } catch {
                 console.log(`[clone-stream] Using existing repo (pull skipped): ${repoName}`);
@@ -69,7 +69,7 @@ export async function POST(req: Request) {
 
             sendSSE('progress', { message: `Starting clone of ${repoName}...`, percent: 0 });
 
-            const gitProc = spawn('git', ['clone', '--depth', '100', '--progress', url, targetPath], {
+            const gitProc = Bun.spawn(['git', 'clone', '--depth', '100', '--progress', url, targetPath], {
                 stdio: ['ignore', 'pipe', 'pipe']
             });
 
@@ -99,10 +99,20 @@ export async function POST(req: Request) {
                 }
             }
 
-            gitProc.stderr.on('data', parseProgress);
-            gitProc.stdout.on('data', parseProgress);
+            async function consumeStream(stream: ReadableStream) {
+                try {
+                    for await (const chunk of stream) {
+                        parseProgress(Buffer.from(chunk));
+                    }
+                } catch (e) {
+                    console.error('[clone-stream] stream parse error:', e);
+                }
+            }
 
-            gitProc.on('close', (code) => {
+            if (gitProc.stderr) consumeStream(gitProc.stderr);
+            if (gitProc.stdout) consumeStream(gitProc.stdout);
+
+            gitProc.exited.then(code => {
                 if (code === 0) {
                     console.log(`[clone-stream] ✅ Cloned ${repoName}`);
                     sendSSE('done', { ok: true, path: targetPath, cached: false });
@@ -110,13 +120,11 @@ export async function POST(req: Request) {
                     console.error(`[clone-stream] ✗ git clone exited with code ${code}`);
                     sendSSE('error', { error: `git clone failed (exit code ${code})` });
                 }
-                try { controller.close(); } catch { /* already closed */ }
-            });
-
-            gitProc.on('error', (err) => {
+                try { controller.close(); } catch { }
+            }).catch(err => {
                 console.error('[clone-stream] spawn error:', err);
                 sendSSE('error', { error: err.message || 'Failed to start git' });
-                try { controller.close(); } catch { /* already closed */ }
+                try { controller.close(); } catch { }
             });
         }
     });
