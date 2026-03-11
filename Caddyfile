@@ -1,8 +1,13 @@
 # Caddyfile for gitmaps.xyz
 #
+# Architecture:
+# - Root `/`   → Static landing page (gonc-web)
+# - `/{owner}/{repo}` → GitMaps canvas app on port 3335
+#
 # Caddy handles:
 # - Automatic HTTPS (Let's Encrypt)
-# - Reverse proxy to GitMaps on port 3335
+# - Static file serving for landing page
+# - Reverse proxy to GitMaps app for repo routes
 # - WebSocket upgrade for real-time features
 # - Gzip compression
 # - Security headers
@@ -16,10 +21,54 @@
 #   caddy run --config Caddyfile
 
 gitmaps.xyz {
-    reverse_proxy localhost:3335 {
-        # WebSocket support
-        header_up Connection {>Connection}
-        header_up Upgrade {>Upgrade}
+    # Static landing page at root
+    handle / {
+        root * /srv/landing
+        file_server
+        try_files {path} /index.html
+    }
+
+    # Landing page static assets (css, js, images)
+    handle /styles.css {
+        root * /srv/landing
+        file_server
+    }
+    handle /script.js {
+        root * /srv/landing
+        file_server
+    }
+    handle /canvas-demo.js {
+        root * /srv/landing
+        file_server
+    }
+    handle /hero.png {
+        root * /srv/landing
+        file_server
+    }
+    handle /hero-demo.webp {
+        root * /srv/landing
+        file_server
+    }
+    handle /img-* {
+        root * /srv/landing
+        file_server
+    }
+    handle /concepts.html {
+        root * /srv/landing
+        file_server
+    }
+    handle /pitch.html {
+        root * /srv/landing
+        file_server
+    }
+
+    # All other routes → GitMaps app (owner/repo patterns)
+    handle {
+        reverse_proxy localhost:3335 {
+            # WebSocket support
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+        }
     }
 
     # Compression
