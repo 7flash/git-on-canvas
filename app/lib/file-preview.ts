@@ -345,17 +345,9 @@ function onViewportWheel(e: WheelEvent) {
         return;
     }
 
-    // If popup is visible and mouse is over a pill/card → scroll the popup
-    if (popup && popup.style.opacity === '1' && currentCardPath) {
-        const target = e.target as HTMLElement;
-        const overPill = target.closest?.('.file-pill') || target.closest?.('.file-card') || target.closest?.('.file-preview-popup');
-        if (overPill) {
-            e.preventDefault();
-            e.stopPropagation();
-            popup.scrollTop += e.deltaY;
-            return;
-        }
-    }
+    // If popup is visible and mouse is over the popup container itself, let its own
+    // wheel listener handle it. We removed the "hijack if hovered over pill" logic
+    // because it breaks canvas two-finger panning.
 }
 
 // ─── Public API ──────────────────────────────────────────

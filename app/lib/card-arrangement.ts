@@ -35,14 +35,19 @@ function getSelectedCardsInfo(ctx: CanvasContext): CardInfo[] {
             const x = parseFloat(card.style.left);
             const y = parseFloat(card.style.top);
             if (isNaN(x) || isNaN(y)) return;
-            // In pill mode, card is display:none — use stored size or default
+            // In pill mode, card might be display:none (0px) or rendered as a pill (~24px).
+            let cw = card.offsetWidth;
+            let ch = card.offsetHeight;
+            if (!cw || cw < 100) cw = 580;
+            if (!ch || ch < 100) ch = 700;
+
             const pos = ctx.positions?.get(path);
             const def = ctx.deferredCards?.get(path);
             infos.push({
                 path, card,
                 x, y,
-                w: pos?.width || def?.size?.width || card.offsetWidth || 580,
-                h: pos?.height || def?.size?.height || card.offsetHeight || 700,
+                w: pos?.width || def?.size?.width || cw,
+                h: pos?.height || def?.size?.height || ch,
             });
         }
     });

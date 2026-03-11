@@ -55,8 +55,8 @@
 - [x] ~~**File preview: scrollable content**~~ — ✅ DONE. Popup stays stationary (no cursor-chasing), wheel events forwarded from viewport to popup when preview is visible.
 - [ ] **Changed files panel empty** — After selecting a commit, the changed files panel shows nothing. Needs investigation.
 - [ ] **Connections creation UX** — Connections work via Alt+click to start, then click another file's line. The comment popup interference is now fixed (pr-review removed). Need to verify and improve discoverability.
-- [ ] **Wheel event hijacking** — `onViewportWheel` in `file-preview.ts` blocks ALL canvas zooming when popup is visible. Should only intercept when mouse is over the popup.
-- [ ] **G hotkey overlaps in zoomed-out mode** — Grid arrangement uses pill `offsetHeight` (~24px) instead of full card height (~700px) in pill mode, causing vertical overlap. Need to use stored/default card height for grid spacing.
+- [x] ~~**Wheel event hijacking**~~ — ✅ DONE. `onViewportWheel` in `file-preview.ts` used to intercept wheel events over pills; disabled it so two-finger trackpad panning on canvas works perfectly.
+- [x] ~~**G hotkey overlaps in zoomed-out mode**~~ — ✅ DONE. Grid arrangement now accounts for `display: none` or short pill heights by defaulting to `580x700`.
 - [ ] **Ctrl+A select all files** — Not implemented. Should select all visible file cards on the canvas.
 
 ## 🟡 Open Tasks
