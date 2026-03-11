@@ -119,9 +119,11 @@ export default function mount(): () => void {
                 }
             };
 
-            // Check URL path for repo slug (e.g. /starwar)
+            // Check URL path for repo slug (e.g. /starwar or /galaxy-canvas/starwar)
             // Fallback: also check hash for legacy URLs (e.g. #starwar)
-            const pathSlug = decodeURIComponent(window.location.pathname.replace(/^\//, ''));
+            const rawPath = decodeURIComponent(window.location.pathname.replace(/^\//, ''));
+            // Strip the route-name prefix if we're served at /galaxy-canvas
+            const pathSlug = rawPath.replace(/^galaxy-canvas\/?/, '');
             const hashSlug = decodeURIComponent(window.location.hash.replace('#', ''));
             const urlSlug = pathSlug || hashSlug;
 

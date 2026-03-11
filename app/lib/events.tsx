@@ -555,6 +555,31 @@ export function setupEventListeners(ctx: CanvasContext) {
                 repoSelect.value = '';  // Keep "Select a repository..." shown
             }
 
+            // ── Also discover on-disk repos that may not be in localStorage ──
+            fetch('/api/repo/list').then(r => r.json()).then((data: any) => {
+                if (!data.repos || data.repos.length === 0) return;
+                const currentPaths = new Set(recentRepos);
+                let added = false;
+                for (const repo of data.repos) {
+                    if (!currentPaths.has(repo.path)) {
+                        // Add to localStorage recent repos
+                        _addRecentRepo(repo.path);
+                        // Add to dropdown (before the __new__ option)
+                        const opt = document.createElement('option');
+                        opt.value = repo.path;
+                        opt.textContent = repo.name;
+                        opt.title = repo.path;
+                        const newOpt2 = repoSelect.querySelector('option[value="__new__"]');
+                        if (newOpt2) {
+                            repoSelect.insertBefore(opt, newOpt2);
+                        } else {
+                            repoSelect.add(opt);
+                        }
+                        added = true;
+                    }
+                }
+            }).catch(() => { });
+
             repoSelect.addEventListener('change', async () => {
                 const val = repoSelect.value;
                 if (val === '__new__') {
