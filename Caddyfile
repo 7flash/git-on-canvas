@@ -21,45 +21,23 @@
 #   caddy run --config Caddyfile
 
 gitmaps.xyz {
-    # Static landing page at root
-    handle / {
+    # Landing page: root + known static assets
+    @landing {
+        path /
+        path /index.html
+        path /styles.css
+        path /script.js
+        path /canvas-demo.js
+        path /hero.png
+        path /hero-demo.webp
+        path /img-*
+        path /concepts.html
+        path /pitch.html
+    }
+    handle @landing {
         root * /srv/landing
         file_server
         try_files {path} /index.html
-    }
-
-    # Landing page static assets (css, js, images)
-    handle /styles.css {
-        root * /srv/landing
-        file_server
-    }
-    handle /script.js {
-        root * /srv/landing
-        file_server
-    }
-    handle /canvas-demo.js {
-        root * /srv/landing
-        file_server
-    }
-    handle /hero.png {
-        root * /srv/landing
-        file_server
-    }
-    handle /hero-demo.webp {
-        root * /srv/landing
-        file_server
-    }
-    handle /img-* {
-        root * /srv/landing
-        file_server
-    }
-    handle /concepts.html {
-        root * /srv/landing
-        file_server
-    }
-    handle /pitch.html {
-        root * /srv/landing
-        file_server
     }
 
     # All other routes → GitMaps app (owner/repo patterns)
