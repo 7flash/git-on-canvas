@@ -392,7 +392,7 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
             updateStatusBarFiles(ctx.fileCards.size);
 
             // Populate changed files panel with diff stats
-            populateChangedFilesPanel(data.files);
+            populateChangedFilesPanel(ctx, data.files);
         } catch (err) {
             _showCommitProgress(false);
             measure('commit:selectError', () => err);
@@ -853,7 +853,7 @@ export function switchView(ctx: CanvasContext, mode: string) {
                 // We have commit files in state — render them
                 ctx.commitFilesData = state.commitFiles;
                 renderFilesOnCanvas(ctx, state.commitFiles, state.currentCommitHash);
-                populateChangedFilesPanel(state.commitFiles);
+                populateChangedFilesPanel(ctx, state.commitFiles);
                 const fileCountEl = document.getElementById('fileCount');
                 if (fileCountEl) fileCountEl.textContent = state.commitFiles.length;
             } else {
@@ -887,7 +887,7 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
     const statusIcons = { added: '+', modified: '~', deleted: '−', renamed: '→', copied: '⊕' };
 
     return (
-        <>
+        <div className="changed-files-container-inner" style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
             <div className="changed-files-summary">
                 <span className="stat-add">+{totalAdd}</span>
                 <span className="stat-del">−{totalDel}</span>
@@ -921,11 +921,12 @@ function ChangedFilesList({ fileStats, totalAdd, totalDel, count }: {
                     </div>
                 );
             })}
-        </>
+        </div>
     );
 }
 
-export function populateChangedFilesPanel(files: any[]) {
+export function populateChangedFilesPanel(ctx: CanvasContext, files: any[]) {
+    setPanelCtx(ctx);
     const panel = document.getElementById('changedFilesPanel');
     const listEl = document.getElementById('changedFilesList');
     if (!panel || !listEl) return;

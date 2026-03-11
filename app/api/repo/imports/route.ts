@@ -1,6 +1,7 @@
 import { measure } from 'measure-fn';
 import simpleGit from 'simple-git';
 import { validateRepoPath } from '../validate-path';
+import { join } from 'path';
 
 /**
  * POST /api/repo/imports
@@ -96,13 +97,30 @@ export async function POST(req: Request) {
             });
 
             // Scan each source file for imports (limit to first 200 files for perf)
-            const filesToScan = sourceFiles.slice(0, 200);
+            const filesToScan = sourceFiles.slice(0, 300);
             const edges: { source: string; target: string; line: number }[] = [];
+
+            const isWorkingTree = !commit || commit === 'allfiles' || commit === 'HEAD' || commit === '';
 
             await Promise.allSettled(filesToScan.map(async (filePath) => {
                 try {
-                    const content = await git.show([`${commit}:${filePath}`]);
-                    const lines = content.split('\n');
+                    let text = '';
+                    if (isWorkingTree) {
+                        try {
+                            const file = Bun.file(join(repoPath, filePath));
+                            if (await file.exists()) {
+                                text = await file.text();
+                            }
+                        } catch {
+                            // Fallback if failed
+                        }
+                    }
+                    if (!text) {
+                        text = await git.show([`${commit === 'allfiles' ? 'HEAD' : commit}:${filePath}`]);
+                    }
+                    if (!text) return;
+
+                    const lines = text.split('\n');
 
                     for (let i = 0; i < Math.min(lines.length, 100); i++) {
                         // Only scan first 100 lines (imports are at the top)

@@ -238,7 +238,7 @@ export function applyLayer(ctx: CanvasContext) {
             renderAllFilesOnCanvas(ctx, ctx.allFilesData);
             // Also repopulate the changed files panel with the new layer filter
             if (ctx.commitFilesData) {
-                populateChangedFilesPanel(ctx.commitFilesData);
+                populateChangedFilesPanel(ctx, ctx.commitFilesData);
             }
         } else if (commitHash && commitHash !== 'allfiles') {
             selectCommit(ctx, commitHash, true);

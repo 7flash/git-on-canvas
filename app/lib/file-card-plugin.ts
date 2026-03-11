@@ -47,6 +47,13 @@ export function createFileCardPlugin(): CardPlugin {
             // skipInteraction=true: CardManager handles drag/resize/z-order
             const { createAllFileCard } = require('./cards');
             const card = createAllFileCard(ctx, file, data.x, data.y, savedSize, true);
+
+            const { isDirCollapsed } = require('./card-groups');
+            const fileDir = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '.';
+            if (isDirCollapsed(fileDir)) {
+                card.style.display = 'none';
+            }
+
             return card;
         },
 
@@ -104,6 +111,13 @@ export function createDiffCardPlugin(): CardPlugin {
 
             const { createFileCard } = require('./cards');
             const card = createFileCard(ctx, file, data.x, data.y, commitHash, true);
+
+            const { isDirCollapsed } = require('./card-groups');
+            const fileDir = file.path.includes('/') ? file.path.substring(0, file.path.lastIndexOf('/')) : '.';
+            if (isDirCollapsed(fileDir)) {
+                card.style.display = 'none';
+            }
+
             return card;
         },
 

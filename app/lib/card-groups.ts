@@ -24,8 +24,8 @@ const activeGroups = new Map<string, CollapsedGroup>();
 
 // ─── Persistence ─────────────────────────────────────────
 function getStorageKey(): string {
-    const hash = location.hash?.slice(1) || 'default';
-    return `gitmaps:collapsed-dirs:${hash}`;
+    const repoPath = _ctx?.snap().context.repoPath || 'default';
+    return `gitmaps:collapsed-dirs:${repoPath}`;
 }
 
 function saveState() {
@@ -43,6 +43,13 @@ function loadState() {
             for (const d of dirs) collapsedDirs.add(d);
         }
     } catch { }
+}
+
+export function resetCardGroups() {
+    for (const group of activeGroups.values()) {
+        group.groupCard.remove();
+    }
+    activeGroups.clear();
 }
 
 // ─── Group card rendering ────────────────────────────────

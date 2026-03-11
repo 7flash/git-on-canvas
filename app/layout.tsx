@@ -279,6 +279,25 @@ export default function RootLayout({ children }: { children: any }) {
                             <div className="changed-files-list" id="changedFilesList"></div>
                         </div>
 
+                        {/* Connections Panel */}
+                        <div className="connections-panel" id="connectionsPanel" style={{ display: 'none' }}>
+                            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
+                                <span className="panel-title" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                    Connections <span id="connCount" style={{ marginLeft: '6px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>0</span>
+                                </span>
+                                <button id="closeConnectionsPanel" className="btn-ghost btn-xs" title="Close">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <line x1="18" y1="6" x2="6" y2="18" />
+                                        <line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div style={{ padding: '8px 16px', fontSize: '0.75rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
+                                💡 Tip: <strong>Alt+Click</strong> any line number then select a target to connect them.
+                            </div>
+                            <div className="connections-list" id="connectionsList" style={{ flex: 1, overflowY: 'auto' }}></div>
+                        </div>
+
 
 
                         <div className="minimap-container">

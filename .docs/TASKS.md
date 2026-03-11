@@ -53,8 +53,8 @@
 ## 🔴 Priority: Fix
 - [x] ~~**File preview: popup visibility**~~ — ✅ DONE. Root cause: cards in pill mode have `display:none`, cloning them produced zero-size popup. Added `display:block` to cloned card.
 - [x] ~~**File preview: scrollable content**~~ — ✅ DONE. Popup stays stationary (no cursor-chasing), wheel events forwarded from viewport to popup when preview is visible.
-- [ ] **Changed files panel empty** — After selecting a commit, the changed files panel shows nothing. Needs investigation.
-- [ ] **Connections creation UX** — Connections work via Alt+click to start, then click another file's line. The comment popup interference is now fixed (pr-review removed). Need to verify and improve discoverability.
+- [x] ~~**Changed files panel empty**~~ — ✅ DONE. Fixed JSX Fragment rendering issue breaking `jsx-dom` render behavior, and wired up `ctx` injection correctly.
+- [x] ~~**Connections creation UX**~~ — ✅ DONE. Restored missing Connections Panel to layout and added explicit `Alt+Click` instructional text to improve discoverability.
 - [x] ~~**Wheel event hijacking**~~ — ✅ DONE. `onViewportWheel` in `file-preview.ts` used to intercept wheel events over pills; disabled it so two-finger trackpad panning on canvas works perfectly.
 - [x] ~~**G hotkey overlaps in zoomed-out mode**~~ — ✅ DONE. Grid arrangement now accounts for `display: none` or short pill heights by defaulting to `580x700`.
 - [x] ~~**Ctrl+A select all files**~~ — ✅ DONE. `events.tsx` natively selects all mounted DOM elements (`fileCards`) and all `deferredCards` within the active view.
@@ -62,9 +62,9 @@
 ## 🟡 Open Tasks
 - [x] ~~**Migrate execAsync → Bun.$**~~ — ✅ DONE. Cleaned up `/api/repo/upload/route.ts` to use Bun's native shell execution.
 - [x] ~~**Migrate child_process → Bun.spawn**~~ — ✅ DONE. `clone-stream` API now streams `git clone` progress natively through `Bun.spawn` and Web Streams.
-- [ ] **Dependency graph view** — File dependency visualization started but may need polish. Verify force-directed graph, SVG connection rendering, and toggle button.
+- [x] ~~**Dependency graph view**~~ — ✅ DONE. File dependency visualization is fully implemented (force-directed layout, SVG edges with directionality, toggle shortcut). Optimized backend `/api/repo/imports` to use `Bun.file` for `HEAD`/working tree to avoid spawning 300 `git` processes concurrently, massively improving performance.
 - [ ] **Production SaaS deploy** — Set up production deployment (Vercel/Fly.io/VPS). Currently only runs locally on port 3335.
-- [ ] **Card groups: directory collapse** — Card grouping collapses directories into summary cards. Verify persistence and animations.
+- [x] ~~**Card groups: directory collapse**~~ — ✅ DONE. Refactored `card-groups.ts` to integrate smoothly with the new virtualized `CardManager` (`galaxydraw-bridge`). Fixed persistence to use the repo path instead of the empty URL hash. Materialized deferred cards correctly respect their collapsed state.
 - [ ] **Rename galaxydraw → xydraw** — Publish the canvas engine as `xydraw` on npm. Rename all references.
 
 ## 🔴 Priority: Performance

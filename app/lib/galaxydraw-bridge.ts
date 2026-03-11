@@ -272,6 +272,9 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
     clearAllPills(ctx);
     if (ctx.svgOverlay) ctx.svgOverlay.innerHTML = '';
 
+    const { resetCardGroups, restoreCollapsedDirs } = require('./card-groups');
+    resetCardGroups();
+
     const visibleFiles = files.filter(f => !ctx.hiddenFiles.has(f.path));
     updateHiddenUI(ctx);
 
@@ -431,6 +434,8 @@ export function renderAllFilesViaCardManager(ctx: CanvasContext, files: any[]) {
             deferredCount++;
         }
     });
+
+    restoreCollapsedDirs(ctx);
 
     console.log(`[gd-bridge] ${createdCount} created, ${deferredCount} deferred (${layerFiles.length} total)`);
     return true; // Signal: we handled it

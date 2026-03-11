@@ -909,6 +909,22 @@ body {
     animation: fadeIn 150ms ease;
 }
 
+.connections-panel {
+    position: absolute;
+    top: 44px;
+    right: 276px;
+    width: 320px;
+    max-height: calc(100% - 56px - 140px);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn 150ms ease;
+}
+
 .panel-header {
     display: flex;
     align-items: center;
