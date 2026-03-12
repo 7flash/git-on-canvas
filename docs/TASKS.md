@@ -8,7 +8,11 @@
 - [x] ~~**Canvas AI panel UX**~~ — ✅ DONE. Panel now resizable (`resize: horizontal`, 240–600px range) with `direction: rtl` trick for left-side resize handle. Users can shrink the panel to just 240px or expand to 600px.
 
 ## 🔴 Priority: Fix
+- [x] ~~**GitHub URL routing clobbered**~~ — ✅ DONE. `loadRepository` was replacing `/denoland/deno` with just `/deno` via `history.replaceState`. Fixed to detect and preserve GitHub-style owner/repo URLs. Both short (`deno`) and full (`denoland/deno`) slugs stored in localStorage for bidirectional lookup.
 - [ ] **DNS A record for gitmaps.xyz** — Domain resolves but no A record set. Need `gitmaps.xyz → 202.155.132.139` at registrar. Server is live and responding locally.
+
+## 🟡 Priority: UI Redesign
+- [ ] **Full UI redesign** — Burn existing UI, rethink from scratch. Keep the tab gradient 3D modern aesthetic. Everything else needs to feel premium.
 
 ## 🟢 Priority: Features
 - [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, bgrun-managed (port 3335), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. Added `/:owner/:repo` dynamic route. Pending: DNS A record.

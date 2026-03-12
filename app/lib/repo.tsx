@@ -59,12 +59,21 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
             const landing = document.getElementById('landingOverlay');
             if (landing) landing.style.display = 'none';
 
-            // Set URL path to a friendly slug (folder name) instead of hash
+            // Determine the best URL slug to display:
+            // If the current URL is already a GitHub owner/repo slug that maps to this repo, keep it.
+            // Otherwise fall back to the short folder name.
+            const currentPath = decodeURIComponent(window.location.pathname.replace(/^\//, ''));
+            const isCurrentGitHubSlug = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(currentPath)
+                && localStorage.getItem(`gitcanvas:slug:${currentPath}`) === repoPath;
             const repoSlug = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repoPath;
-            history.replaceState(null, '', '/' + encodeURIComponent(repoSlug));
+            const displaySlug = isCurrentGitHubSlug ? currentPath : repoSlug;
+            history.replaceState(null, '', '/' + (displaySlug.includes('/') ? displaySlug : encodeURIComponent(displaySlug)));
             localStorage.setItem('gitcanvas:lastRepo', repoPath);
-            // Also store slug→path mapping for URL-based loading
+            // Store slug→path mapping for URL-based loading (both short and GitHub-style)
             localStorage.setItem(`gitcanvas:slug:${repoSlug}`, repoPath);
+            if (isCurrentGitHubSlug) {
+                localStorage.setItem(`gitcanvas:slug:${currentPath}`, repoPath);
+            }
             updateStatusBarRepo(repoPath);
             // Save to recent repos list
             const recentKey = 'gitcanvas:recentRepos';

@@ -133,8 +133,57 @@ export default function mount(): () => void {
                     history.replaceState(null, '', '/' + encodeURIComponent(hashSlug));
                 }
 
-                // Resolve slug to full path (check localStorage mapping)
-                const resolvedPath = localStorage.getItem(`gitcanvas:slug:${urlSlug}`) || urlSlug;
+                // Detect GitHub owner/repo pattern (exactly one /, no \ or : which indicate local paths)
+                const isGitHubSlug = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(urlSlug)
+                    && !urlSlug.includes('\\') && !urlSlug.includes(':');
+
+                let resolvedPath: string;
+
+                if (isGitHubSlug) {
+                    // Check if we already have a localStorage mapping for this GitHub slug
+                    const cached = localStorage.getItem(`gitcanvas:slug:${urlSlug}`);
+                    if (cached) {
+                        resolvedPath = cached;
+                    } else {
+                        // Clone from GitHub and use the local clone path
+                        const landing = document.getElementById('landingOverlay');
+                        if (landing) landing.style.display = 'none';
+
+                        // Show loading state
+                        const loadingEl = document.getElementById('loadingProgress');
+                        if (loadingEl) {
+                            loadingEl.style.display = 'flex';
+                            const msgEl = loadingEl.querySelector('.loading-message');
+                            if (msgEl) msgEl.textContent = `Cloning ${urlSlug} from GitHub...`;
+                        }
+
+                        try {
+                            const cloneRes = await fetch('/api/repo/clone', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ url: `https://github.com/${urlSlug}.git` }),
+                            });
+                            if (!cloneRes.ok) {
+                                const err = await cloneRes.json().catch(() => ({ error: 'Clone failed' }));
+                                throw new Error(err.error || 'Clone failed');
+                            }
+                            const cloneData = await cloneRes.json();
+                            resolvedPath = cloneData.path;
+
+                            // Store slug→path mapping so future visits are instant
+                            localStorage.setItem(`gitcanvas:slug:${urlSlug}`, resolvedPath);
+                        } catch (err: any) {
+                            console.error(`[gitmaps] Failed to clone ${urlSlug}:`, err);
+                            const { showToast } = await import('./lib/utils');
+                            showToast(`Failed to clone ${urlSlug}: ${err.message}`, 'error');
+                            // Fall through — show landing
+                            return;
+                        }
+                    }
+                } else {
+                    // Resolve slug to full path (check localStorage mapping)
+                    resolvedPath = localStorage.getItem(`gitcanvas:slug:${urlSlug}`) || urlSlug;
+                }
 
                 // Hide landing immediately since we have a repo
                 const landing = document.getElementById('landingOverlay');
