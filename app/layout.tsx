@@ -278,6 +278,13 @@ export default function RootLayout({ children }: { children: any }) {
                                         <line x1="18" y1="12" x2="22" y2="12" />
                                     </svg>
                                 </button>
+                                <button id="openSnapshots" className="btn-ghost btn-sm" title="Layout Snapshots">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                                        <circle cx="12" cy="13" r="4" />
+                                        <path d="M15 8h.01" />
+                                    </svg>
+                                </button>
                                 <button id="openGlobalSearch" className="btn-ghost btn-sm" title="Search Files (Ctrl+F)">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                         <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />

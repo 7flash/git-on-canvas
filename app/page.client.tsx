@@ -28,6 +28,7 @@ import { initBranchCompare } from './lib/branch-compare';
 import { initCommandPalette } from './lib/command-palette';
 import { initShortcutsPanel } from './lib/shortcuts-panel';
 import { initStatusBar } from './lib/status-bar';
+import { initLayoutSnapshots } from './lib/layout-snapshots';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -71,6 +72,7 @@ export default function mount(): () => void {
             initCommandPalette(ctx);
             initShortcutsPanel();
             initStatusBar(ctx);
+            initLayoutSnapshots(ctx);
             await loadSavedPositions(ctx); // initial load (may be empty if no repo yet)
             if (disposed) return; // bail if cleaned up during await
             loadHiddenFiles(ctx);

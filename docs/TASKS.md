@@ -13,6 +13,7 @@
 ## 🔴 Priority: Fix
 - [x] ~~**GitHub URL routing clobbered**~~ — ✅ DONE. `loadRepository` was replacing `/denoland/deno` with just `/deno` via `history.replaceState`. Fixed to detect and preserve GitHub-style owner/repo URLs. Both short (`deno`) and full (`denoland/deno`) slugs stored in localStorage for bidirectional lookup.
 - [x] ~~**DNS A record for gitmaps.xyz**~~ — ✅ DONE. Server live at 202.155.132.139, systemd-managed (`gitmaps.service`), auto-restart on boot/crash.
+- [x] ~~**Server DNS resolution broken**~~ — ✅ DONE. Fixed malformed `/etc/resolv.conf` on 202.155.132.139 (was `8.8.8..8`) that blocked Caddy Let's Encrypt certs and made the site inaccessible. Restarted `caddy`.
 
 ## 🟡 Priority: UI Redesign
 - [x] ~~**CSS redesign v2**~~ — ✅ DONE. Premium dark theme with glassmorphism, gradient accents.
@@ -20,6 +21,10 @@
 - [x] ~~**Landing page cleanup**~~ — ✅ DONE. Merged problem/solution into hero, explore cards link to gitmaps.xyz/owner/repo.
 
 ## 🟢 Priority: Features
+- [ ] **Live Collaboration Enhancements** — Show typing indicators and live selection bounds when multiple users are reading/editing the same codebase file.
+- [x] ~~**Project Layout Snapshots**~~ — ✅ DONE. Added `layout-snapshots.ts` to allow saving and restoring specific viewport layouts (positions, sizes, zoom, hidden files) under a custom name, saved locally per-repo.
+
+## 🟢 Priority: Features (Completed)
 - [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, systemd service (`gitmaps.service`), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. `/:owner/:repo` dynamic route. 6 repos pre-warmed (react, deno, svelte, bun, next.js, tailwindcss).
 - [x] ~~**Performance profiling on large repos**~~ — ✅ DONE. Perf overlay (Shift+P) enhanced with: frame time (ms/frame), connection line count, render budget bar (cull+render vs 16.67ms budget), culling timing instrumentation via `reportRenderTiming()`. Color-coded thresholds for all metrics.
 - [x] ~~**Offline mode / PWA**~~ — ✅ DONE. Web App Manifest at `/api/manifest.json` (name, theme color, icons). Service worker at `/api/sw.js` with network-first for HTML, cache-first for static assets, skips API routes and WebSockets. App icon at `/api/pwa-icon`. Published as npm package `gitmaps@1.1.0`.
