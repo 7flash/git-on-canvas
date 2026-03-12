@@ -19,6 +19,43 @@ let _mmRebuildTimer: any = null;
 export function restoreViewport(ctx: CanvasContext) {
     const state = ctx.snap().context;
     if (!state.repoPath) return;
+
+    // Priority 0: ?layout= query param (full shared layout)
+    const layoutParam = new URLSearchParams(window.location.search).get('layout');
+    if (layoutParam) {
+        try {
+            const layout = JSON.parse(atob(layoutParam));
+            if (layout.zoom) ctx.actor.send({ type: 'SET_ZOOM', zoom: layout.zoom });
+            if (layout.offsetX !== undefined && layout.offsetY !== undefined) {
+                ctx.actor.send({ type: 'SET_OFFSET', x: layout.offsetX, y: layout.offsetY });
+            }
+            // Restore card positions
+            if (layout.positions) {
+                for (const [path, pos] of Object.entries(layout.positions)) {
+                    ctx.positions.set(path, pos as any);
+                }
+            }
+            // Restore hidden files
+            if (layout.hiddenFiles) {
+                for (const f of layout.hiddenFiles) ctx.hiddenFiles.add(f);
+            }
+            // Clean URL
+            const cleanUrl = window.location.pathname;
+            history.replaceState(null, '', cleanUrl);
+            return;
+        } catch { }
+    }
+
+    // Priority 1: URL hash (viewport-only shared link)
+    const hashVp = parseViewportHash();
+    if (hashVp) {
+        if (hashVp.z) ctx.actor.send({ type: 'SET_ZOOM', zoom: hashVp.z });
+        if (hashVp.x !== undefined && hashVp.y !== undefined) ctx.actor.send({ type: 'SET_OFFSET', x: hashVp.x, y: hashVp.y });
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+        return;
+    }
+
+    // Priority 2: localStorage (returning user)
     try {
         const saved = localStorage.getItem(`gitcanvas:viewport:${state.repoPath}`);
         if (saved) {
@@ -27,6 +64,31 @@ export function restoreViewport(ctx: CanvasContext) {
             if (vp.x !== undefined && vp.y !== undefined) ctx.actor.send({ type: 'SET_OFFSET', x: vp.x, y: vp.y });
         }
     } catch (e) { }
+}
+
+/** Parse viewport state from URL hash: #z=0.5&x=-1000&y=-500 */
+function parseViewportHash(): { z?: number; x?: number; y?: number } | null {
+    const hash = window.location.hash.slice(1);
+    if (!hash) return null;
+    const params = new URLSearchParams(hash);
+    const z = params.get('z');
+    const x = params.get('x');
+    const y = params.get('y');
+    if (!z && !x && !y) return null;
+    return {
+        z: z ? parseFloat(z) : undefined,
+        x: x ? parseFloat(x) : undefined,
+        y: y ? parseFloat(y) : undefined,
+    };
+}
+
+/** Get a shareable URL with current viewport encoded in hash */
+export function getShareableLink(ctx: CanvasContext): string {
+    const state = ctx.snap().context;
+    const z = state.zoom.toFixed(3);
+    const x = Math.round(state.offsetX);
+    const y = Math.round(state.offsetY);
+    return `${window.location.origin}${window.location.pathname}#z=${z}&x=${x}&y=${y}`;
 }
 
 // ─── Update canvas CSS transform from state ─────────────
