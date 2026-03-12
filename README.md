@@ -11,18 +11,12 @@
 
 # 🪐 GitMaps
 
-**See every file at once.** Pan, zoom, drag — arrange your codebase the way *you* think about it, not the way the file system forces you to.
+**Transcend the file tree.** GitMaps renders knowledge on an infinite canvas — with layers, time-travel, and a minimap to never lose context.
 
-🌐 **Try it now:** [gitmaps.xyz](https://gitmaps.xyz) — no install required
+🌐 **Try it now:** [gitmaps.xyz](https://gitmaps.xyz) — no install required  
+🔬 **Explore React:** [gitmaps.xyz/facebook/react](https://gitmaps.xyz/facebook/react)
 
 ---
-
-## The Problem
-
-Traditional code review: Open file → read → close → open next file → forget what you just saw → repeat.
-
-**Git on Canvas:**
-All changed files laid out on an infinite canvas. Drag them next to each other. Draw connections between related lines. Switch commits with arrow keys. Your spatial layout persists across sessions.
 
 ## ✨ Features
 
@@ -45,7 +39,7 @@ All changed files laid out on an infinite canvas. Drag them next to each other. 
 | ✏️ **Full Editor** | CodeMirror 6 with syntax highlighting, multi-tab, auto-save, git commit, and code minimap. |
 | ⇄ **Tab Diff** | Compare two open tabs side-by-side with LCS diff, change markers, synced scrolling. |
 | 🧭 **Symbol Outline** | Side panel showing all functions/classes/types in a file. Click to scroll. |
-| 🔀 **Dependency Graph** | `Ctrl+G` to toggle force-directed graph layout based on import relationships. |
+| 🗺️ **Minimap** | Bird's-eye overview with click-to-navigate and viewport indicator. |
 | 📝 **PR Review** | Comment threads on any line, stored in localStorage. |
 | 📁 **Card Grouping** | Collapse entire directories into compact summary cards to reduce clutter. |
 

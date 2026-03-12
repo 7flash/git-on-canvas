@@ -170,7 +170,7 @@ export function setActiveLayer(ctx: CanvasContext, id: string) {
     renderLayersUI(ctx);
     applyLayer(ctx);
 
-    // User feedback
+    // User feedback — only show hint for empty layers
     const layer = layerState.layers.find(l => l.id === id);
     if (layer && id !== 'default') {
         const fileCount = Object.keys(layer.files).length;
@@ -179,14 +179,7 @@ export function setActiveLayer(ctx: CanvasContext, id: string) {
                 `Layer "${layer.name}" is empty — right-click cards to move them here`,
                 'info'
             ));
-        } else {
-            import('./utils').then(m => m.showToast(
-                `Switched to "${layer.name}" (${fileCount} files)`,
-                'info'
-            ));
         }
-    } else if (id === 'default') {
-        import('./utils').then(m => m.showToast('Switched to Main layer', 'info'));
     }
 }
 
@@ -296,6 +289,10 @@ export function renderLayersUI(ctx: CanvasContext) {
                 className="layers-bar-add"
                 id="newLayerBtn"
                 title="Create a new Layer"
+                onClick={() => {
+                    const name = prompt('Enter a name for the new layer:');
+                    if (name) createLayer(ctx, name);
+                }}
             >
                 + New Layer
             </button>
@@ -303,14 +300,16 @@ export function renderLayersUI(ctx: CanvasContext) {
         container
     );
 
-    // Attach click handler via DOM (Melina onClick doesn't reliably bind here)
-    const btn = document.getElementById('newLayerBtn');
-    if (btn) {
-        btn.onclick = () => {
-            const name = prompt('Enter a name for the new layer:');
-            if (name) createLayer(ctx, name);
-        };
-    }
+    // Belt-and-suspenders: also attach via DOM in case Melina onClick doesn't fire
+    requestAnimationFrame(() => {
+        const btn = document.getElementById('newLayerBtn');
+        if (btn) {
+            btn.onclick = () => {
+                const name = prompt('Enter a name for the new layer:');
+                if (name) createLayer(ctx, name);
+            };
+        }
+    });
 }
 
 // UI to configure section extraction

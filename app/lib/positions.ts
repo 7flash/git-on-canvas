@@ -71,7 +71,7 @@ export async function loadSavedPositions(ctx: CanvasContext) {
 }
 
 // ─── Persist all positions (debounced) ───────────────────
-function flushPositions(ctx: CanvasContext) {
+export function flushPositions(ctx: CanvasContext) {
     const repoPath = getRepoPath(ctx);
     if (!repoPath) return;
 

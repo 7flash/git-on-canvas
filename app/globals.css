@@ -1,47 +1,53 @@
-/* Git Canvas - Premium Dark Theme */
+/* Git Canvas - Premium Dark Theme v2 */
 :root {
-    --bg-primary: #0a0a0f;
-    --bg-secondary: #12121a;
-    --bg-tertiary: #1a1a25;
-    --bg-elevated: #22222f;
-    --bg-card: linear-gradient(135deg, rgba(30, 30, 45, 0.9), rgba(20, 20, 32, 0.95));
+    --bg-primary: #08080e;
+    --bg-secondary: #0e0e18;
+    --bg-tertiary: #161622;
+    --bg-elevated: #1e1e2e;
+    --bg-card: linear-gradient(145deg, rgba(28, 28, 48, 0.92), rgba(16, 16, 28, 0.96));
+    --bg-glass: rgba(14, 14, 24, 0.7);
 
     --accent-primary: #7c3aed;
     --accent-secondary: #a855f7;
     --accent-tertiary: #c084fc;
-    --accent-glow: rgba(124, 58, 237, 0.4);
+    --accent-glow: rgba(124, 58, 237, 0.35);
+    --accent-gradient: linear-gradient(135deg, #7c3aed, #a855f7, #6d28d9);
+    --accent-gradient-3d: linear-gradient(180deg, #a855f7 0%, #7c3aed 40%, #5b21b6 100%);
 
     --success: #10b981;
     --warning: #f59e0b;
     --error: #ef4444;
     --info: #3b82f6;
 
-    --text-primary: #f1f5f9;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
+    --text-primary: #eef2ff;
+    --text-secondary: #a1a1b5;
+    --text-muted: #5c5c72;
 
-    --border-subtle: rgba(255, 255, 255, 0.06);
-    --border-default: rgba(255, 255, 255, 0.1);
-    --border-accent: rgba(124, 58, 237, 0.3);
+    --border-subtle: rgba(255, 255, 255, 0.04);
+    --border-default: rgba(255, 255, 255, 0.07);
+    --border-accent: rgba(124, 58, 237, 0.25);
+    --border-glass: rgba(255, 255, 255, 0.06);
 
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-    --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.4);
-    --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.5);
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.6);
     --shadow-glow: 0 0 30px var(--accent-glow);
+    --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 
-    --radius-sm: 6px;
-    --radius-md: 10px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 24px;
 
     --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
     --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 
-    --sidebar-width: 320px;
+    --sidebar-width: 300px;
 }
 
 /* Light Theme Override */
@@ -130,24 +136,37 @@ body {
 #app {
     display: flex;
     height: 100vh;
-    background: radial-gradient(ellipse at top left, rgba(124, 58, 237, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at bottom right, rgba(168, 85, 247, 0.05) 0%, transparent 50%),
-        var(--bg-primary);
+    background: var(--bg-primary);
 }
 
 /* Sidebar */
 .sidebar {
     width: var(--sidebar-width);
-    background: var(--bg-secondary);
+    background: linear-gradient(180deg, rgba(14, 14, 24, 0.98) 0%, rgba(10, 10, 16, 0.99) 100%);
     border-right: 1px solid var(--border-subtle);
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
+    z-index: 10;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.3);
+}
+
+.sidebar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 1px;
+    height: 100%;
+    background: linear-gradient(180deg, rgba(124, 58, 237, 0.15) 0%, transparent 30%, transparent 70%, rgba(124, 58, 237, 0.1) 100%);
+    pointer-events: none;
 }
 
 .sidebar-header {
-    padding: 14px 16px;
+    padding: 16px 18px;
     border-bottom: 1px solid var(--border-subtle);
+    background: linear-gradient(180deg, rgba(124, 58, 237, 0.06) 0%, transparent 100%);
 }
 
 .logo {
@@ -155,27 +174,27 @@ body {
     align-items: center;
     gap: 10px;
     font-size: 1rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--text-primary);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
 }
 
 .logo svg {
-    color: var(--accent-primary);
-    filter: drop-shadow(0 0 6px var(--accent-glow));
+    color: var(--accent-secondary);
+    filter: drop-shadow(0 0 8px var(--accent-glow));
 }
 
 /* Repository Selector */
 .repo-selector {
-    padding: 10px 12px;
+    padding: 12px 16px;
     border-bottom: 1px solid var(--border-subtle);
 }
 
 .repo-dropdown {
     width: 100%;
-    padding: 8px 10px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
+    padding: 10px 12px;
+    background: rgba(22, 22, 34, 0.8);
+    border: 1px solid var(--border-glass);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-family: var(--font-mono);
@@ -183,16 +202,17 @@ body {
     cursor: pointer;
     transition: all var(--transition-fast);
     appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236e6e8a' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
-    background-position: right 8px center;
-    padding-right: 28px;
+    background-position: right 10px center;
+    padding-right: 30px;
+    box-shadow: var(--shadow-inset), 0 2px 6px rgba(0, 0, 0, 0.2);
 }
 
 .repo-dropdown:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+    box-shadow: var(--shadow-inset), 0 0 0 2px rgba(124, 58, 237, 0.15), 0 0 12px rgba(124, 58, 237, 0.1);
 }
 
 .repo-dropdown option {
@@ -210,21 +230,22 @@ body {
 
 .clone-url-input {
     flex: 1;
-    padding: 6px 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
+    padding: 8px 10px;
+    background: rgba(22, 22, 34, 0.8);
+    border: 1px solid var(--border-glass);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     font-family: var(--font-mono);
     font-size: 0.72rem;
     transition: all var(--transition-fast);
     min-width: 0;
+    box-shadow: var(--shadow-inset);
 }
 
 .clone-url-input:focus {
     outline: none;
     border-color: var(--accent-primary);
-    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+    box-shadow: var(--shadow-inset), 0 0 0 2px rgba(124, 58, 237, 0.15);
 }
 
 .clone-url-input::placeholder {
@@ -236,31 +257,36 @@ body {
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 5px 10px;
-    background: linear-gradient(135deg, var(--accent-primary), #6d28d9);
+    padding: 7px 12px;
+    background: var(--accent-gradient-3d);
     border: none;
     border-radius: var(--radius-sm);
     color: white;
     font-size: 0.7rem;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: all var(--transition-fast);
     white-space: nowrap;
     flex-shrink: 0;
+    box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .clone-btn:hover {
-    background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));
-    box-shadow: 0 0 12px var(--accent-glow);
+    background: linear-gradient(180deg, #c084fc 0%, #a855f7 40%, #7c3aed 100%);
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
 }
 
 .clone-btn:active {
-    transform: scale(0.96);
+    transform: translateY(0) scale(0.97);
+    box-shadow: 0 1px 4px rgba(124, 58, 237, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .clone-btn:disabled {
-    opacity: 0.5;
+    opacity: 0.4;
     cursor: not-allowed;
+    transform: none;
 }
 
 .clone-status {
@@ -422,13 +448,14 @@ body {
     font-size: 0.65rem !important;
 }
 
-/* View Tabs (sidebar) */
+/* View Tabs (sidebar) — 3D gradient style */
 .view-tabs {
     display: flex;
-    padding: 6px 12px;
+    padding: 8px 14px;
     gap: 6px;
     border-bottom: 1px solid var(--border-subtle);
     align-items: center;
+    background: rgba(0, 0, 0, 0.15);
 }
 
 .view-tab {
@@ -436,7 +463,7 @@ body {
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 6px 10px;
+    padding: 7px 12px;
     font-size: 0.72rem;
     font-weight: 500;
     background: transparent;
@@ -445,22 +472,25 @@ body {
     border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
+    position: relative;
 }
 
 .view-tab:hover {
-    background: var(--bg-tertiary);
+    background: rgba(255, 255, 255, 0.04);
     color: var(--text-secondary);
 }
 
 .view-tab.active {
-    background: var(--accent-primary);
+    background: var(--accent-gradient-3d);
     color: white;
-    box-shadow: 0 0 8px var(--accent-glow);
+    box-shadow: 0 2px 10px rgba(124, 58, 237, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    font-weight: 600;
 }
 
 .view-tab svg {
     flex-shrink: 0;
-    opacity: 0.8;
+    opacity: 0.85;
 }
 
 /* All Files Toggle */
@@ -584,11 +614,11 @@ body {
 /* Commit Item */
 .commit-item {
     position: relative;
-    padding: 12px 16px;
-    margin-bottom: 4px;
+    padding: 10px 14px;
+    margin-bottom: 2px;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-sm);
     cursor: pointer;
     transition: all var(--transition-fast);
 }
@@ -598,38 +628,50 @@ body {
 }
 
 .commit-item:hover {
-    background: var(--bg-tertiary);
+    background: rgba(255, 255, 255, 0.025);
     border-color: var(--border-subtle);
 }
 
 .commit-item.active {
-    background: var(--bg-card);
-    border-color: var(--border-accent);
-    box-shadow: var(--shadow-sm);
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.08), rgba(124, 58, 237, 0.03));
+    border-color: rgba(124, 58, 237, 0.2);
+    box-shadow: 0 0 12px rgba(124, 58, 237, 0.06);
+}
+
+.commit-item.active::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+    background: var(--accent-gradient-3d);
+    border-radius: 1px;
 }
 
 .commit-hash {
     font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--accent-tertiary);
     font-weight: 500;
 }
 
 .commit-message {
-    font-size: 0.875rem;
+    font-size: 0.82rem;
     color: var(--text-primary);
-    margin-top: 4px;
+    margin-top: 3px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.4;
 }
 
 .commit-meta {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-top: 6px;
-    font-size: 0.75rem;
+    gap: 10px;
+    margin-top: 5px;
+    font-size: 0.72rem;
     color: var(--text-muted);
 }
 
@@ -641,20 +683,24 @@ body {
 }
 
 .commit-ref-badge {
-    background: rgba(124, 58, 237, 0.15);
-    border: 1px solid rgba(124, 58, 237, 0.3);
-    color: var(--accent-secondary);
-    padding: 0px 4px;
-    border-radius: 4px;
-    font-size: 0.65rem;
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.18), rgba(124, 58, 237, 0.08));
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    color: var(--accent-tertiary);
+    padding: 1px 6px;
+    border-radius: 6px;
+    font-size: 0.62rem;
     font-weight: 600;
     white-space: nowrap;
+    letter-spacing: 0.02em;
 }
 
 .commit-author {
     display: flex;
     align-items: center;
     gap: 4px;
+    max-width: 140px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 /* Canvas Controls */
@@ -817,12 +863,16 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 12px;
-    background: var(--bg-secondary);
+    padding: 4px 12px;
+    background: linear-gradient(180deg, rgba(14, 14, 24, 0.95) 0%, rgba(10, 10, 16, 0.9) 100%);
     border-bottom: 1px solid var(--border-subtle);
-    height: 36px;
+    height: 38px;
     flex-shrink: 0;
     overflow: hidden;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 5;
 }
 
 .header-left {
@@ -892,17 +942,19 @@ body {
     gap: 4px !important;
 }
 
-/* Changed Files Panel */
+/* Changed Files Panel — Glassmorphism */
 .changed-files-panel {
     position: absolute;
-    top: 44px;
-    right: 8px;
+    top: 48px;
+    right: 10px;
     width: 260px;
-    max-height: calc(100% - 56px - 140px);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-default);
+    max-height: calc(100% - 60px - 140px);
+    background: rgba(14, 14, 24, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg), 0 0 1px rgba(255, 255, 255, 0.05);
     z-index: 200;
     display: flex;
     flex-direction: column;
@@ -911,14 +963,16 @@ body {
 
 .connections-panel {
     position: absolute;
-    top: 44px;
-    right: 276px;
+    top: 48px;
+    right: 280px;
     width: 320px;
-    max-height: calc(100% - 56px - 140px);
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-default);
+    max-height: calc(100% - 60px - 140px);
+    background: rgba(14, 14, 24, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-glass);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-lg), 0 0 1px rgba(255, 255, 255, 0.05);
     z-index: 200;
     display: flex;
     flex-direction: column;
@@ -5904,6 +5958,46 @@ body {
     color: var(--text-muted);
 }
 
+/* Feature pills (inline in hero) */
+.landing-features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 20px;
+    animation: landingSlideUp 0.5s 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.feature-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 20px;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.feature-pill:hover {
+    border-color: rgba(124, 58, 237, 0.4);
+    background: rgba(124, 58, 237, 0.15);
+}
+
+.feature-icon {
+    font-size: 0.9rem;
+}
+
+/* Repo card as anchor link */
+a.repo-card-btn {
+    text-decoration: none;
+    color: inherit;
+}
+
 /* ─── Dimensions Section ─── */
 .landing-dimensions {
     display: flex;
@@ -6445,10 +6539,10 @@ body {
     align-items: center;
     gap: 6px;
     width: 100%;
-    padding: 8px 10px;
+    padding: 9px 12px;
     margin-top: 8px;
-    background: var(--bg-tertiary);
-    border: 1px solid var(--border-subtle);
+    background: rgba(22, 22, 34, 0.6);
+    border: 1px solid var(--border-glass);
     border-radius: var(--radius-sm);
     color: var(--text-secondary);
     font-family: var(--font-sans);
@@ -6456,12 +6550,14 @@ body {
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition-fast);
+    box-shadow: var(--shadow-inset);
 }
 
 .github-import-btn:hover {
-    background: var(--bg-elevated);
-    border-color: var(--border-default);
+    background: rgba(124, 58, 237, 0.08);
+    border-color: rgba(124, 58, 237, 0.2);
     color: var(--text-primary);
+    box-shadow: var(--shadow-inset), 0 0 12px rgba(124, 58, 237, 0.08);
 }
 
 .github-import-btn:active {

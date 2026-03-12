@@ -12,12 +12,14 @@
 - [ ] **DNS A record for gitmaps.xyz** — Domain resolves but no A record set. Need `gitmaps.xyz → 202.155.132.139` at registrar. Server is live and responding locally.
 
 ## 🟡 Priority: UI Redesign
-- [ ] **Full UI redesign** — Burn existing UI, rethink from scratch. Keep the tab gradient 3D modern aesthetic. Everything else needs to feel premium.
+- [x] ~~**CSS redesign v2**~~ — ✅ DONE. Premium dark theme with glassmorphism, gradient accents.
+- [x] ~~**Redundant layer switch toast**~~ — ✅ DONE. Removed noisy "Layer switched" toasts, kept only empty-layer hint.
+- [x] ~~**Landing page cleanup**~~ — ✅ DONE. Merged problem/solution into hero, explore cards link to gitmaps.xyz/owner/repo.
 
 ## 🟢 Priority: Features
 - [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, bgrun-managed (port 3335), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. Added `/:owner/:repo` dynamic route. Pending: DNS A record.
 - [x] ~~**Performance profiling on large repos**~~ — ✅ DONE. Perf overlay (Shift+P) enhanced with: frame time (ms/frame), connection line count, render budget bar (cull+render vs 16.67ms budget), culling timing instrumentation via `reportRenderTiming()`. Color-coded thresholds for all metrics.
-- [ ] **Offline mode / PWA** — Service worker for caching, allow basic browsing when offline.
+- [x] ~~**Offline mode / PWA**~~ — ✅ DONE. Web App Manifest at `/api/manifest.json` (name, theme color, icons). Service worker at `/api/sw.js` with network-first for HTML, cache-first for static assets, skips API routes and WebSockets. SW registered in layout.tsx. Meta description updated to "Transcend the file tree" branding.
 
 ## ✅ Completed
 - [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.

@@ -11,9 +11,11 @@ export default function RootLayout({ children }: { children: any }) {
             <head>
                 <meta charSet="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                <meta name="description" content="GitMaps - See your codebase in a new dimension. Spatial code explorer." />
+                <meta name="description" content="Transcend the file tree. GitMaps renders knowledge on an infinite canvas — with layers, time-travel, and a minimap to never lose context." />
                 <title>GitMaps — Spatial Code Explorer</title>
-                <link rel="icon" href="data:," />
+                <link rel="icon" type="image/png" href="/api/pwa-icon" />
+                <link rel="manifest" href="/api/manifest.json" />
+                <meta name="theme-color" content="#7c3aed" />
                 <link
                     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
                     rel="stylesheet"
@@ -506,6 +508,13 @@ export default function RootLayout({ children }: { children: any }) {
                         </div>
                     </div>
                 </div>
+                <script dangerouslySetInnerHTML={{
+                    __html: `
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.register('/api/sw.js', { scope: '/' })
+                            .catch(function(e) { console.warn('[SW] Registration failed:', e); });
+                    }
+                ` }} />
             </body >
         </html >
     );

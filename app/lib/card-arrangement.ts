@@ -8,7 +8,7 @@
  */
 import { measure } from 'measure-fn';
 import type { CanvasContext } from './context';
-import { savePosition } from './positions';
+import { savePosition, flushPositions } from './positions';
 import { updateMinimap } from './canvas';
 import { renderConnections } from './connections';
 
@@ -137,6 +137,7 @@ export function arrangeRow(ctx: CanvasContext) {
             savePosition(ctx, commitHash, info.path, curX, startY);
             curX += info.w + gap;
         });
+        flushPositions(ctx); // Force immediate save — don't rely on debounce for batch arrange
         renderConnections(ctx);
         updateMinimap(ctx);
     });
@@ -157,6 +158,7 @@ export function arrangeColumn(ctx: CanvasContext) {
             savePosition(ctx, commitHash, info.path, startX, curY);
             curY += info.h + gap;
         });
+        flushPositions(ctx);
         renderConnections(ctx);
         updateMinimap(ctx);
     });
@@ -193,6 +195,7 @@ export function arrangeGrid(ctx: CanvasContext) {
             savePosition(ctx, commitHash, info.path, x, y);
         });
 
+        flushPositions(ctx);
         renderConnections(ctx);
         updateMinimap(ctx);
     });
