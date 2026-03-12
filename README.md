@@ -42,6 +42,9 @@
 | 🗺️ **Minimap** | Bird's-eye overview with click-to-navigate and viewport indicator. |
 | 📝 **PR Review** | Comment threads on any line, stored in localStorage. |
 | 📁 **Card Grouping** | Collapse entire directories into compact summary cards to reduce clutter. |
+| 🔗 **Shareable Links** | Share your exact layout via `?layout=` URL (full: positions, hidden files, zoom, card sizes) or `#z=&x=&y=` (lightweight viewport). |
+| 🗂️ **Auto-Arrange** | Files auto-cluster by parent directory on first load. Directories arranged in a treemap-style layout. |
+| 📊 **Analytics** | Built-in visitor tracking via SQLite. |
 
 ## 🚀 Quick Start
 
@@ -121,6 +124,17 @@ Layers let you isolate subsets of files for focused review:
 - **Default**: "All Files" layer shows everything
 
 Each layer remembers its own viewport position, so switching layers is instant context-switching.
+
+## 🔗 Sharing
+
+Two ways to share your canvas state:
+
+| Mode | URL Format | What's Shared |
+|------|-----------|---------------|
+| **Full Layout** | `?layout=<base64>` | Card positions, hidden files, zoom level, card sizes |
+| **Viewport Only** | `#z=<zoom>&x=<x>&y=<y>` | Just the camera position — lightweight, no layout data |
+
+Click the **Share** button in the toolbar to copy a full layout link. The recipient sees your exact arrangement.
 
 ## 🎮 GalaxyDraw Engine
 
