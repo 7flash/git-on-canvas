@@ -1,13 +1,13 @@
 {
   "name": "gitmaps",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "bin": {
     "gitmaps": "cli.ts"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/7flash/git-on-canvas"
+    "url": "https://github.com/7flash/gitmaps"
   },
   "homepage": "https://gitmaps.xyz",
   "workspaces": [

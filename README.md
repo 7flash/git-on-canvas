@@ -54,7 +54,7 @@ npx gitmaps
 Or clone for development:
 
 ```sh
-git clone https://github.com/7flash/git-on-canvas.git
+git clone https://github.com/7flash/gitmaps.git
 cd galaxy-canvas
 bun install
 bun run dev
