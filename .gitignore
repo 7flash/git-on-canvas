@@ -10,4 +10,5 @@ _old_*
 .bgr-*
 .artifacts
 git-canvas/repos/
-canvas_users.db
+canvas_users.db*.exe
+*.bun-build
