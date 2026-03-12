@@ -12,3 +12,4 @@ _old_*
 git-canvas/repos/
 canvas_users.db*.exe
 *.bun-build
+*.db
