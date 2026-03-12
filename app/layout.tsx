@@ -12,6 +12,12 @@ export default function RootLayout({ children }: { children: any }) {
                 <meta charSet="UTF-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                 <meta name="description" content="Transcend the file tree. GitMaps renders knowledge on an infinite canvas — with layers, time-travel, and a minimap to never lose context." />
+                <meta property="og:title" content="GitMaps — Spatial Code Explorer" />
+                <meta property="og:description" content="Every file in your repo. One infinite canvas. Layers, git time-travel, inline diffs." />
+                <meta property="og:image" content="https://gitmaps.xyz/api/og-image" />
+                <meta property="og:url" content="https://gitmaps.xyz" />
+                <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:image" content="https://gitmaps.xyz/api/og-image" />
                 <title>GitMaps — Spatial Code Explorer</title>
                 <link rel="icon" type="image/png" href="/api/pwa-icon" />
                 <link rel="manifest" href="/api/manifest.json" />
@@ -22,6 +28,40 @@ export default function RootLayout({ children }: { children: any }) {
                 />
             </head>
             <body>
+                {/* Mobile gate — canvas needs a real screen */}
+                <div id="mobileGate" style={{
+                    display: 'none',
+                    position: 'fixed', inset: 0, zIndex: 99999,
+                    background: '#0a0a1a', color: '#e2e8f0',
+                    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '2rem', textAlign: 'center', fontFamily: 'Inter, sans-serif', gap: '1rem'
+                }}>
+                    <div style={{ fontSize: '3rem' }}>🗺️</div>
+                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>GitMaps needs a bigger screen</h2>
+                    <p style={{ margin: 0, color: '#94a3b8', maxWidth: '320px', lineHeight: 1.6 }}>
+                        The infinite canvas works best on desktop or tablet. Come back on a larger screen to explore your repos spatially.
+                    </p>
+                    <a href="https://gitmaps.xyz" style={{
+                        marginTop: '0.5rem', padding: '0.75rem 1.5rem',
+                        background: '#7c3aed', color: 'white', borderRadius: '8px',
+                        textDecoration: 'none', fontWeight: 500
+                    }}>Learn more</a>
+                    <button id="mobileGateDismiss" style={{
+                        background: 'none', border: '1px solid #334155', color: '#94a3b8',
+                        padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
+                    }}>Continue anyway →</button>
+                </div>
+                <script dangerouslySetInnerHTML={{
+                    __html: `
+                    (function() {
+                        if (window.innerWidth < 768) {
+                            var g = document.getElementById('mobileGate');
+                            if (g) { g.style.display = 'flex'; }
+                            var d = document.getElementById('mobileGateDismiss');
+                            if (d) d.onclick = function() { g.style.display = 'none'; };
+                        }
+                    })();
+                `}} />
                 <div id="app">
                     <nav className="sidebar">
                         <div className="sidebar-header">
@@ -514,6 +554,11 @@ export default function RootLayout({ children }: { children: any }) {
                         navigator.serviceWorker.register('/api/sw.js', { scope: '/' })
                             .catch(function(e) { console.warn('[SW] Registration failed:', e); });
                     }
+                    fetch('/api/analytics', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ path: location.pathname })
+                    }).catch(function(){});
                 ` }} />
             </body >
         </html >

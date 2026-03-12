@@ -6,10 +6,13 @@
 ## 🟡 Priority: Improve
 - [x] ~~**Layer bubble occludes cards**~~ — ✅ DONE. CSS auto-minimize: `max-width: 160px` + `opacity: 0.5` when not hovered, expands to full `800px` on `:hover` with smooth 300ms transitions. Reduces visual footprint by ~80% during normal canvas work.
 - [x] ~~**Canvas AI panel UX**~~ — ✅ DONE. Panel now resizable (`resize: horizontal`, 240–600px range) with `direction: rtl` trick for left-side resize handle. Users can shrink the panel to just 240px or expand to 600px.
+- [x] ~~**OG image for social sharing**~~ — ✅ DONE. og:image, og:title, og:description, twitter:card meta tags added. Image served from `/api/og-image`. Deployed.
+- [x] ~~**Error handling for missing repos**~~ — ✅ ALREADY DONE. clone-stream SSE sends error events, client shows `❌ Clone failed` toast that auto-hides after 5s.
+- [x] ~~**Mobile viewport**~~ — ✅ DONE. Full-screen overlay on screens <768px: "GitMaps needs a bigger screen" with Learn more + Continue anyway dismiss button.
 
 ## 🔴 Priority: Fix
 - [x] ~~**GitHub URL routing clobbered**~~ — ✅ DONE. `loadRepository` was replacing `/denoland/deno` with just `/deno` via `history.replaceState`. Fixed to detect and preserve GitHub-style owner/repo URLs. Both short (`deno`) and full (`denoland/deno`) slugs stored in localStorage for bidirectional lookup.
-- [ ] **DNS A record for gitmaps.xyz** — Domain resolves but no A record set. Need `gitmaps.xyz → 202.155.132.139` at registrar. Server is live and responding locally.
+- [x] ~~**DNS A record for gitmaps.xyz**~~ — ✅ DONE. Server live at 202.155.132.139, systemd-managed (`gitmaps.service`), auto-restart on boot/crash.
 
 ## 🟡 Priority: UI Redesign
 - [x] ~~**CSS redesign v2**~~ — ✅ DONE. Premium dark theme with glassmorphism, gradient accents.
@@ -17,9 +20,12 @@
 - [x] ~~**Landing page cleanup**~~ — ✅ DONE. Merged problem/solution into hero, explore cards link to gitmaps.xyz/owner/repo.
 
 ## 🟢 Priority: Features
-- [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, bgrun-managed (port 3335), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. Added `/:owner/:repo` dynamic route. Pending: DNS A record.
+- [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, systemd service (`gitmaps.service`), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. `/:owner/:repo` dynamic route. 6 repos pre-warmed (react, deno, svelte, bun, next.js, tailwindcss).
 - [x] ~~**Performance profiling on large repos**~~ — ✅ DONE. Perf overlay (Shift+P) enhanced with: frame time (ms/frame), connection line count, render budget bar (cull+render vs 16.67ms budget), culling timing instrumentation via `reportRenderTiming()`. Color-coded thresholds for all metrics.
-- [x] ~~**Offline mode / PWA**~~ — ✅ DONE. Web App Manifest at `/api/manifest.json` (name, theme color, icons). Service worker at `/api/sw.js` with network-first for HTML, cache-first for static assets, skips API routes and WebSockets. SW registered in layout.tsx. Meta description updated to "Transcend the file tree" branding.
+- [x] ~~**Offline mode / PWA**~~ — ✅ DONE. Web App Manifest at `/api/manifest.json` (name, theme color, icons). Service worker at `/api/sw.js` with network-first for HTML, cache-first for static assets, skips API routes and WebSockets. App icon at `/api/pwa-icon`. Published as npm package `gitmaps@1.1.0`.
+- [ ] **Analytics / visitor tracking** — No way to know how many people visit gitmaps.xyz or which repos they open. Add lightweight analytics (Plausible, Umami, or custom SQLite logger).
+- [ ] **Shareable canvas links** — Let users share a URL that opens a specific repo at a specific viewport position/zoom level. Encode viewport state in URL hash.
+- [ ] **Auto-arrange algorithms** — Currently manual drag only. Add force-directed or treemap layouts as starting points that users can then adjust.
 
 ## ✅ Completed
 - [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
