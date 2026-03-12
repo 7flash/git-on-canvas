@@ -25,7 +25,7 @@
 - [x] ~~**Offline mode / PWA**~~ — ✅ DONE. Web App Manifest at `/api/manifest.json` (name, theme color, icons). Service worker at `/api/sw.js` with network-first for HTML, cache-first for static assets, skips API routes and WebSockets. App icon at `/api/pwa-icon`. Published as npm package `gitmaps@1.1.0`.
 - [x] ~~**Analytics / visitor tracking**~~ — ✅ DONE. SQLite logger at `/api/analytics` (POST to log, GET for stats). Beacon fires on page load from layout.tsx.
 - [x] ~~**Shareable canvas links**~~ — ✅ DONE. Two modes: full layout via `?layout=` base64 (positions, hidden files, zoom, card sizes), and lightweight viewport via `#z=&x=&y=` hash. Both restored in `restoreViewport()` with priority: layout > hash > localStorage. Share button in toolbar.
-- [ ] **Auto-arrange algorithms** — Currently manual drag only. Add force-directed or treemap layouts as starting points that users can then adjust.
+- [x] ~~**Auto-arrange algorithms**~~ — ✅ DONE. `auto-arrange.ts` with `arrangeByDirectory()`: groups files by parent dir, lays each dir as a tight grid block, arranges blocks in treemap-style rows. Used as default layout in `renderAllFilesOnCanvas` when no saved positions exist. Falls back to flat grid as last resort.
 
 ## ✅ Completed
 - [x] ~~**Nested folder selection**~~ — ✅ DONE. "Select from folder" now shows a dropdown with all ancestor directories. Selection is recursive — picking `app` selects everything under `app/`.
