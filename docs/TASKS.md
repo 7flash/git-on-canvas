@@ -23,8 +23,8 @@
 - [x] ~~**Deploy gitmaps.xyz**~~ — ✅ DONE. Server at 202.155.132.139, systemd service (`gitmaps.service`), Caddy reverse proxy, landing page at /srv/landing from gonc-landing repo. `/:owner/:repo` dynamic route. 6 repos pre-warmed (react, deno, svelte, bun, next.js, tailwindcss).
 - [x] ~~**Performance profiling on large repos**~~ — ✅ DONE. Perf overlay (Shift+P) enhanced with: frame time (ms/frame), connection line count, render budget bar (cull+render vs 16.67ms budget), culling timing instrumentation via `reportRenderTiming()`. Color-coded thresholds for all metrics.
 - [x] ~~**Offline mode / PWA**~~ — ✅ DONE. Web App Manifest at `/api/manifest.json` (name, theme color, icons). Service worker at `/api/sw.js` with network-first for HTML, cache-first for static assets, skips API routes and WebSockets. App icon at `/api/pwa-icon`. Published as npm package `gitmaps@1.1.0`.
-- [ ] **Analytics / visitor tracking** — No way to know how many people visit gitmaps.xyz or which repos they open. Add lightweight analytics (Plausible, Umami, or custom SQLite logger).
-- [ ] **Shareable canvas links** — Let users share a URL that opens a specific repo at a specific viewport position/zoom level. Encode viewport state in URL hash.
+- [x] ~~**Analytics / visitor tracking**~~ — ✅ DONE. SQLite logger at `/api/analytics` (POST to log, GET for stats). Beacon fires on page load from layout.tsx.
+- [x] ~~**Shareable canvas links**~~ — ✅ DONE. Two modes: full layout via `?layout=` base64 (positions, hidden files, zoom, card sizes), and lightweight viewport via `#z=&x=&y=` hash. Both restored in `restoreViewport()` with priority: layout > hash > localStorage. Share button in toolbar.
 - [ ] **Auto-arrange algorithms** — Currently manual drag only. Add force-directed or treemap layouts as starting points that users can then adjust.
 
 ## ✅ Completed
