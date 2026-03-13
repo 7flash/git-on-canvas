@@ -4,8 +4,8 @@
  * Creates a CodeMirror 6 editor instance with syntax highlighting,
  * dark theme, and integration with the save/commit workflow.
  */
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, highlightSpecialChars, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, rectangularSelection, highlightSpecialChars, ViewPlugin, ViewUpdate, Decoration, DecorationSet, WidgetType } from '@codemirror/view';
+import { EditorState, Compartment, StateField, StateEffect } from '@codemirror/state';
 import { syntaxHighlighting, defaultHighlightStyle, indentOnInput, bracketMatching, foldGutter, foldKeymap, HighlightStyle } from '@codemirror/language';
 import { defaultKeymap, indentWithTab, history, historyKeymap } from '@codemirror/commands';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
@@ -219,6 +219,81 @@ function getLanguageExtension(ext: string) {
     }
 }
 
+// ─── Remote Cursors ─────────────────────────────────────
+export const remoteCursorsEffect = StateEffect.define<any[]>();
+
+class RemoteCursorWidget extends WidgetType {
+    constructor(readonly color: string, readonly name: string, readonly typing: boolean) { super(); }
+    toDOM() {
+        const dec = document.createElement("span");
+        dec.style.position = "relative";
+        dec.style.borderLeft = `2px solid ${this.color}`;
+        dec.style.marginLeft = "-1px";
+        dec.style.marginRight = "-1px";
+        dec.style.zIndex = "10";
+        if (this.typing) {
+            dec.style.opacity = "0.7";
+        }
+
+        const tooltip = document.createElement("div");
+        tooltip.textContent = this.name + (this.typing ? '...' : '');
+        tooltip.style.position = "absolute";
+        tooltip.style.top = "-1.5em";
+        tooltip.style.left = "-2px";
+        tooltip.style.padding = "1px 4px";
+        tooltip.style.borderRadius = "3px";
+        tooltip.style.fontSize = "10px";
+        tooltip.style.color = "white";
+        tooltip.style.whiteSpace = "nowrap";
+        tooltip.style.pointerEvents = "none";
+        tooltip.style.zIndex = "10";
+        tooltip.style.backgroundColor = this.color;
+
+        dec.appendChild(tooltip);
+        return dec;
+    }
+    ignoreEvent() { return true; }
+}
+
+const remoteCursorsField = StateField.define<DecorationSet>({
+    create() { return Decoration.none; },
+    update(decorations, tr) {
+        decorations = decorations.map(tr.changes);
+        for (let e of tr.effects) {
+            if (e.is(remoteCursorsEffect)) {
+                let builders: any[] = [];
+                for (let cursor of e.value) {
+                    if (cursor.selections) {
+                        for (let sel of cursor.selections) {
+                            let from = Math.min(sel.anchor, sel.head);
+                            let to = Math.max(sel.anchor, sel.head);
+                            from = Math.max(0, Math.min(from, tr.state.doc.length));
+                            to = Math.max(0, Math.min(to, tr.state.doc.length));
+
+                            if (from !== to) {
+                                builders.push(Decoration.mark({
+                                    attributes: { style: `background-color: ${cursor.color}40` } // 25% opacity
+                                }).range(from, to));
+                            }
+
+                            let head = Math.max(0, Math.min(sel.head, tr.state.doc.length));
+                            builders.push(Decoration.widget({
+                                widget: new RemoteCursorWidget(cursor.color, cursor.name, cursor.typing || false),
+                                side: 1
+                            }).range(head));
+                        }
+                    }
+                }
+                // Sort builders by start position
+                builders.sort((a, b) => a.from - b.from);
+                decorations = Decoration.set(builders, true);
+            }
+        }
+        return decorations;
+    },
+    provide: f => EditorView.decorations.from(f)
+});
+
 // ─── Create Editor ──────────────────────────────────────
 export interface EditorInstance {
     view: EditorView;
@@ -226,6 +301,7 @@ export interface EditorInstance {
     setContent: (content: string) => void;
     getCursorPosition: () => { line: number; col: number };
     scrollToLine: (line: number) => void;
+    setRemoteCursors: (cursors: any[]) => void;
     destroy: () => void;
     focus: () => void;
 }
@@ -238,6 +314,7 @@ export function createCodeEditor(
         onSave?: () => void;
         onChange?: (content: string) => void;
         onCursorMove?: (line: number, col: number) => void;
+        onSelectionChange?: (selections: { anchor: number; head: number }[], isTyping: boolean) => void;
     } = {}
 ): EditorInstance {
     const langCompartment = new Compartment();
@@ -280,6 +357,7 @@ export function createCodeEditor(
                 const pos = update.state.selection.main.head;
                 const line = update.state.doc.lineAt(pos);
                 options.onCursorMove?.(line.number, pos - line.from + 1);
+                options.onSelectionChange?.(update.state.selection.ranges.map(r => ({ anchor: r.anchor, head: r.head })), update.docChanged);
             }
             if (update.docChanged) {
                 options.onChange?.(update.state.doc.toString());
@@ -296,6 +374,7 @@ export function createCodeEditor(
         }),
         EditorView.lineWrapping,
         minimapExtension(),
+        remoteCursorsField,
     ];
 
     if (langExt) {
@@ -334,6 +413,11 @@ export function createCodeEditor(
             view.dispatch({
                 selection: { anchor: line.from },
                 scrollIntoView: true,
+            });
+        },
+        setRemoteCursors: (cursors: any[]) => {
+            view.dispatch({
+                effects: remoteCursorsEffect.of(cursors)
             });
         },
         destroy: () => view.destroy(),

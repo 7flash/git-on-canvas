@@ -14,6 +14,7 @@ import { renderBreadcrumbs } from './breadcrumbs';
 import { renderSymbolOutline } from './symbol-outline';
 import { loadDraft, clearDraft, startAutoSave, stopAutoSave } from './auto-save';
 import { isEditingAllowed, getProductionEditorNotice } from './production-mode';
+import { onEditorSync, broadcastEditorSync, type EditorSyncData } from './cursor-sharing';
 
 // ─── File expand modal ──────────────────────────────────
 export function openFileModal(ctx: CanvasContext, file: any, initialView?: string, initialLine?: number) {
@@ -76,6 +77,41 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
     let onNavKey: ((e: KeyboardEvent) => void) | null = null;
     let originalContent = file.content || '';
 
+    let editorSyncCleanup: (() => void) | null = null;
+    const remoteCursorsMap = new Map<string, EditorSyncData>();
+    let typingTimeouts = new Map<string, any>();
+
+    editorSyncCleanup = onEditorSync(data => {
+        // use Active Tab's path instead of initial file path incase it switched
+        const activeTab = getActiveTab();
+        const activePath = activeTab ? activeTab.path : file.path;
+
+        if (data.file === activePath && currentView === 'edit') {
+            remoteCursorsMap.set(data.peerId, data);
+
+            if (data.typing) {
+                if (typingTimeouts.has(data.peerId)) clearTimeout(typingTimeouts.get(data.peerId));
+                typingTimeouts.set(data.peerId, setTimeout(() => {
+                    const cursor = remoteCursorsMap.get(data.peerId);
+                    if (cursor) {
+                        cursor.typing = false;
+                        updateRemoteCursors();
+                    }
+                }, 1000));
+            }
+
+            updateRemoteCursors();
+        }
+    });
+
+    function updateRemoteCursors() {
+        const editContainer = document.getElementById('modalEditContainer');
+        const editor = (editContainer as any)?._cmEditor;
+        if (editor) {
+            editor.setRemoteCursors(Array.from(remoteCursorsMap.values()));
+        }
+    }
+
     function hasUnsavedChanges(): boolean {
         if (currentView !== 'edit') return false;
         const editContainer = document.getElementById('modalEditContainer');
@@ -96,6 +132,11 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
         modal.classList.remove('active');
         document.removeEventListener('keydown', onEsc);
         if (onNavKey) document.removeEventListener('keydown', onNavKey);
+
+        if (editorSyncCleanup) {
+            editorSyncCleanup();
+            editorSyncCleanup = null;
+        }
 
         // Stop auto-save timer
         stopAutoSave();
@@ -445,11 +486,19 @@ export function openFileModal(ctx: CanvasContext, file: any, initialView?: strin
                 onCursorMove: (line, col) => {
                     if (lineInfo) lineInfo.textContent = `Line ${line}, Col ${col}`;
                 },
+                onSelectionChange: (selections, isTyping) => {
+                    const activeTab = getActiveTab();
+                    const activePath = activeTab ? activeTab.path : file.path;
+                    broadcastEditorSync(activePath, selections, isTyping);
+                }
             });
 
             // Store editor reference for content access
             (editContainer as any)._cmEditor = editor;
             editor.focus();
+
+            // Reapply any known remote cursors for this new view
+            updateRemoteCursors();
 
             // Scroll to initial line if provided (preserves canvas view position)
             if (initialLine && initialLine > 1) {

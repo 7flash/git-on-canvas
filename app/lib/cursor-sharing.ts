@@ -34,6 +34,36 @@ const REMOVE_MS = 15000; // remove after 15s
 
 let _lastBroadcast = 0;
 
+// ─── Editor Sync Events ─────────────────────────────────
+export interface EditorSyncData {
+    peerId: string;
+    color: string;
+    name: string;
+    file: string;
+    selections: { anchor: number; head: number }[];
+    typing?: boolean;
+}
+
+type EditorSyncListener = (data: EditorSyncData) => void;
+const _editorSyncListeners = new Set<EditorSyncListener>();
+
+export function onEditorSync(listener: EditorSyncListener) {
+    _editorSyncListeners.add(listener);
+    return () => _editorSyncListeners.delete(listener);
+}
+
+export function broadcastEditorSync(file: string, selections: { anchor: number; head: number }[], typing: boolean = false) {
+    if (!_ws || _ws.readyState !== WebSocket.OPEN) return;
+    const userName = localStorage.getItem('gitcanvas:username') || _peerId || 'anonymous';
+    _ws.send(JSON.stringify({
+        type: 'editor_sync',
+        name: userName,
+        file,
+        selections,
+        typing
+    }));
+}
+
 // ─── Initialize ─────────────────────────────────────────
 
 export function initCursorSharing(ctx: CanvasContext) {
@@ -111,6 +141,10 @@ function connectWebSocket() {
                 _color = data.color;
             } else if (data.type === 'cursor') {
                 handleRemoteCursor(data);
+            } else if (data.type === 'editor_sync') {
+                for (const listener of _editorSyncListeners) {
+                    listener(data);
+                }
             } else if (data.type === 'leave') {
                 removeRemoteCursor(data.peerId);
             }

@@ -39,6 +39,16 @@ const websocket = {
                     viewportY: data.viewportY,
                     zoom: data.zoom,
                 }));
+            } else if (data.type === 'editor_sync') {
+                ws.publish('cursors', JSON.stringify({
+                    type: 'editor_sync',
+                    peerId: ws.data.peerId,
+                    color: ws.data.color,
+                    name: data.name || ws.data.peerId,
+                    file: data.file,
+                    selections: data.selections,
+                    typing: data.typing
+                }));
             } else if (data.type === 'leave') {
                 ws.publish('cursors', JSON.stringify({
                     type: 'leave',

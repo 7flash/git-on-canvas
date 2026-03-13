@@ -21,7 +21,7 @@
 - [x] ~~**Landing page cleanup**~~ — ✅ DONE. Merged problem/solution into hero, explore cards link to gitmaps.xyz/owner/repo.
 
 ## 🟢 Priority: Features
-- [ ] **Live Collaboration Enhancements** — Show typing indicators and live selection bounds when multiple users are reading/editing the same codebase file.
+- [x] ~~**Live Collaboration Enhancements**~~ — ✅ DONE. Added remote typing indicators and live selection bounds in CodeMirror via `StateEffect` and `Decoration`. Syncs over WebSocket `cursors` channel (`editor_sync`). Typing bounds pulse using a pulse animation on the remote cursor overlay.
 - [x] ~~**Project Layout Snapshots**~~ — ✅ DONE. Added `layout-snapshots.ts` to allow saving and restoring specific viewport layouts (positions, sizes, zoom, hidden files) under a custom name, saved locally per-repo.
 
 ## 🟢 Priority: Features (Completed)
