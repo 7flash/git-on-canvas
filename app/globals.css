@@ -3352,10 +3352,26 @@ body {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: transform 0.2s ease;
+  pointer-events: none;
 }
 
 .file-image-preview img:hover {
   transform: scale(1.02);
+}
+
+.file-image-preview img {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s ease;
+}
+
+.file-image-preview img:hover {
+  transform: scale(1.02);
+}
+
+.file-media-preview video,
+.file-media-preview audio {
+  pointer-events: none;
 }
 
 /* ─── Hidden Files Modal ─────────────────────────── */
