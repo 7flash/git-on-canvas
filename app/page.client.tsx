@@ -198,6 +198,13 @@ export default function mount(): () => void {
           const cached = localStorage.getItem(`gitcanvas:slug:${urlSlug}`);
           if (cached) {
             resolvedPath = cached;
+            // Add to recent repos so dropdown shows it
+            const recentKey = 'gitcanvas:recentRepos';
+            const recent: string[] = JSON.parse(localStorage.getItem(recentKey) || '[]');
+            if (!recent.includes(resolvedPath)) {
+              recent.unshift(resolvedPath);
+              localStorage.setItem(recentKey, JSON.stringify(recent.slice(0, 10)));
+            }
           } else {
             // Clone from GitHub and use the local clone path
             const landing = document.getElementById("landingOverlay");
