@@ -27,9 +27,14 @@ export function detectRole(): Role {
     host.startsWith("10.") ||
     host.startsWith("172.");
 
+  // Debug logging
+  console.log(
+    `[role] Host: ${host}, Localhost: ${isLocalhost}, LocalNetwork: ${isLocalNetwork}`,
+  );
+
   _cachedRole = isLocalhost || isLocalNetwork ? "leader" : "follower";
 
-  console.log(`[role] Detected as ${_cachedRole} (host: ${host})`);
+  console.log(`[role] Detected as ${_cachedRole}`);
   return _cachedRole;
 }
 
