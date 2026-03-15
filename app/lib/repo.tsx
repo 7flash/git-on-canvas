@@ -206,6 +206,7 @@ export async function loadAllFiles(ctx: CanvasContext) {
   return measure("allfiles:load", async () => {
     try {
       const response = await fetch("/api/repo/tree", {
+        signal: AbortSignal.timeout(30000),
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ path: state.repoPath }),
