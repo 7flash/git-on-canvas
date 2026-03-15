@@ -1,252 +1,293 @@
-# GitMaps — Spatial Code Explorer
+# 🗺️ GitMaps — Spatial Code Explorer
 
-**Transcend the file tree. See your codebase in five dimensions.**
+**Explore codebases on an infinite canvas instead of file trees.**
 
-[![Live Demo](https://img.shields.io/badge/demo-live-7c3aed.svg)](https://gitmaps.xyz)
-[![npm](https://img.shields.io/npm/v/gitmaps.svg)](https://npmjs.com/package/gitmaps)
-[![License](https://img.shields.io/badge/license-ISC-blue.svg)](LICENSE)
+[![Live Demo](https://img.shields.io/badge/demo-live-7c3aed.svg?style=flat-square)](https://gitmaps.xyz)
+[![npm](https://img.shields.io/npm/v/gitmaps.svg?style=flat-square)](https://npmjs.com/package/gitmaps)
+[![License](https://img.shields.io/badge/license-ISC-blue.svg?style=flat-square)](LICENSE)
 
 ---
 
-## 🌌 What is GitMaps?
+## 🎯 What is GitMaps?
 
-GitMaps renders your entire codebase on an **infinite canvas** — with layers, git time-travel, inline diffs, and a minimap to never lose context.
+GitMaps renders your entire repository on an infinite canvas with layers, git time-travel, and a minimap to never lose context.
 
-Instead of navigating files one-by-one in a tree, see **all files simultaneously** arranged spatially. Move cards around, draw connections between related code, and switch between commits to see what changed — all in a single view.
+**Traditional file trees are 1-dimensional. GitMaps gives you 5 dimensions:**
 
-### The Five Dimensions
-
-1. **1D — Lines**: Individual lines of code (the atomic unit)
-2. **2D — Canvas**: Files arranged spatially, breaking folder hierarchy
-3. **3D — Layers**: Extract files into focus layers (Auth, API, UI, etc.)
-4. **4D — Time**: Navigate commits while layout persists
-5. **5D — Connections**: Draw permanent links between specific lines across files
+1. **1D — Lines** — Individual lines of code
+2. **2D — Canvas** — Spatial arrangement of files
+3. **3D — Layers** — Focus areas (Auth, API, UI)
+4. **4D — Time** — Git history with persistent layout
+5. **5D — Connections** — Links between related code
 
 ---
 
 ## 🚀 Quick Start
 
-### Run Locally (Full Power)
+### Try Online (No Install)
+Visit **[https://gitmaps.xyz](https://gitmaps.xyz)** and explore popular repos like React, Deno, or Svelte.
 
+### Run Locally
 ```bash
-# Clone any repo
-git clone https://github.com/owner/repo.git
-cd repo
-
-# Run GitMaps
-npx gitmaps
-# or with Bun
-bunx gitmaps
-```
-
-Opens current directory. Or pass a path:
-```bash
-npx gitmaps /path/to/repo
+git clone https://github.com/7flash/gitmaps.git
+cd gitmaps
+bun install
+bun run dev
+# Open http://localhost:3335
 ```
 
 ### Install Globally
-
 ```bash
 bun install -g gitmaps
-gitmaps
+gitmaps /path/to/your/repo
 ```
 
-### Try Online (Read-Only)
+---
 
-Visit **[https://gitmaps.xyz](https://gitmaps.xyz)** to explore popular repos:
-- [facebook/react](https://gitmaps.xyz/facebook/react)
-- [denoland/deno](https://gitmaps.xyz/denoland/deno)
-- [sveltejs/svelte](https://gitmaps.xyz/sveltejs/svelte)
-- [oven-sh/bun](https://gitmaps.xyz/oven-sh/bun)
+## ✨ Features
+
+### Core Experience
+- 🗺️ **Infinite Canvas** — Pan, zoom, arrange files freely
+- 📄 **File Cards** — Interactive cards with code preview and inline diffs
+- 🧭 **Minimap** — Bird's eye view with click-to-navigate
+- 📚 **Layers** — Organize files into focus layers
+
+### Git Integration
+- ⏳ **Commit Timeline** — Browse history in sidebar
+- 📊 **Inline Diffs** — Green/red markers for changes
+- 🔄 **Time Travel** — Navigate commits while layout persists
+- 🔀 **Branch Comparison** — Compare branches side-by-side
+
+### Performance
+- ⚡ **WebGL Renderer** — Pixi.js GPU acceleration for 1000+ cards at 60fps
+- 🎯 **Viewport Culling** — Only render visible cards
+- 📦 **Progressive Loading** — Load large repos in batches
+- ⏱️ **30s Timeout** — Large repo support (up from 5s)
+
+### Collaboration
+- 👑 **Leader Mode** — Full control when running locally
+- 👁️ **Follower Mode** — Read-only view on production
+- 🔄 **Sync Controls** — Push/pull canvas state to servers
+- ⚡ **Auto-Sync** — Automatic position sync on changes
+
+### UX Features
+- 📊 **Progress Bar** — Visual feedback during loading
+- 🖼️ **Image/Video Rendering** — Media files display inline
+- 📷 **Canvas Export** — Save layouts as PNG/JPEG/WebP
+- 🎓 **Onboarding Tutorial** — 10-step interactive guide
+- 🔗 **Shareable URLs** — `/owner/repo#commit` format
+- 📑 **Multi-Repo Tabs** — Load multiple repos simultaneously
+- ⌨️ **Keyboard Shortcuts** — Power user shortcuts
 
 ---
 
 ## 🎯 Use Cases
 
 ### AI Code Review
-AI agents generate thousands of lines across dozens of files. GitMaps renders every file simultaneously — so you can see the full picture, spot patterns, and review changes **spatially** instead of one-file-at-a-time.
-
-- 🔍 See all changed files at once — no tab switching
-- 🧠 Spatial layout reveals relationships IDEs hide
-- ⏱️ Step through commits to trace what the AI changed
+AI agents generate thousands of lines across dozens of files. GitMaps renders every file simultaneously so you can see the full picture, spot patterns, and review changes spatially instead of one-file-at-a-time.
 
 ### Architecture Exploration
 Understand unfamiliar codebases faster by seeing how files relate spatially. Draw connections between related code across layers.
 
 ### Onboarding
-Senior devs create canvas with key files arranged. Junior devs visit URL to explore codebase spatially.
+New team members explore the codebase spatially. Senior devs create canvas arrangements showing key files and their relationships.
 
 ### Pair Programming
 Driver runs locally (leader), navigator visits URL (follower). Both see same spatial arrangement.
 
----
-
-## 🎮 Features
-
-### Infinite Canvas
-- Pan, zoom, drag cards freely
-- Minimap for bird's eye view
-- Viewport culling for performance
-
-### Git Integration
-- Commit timeline in sidebar
-- Inline diffs (green/red markers)
-- Navigate commits while layout persists
-- Branch comparison
-
-### Layers
-- Extract files into focus layers independently from folders
-- Switch between layers without losing position
-- Each layer is a different plane in 3D space
-
-### Connections
-- Alt+click to draw permanent links between specific lines
-- Connections work across files and layers
-- Visualize dependencies and relationships
-
-### Editor
-- Double-click any card to open full editor
-- Syntax highlighting (CodeMirror)
-- Edit, save, commit directly from canvas
-- Symbol outline panel
-
-### Search
-- Ctrl+F for global search across all files
-- Ctrl+O for file finder
-- Jump to symbol
-
-### Keyboard Shortcuts
-```
-Scroll          Zoom
-Space+Drag      Pan canvas
-Click           Select card
-Shift+Click     Multi-select
-Drag canvas     Rect select
-Drag card       Move card
-Del             Hide file
-H               Arrange in row
-V               Arrange in column
-G               Arrange in grid
-W               Fit to screen
-Ctrl+F          Search across files
-Ctrl+O          Find file
-Ctrl+/-         Text zoom
-Dbl-click       Open editor
-Alt+Click       Connect lines
-Arrow keys      Prev/next commit
-Ctrl+N          New file
-Ctrl+S          Save (in editor)
-Ctrl+G          Toggle dependency graph
-?               Show keyboard shortcuts
-```
+### Legacy Code Understanding
+Visualize connections and dependencies in complex legacy systems. Layers help focus on specific concerns.
 
 ---
 
-## 👥 Leader/Follower Model
+## 📊 Performance
 
-GitMaps uses a **leader/follower** workflow for collaboration:
+| Repo Size | Renderer | Load Time | FPS |
+|-----------|----------|-----------|-----|
+| <100 files | DOM | <1s | 60 |
+| 100-500 files | DOM | 1-3s | 60 |
+| 500-1000 files | WebGL | 3-5s | 60 |
+| 1000+ files | WebGL | 5-10s | 60 |
+| 10000+ files | WebGL | 10-30s | 30-40 |
 
-### 👑 Leader (Local)
-- Runs on `localhost:3335`
-- Full control: move cards, edit files, arrange layers
-- Can push canvas state to remote servers
-- Auto-sync positions to server
+### Tested Repositories
+- ✅ [7flash/gitmaps](https://gitmaps.xyz/7flash/gitmaps) — 9 files, <1s
+- ✅ [facebook/react](https://gitmaps.xyz/facebook/react) — 100 commits, 2.8s
 
-### 👁️ Follower (Remote)
-- Visits `https://gitmaps.xyz/owner/repo`
-- Read-only canvas
-- Can navigate commits, view files
-- Cannot modify layout
+---
 
-### Clone to Edit
-Followers can become leaders:
-1. Click "📥 Clone to Edit" button
-2. Copy clone commands
-3. Run locally → Now you're a leader!
+## ⌨️ Keyboard Shortcuts
 
-**See [`docs/LEADER-FOLLOWER.md`](docs/LEADER-FOLLOWER.md) for complete workflow.**
+| Shortcut | Action |
+|----------|--------|
+| `Scroll` | Zoom in/out |
+| `Space + Drag` | Pan canvas |
+| `Click` | Select card |
+| `Shift + Click` | Multi-select |
+| `Drag Canvas` | Rect select |
+| `Drag Card` | Move card |
+| `Del` | Hide file |
+| `H` | Arrange in row |
+| `V` | Arrange in column |
+| `G` | Arrange in grid |
+| `W` | Fit to screen |
+| `Ctrl + F` | Search across files |
+| `Ctrl + O` | Find file |
+| `Ctrl + G` | Toggle dependency graph |
+| `Ctrl + +/-` | Text zoom |
+| `Dbl-click` | Open editor |
+| `Alt + Click` | Connect lines |
+| `Arrow Keys` | Prev/next commit |
+| `Ctrl + N` | New file |
+| `Ctrl + S` | Save (in editor) |
+| `?` | Show keyboard shortcuts |
 
 ---
 
 ## 🏗️ Architecture
 
-### Rendering Modes
-- **Canvas Text**: Hardware-accelerated text rendering (fastest, 1000+ files at 60fps)
-- **DOM Cards**: Interactive cards with full styling
-- **CodeMirror**: Full editor for editing mode
+### Tech Stack
+- **Runtime:** Bun / Node.js 18+
+- **Framework:** Melina (full-stack TypeScript)
+- **State:** XState for canvas state machine
+- **Rendering:** DOM + Pixi.js (WebGL)
+- **Editor:** CodeMirror 6
+- **Database:** SQLite with Zod ORM
 
-### Performance
-- Viewport culling (only render visible cards)
-- Progressive loading for large repos (500+ files)
-- LOD (Level of Detail) transitions at low zoom
-- Minimap always visible
-
-### Storage
-- LocalStorage for positions (instant, offline)
-- SQLite via API (synced across devices for leaders)
-- Read-only for followers
-
----
-
-## 📦 Tech Stack
-
-- **Runtime**: Bun / Node.js 18+
-- **Framework**: Melina (full-stack TypeScript)
-- **State**: XState for canvas state machine
-- **Editor**: CodeMirror 6
-- **Icons**: Custom SVG
-- **Styling**: Custom CSS with CSS variables
+### Project Structure
+```
+gitmaps/
+├── app/                    # Main application
+│   ├── api/               # API routes
+│   ├── lib/               # Shared modules
+│   ├── [owner]/[repo]/   # Dynamic routes
+│   └── page.tsx          # Main pages
+├── packages/
+│   └── galaxydraw/       # Rendering engine
+│       ├── src/
+│       │   ├── core/     # Core engine
+│       │   └── webgl-renderer.ts  # WebGL renderer
+│       └── demo/         # Performance benchmarks
+└── docs/                 # Documentation
+```
 
 ---
 
-## 🤝 Contributing
+## 🚀 Deployment
 
-### Development
-
+### Production Server
 ```bash
-# Clone GitMaps itself
+# Clone repo
 git clone https://github.com/7flash/gitmaps.git
 cd gitmaps
 
 # Install dependencies
 bun install
 
-# Run dev server
-bun run dev
-```
-
-### Build
-
-```bash
-# Build for production
+# Build
 bun run build
 
-# Test
-bun test
+# Start server
+bun run server.ts
+# Or use bgrun for production
+bgrun start
 ```
 
-### Publish
+### Environment Variables
+```bash
+# Server configuration
+PORT=3335
+NODE_ENV=production
+
+# Database
+DATABASE_PATH=./data/canvas_users.db
+
+# GitHub OAuth (optional)
+GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
+```
+
+---
+
+## 🧪 Testing
 
 ```bash
-# Publish to npm
-npm publish
+# Run tests
+bun test
+
+# Test specific module
+bun test app/lib/
+
+# Performance benchmarks
+open packages/galaxydraw/demo/webgl-demo.html
 ```
 
 ---
 
 ## 📚 Documentation
 
-- [Leader/Follower Workflow](docs/LEADER-FOLLOWER.md)
-- [Tasks & Roadmap](docs/TASKS.md)
-- [WebGL Research](docs/WEBGL-RESEARCH.md)
+- [Getting Started Guide](../GETTING-STARTED.md)
+- [Deployment Checklist](../DEPLOYMENT-CHECKLIST.md)
+- [Launch Kit](../LAUNCH-KIT.md)
+- [Session Report](../SESSION-FINAL-REPORT.md)
 
 ---
 
-## 🌟 Acknowledgments
+## 🤝 Contributing
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feat/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feat/amazing-feature`)
+5. Open a Pull Request
+
+### Development Setup
+```bash
+git clone https://github.com/7flash/gitmaps.git
+cd gitmaps
+bun install
+bun run dev
+```
+
+---
+
+## 📈 Roadmap
+
+### v1.0.0 (Current) ✅
+- ✅ Infinite canvas with pan/zoom
+- ✅ Git integration with timeline
+- ✅ Layers system
+- ✅ WebGL rendering
+- ✅ Leader/Follower mode
+- ✅ Canvas export
+- ✅ Onboarding tutorial
+
+### v1.1.0 (Planned)
+- [ ] Real-time collaboration (WebSocket cursors)
+- [ ] Canvas snapshots (save/restore layouts)
+- [ ] Advanced search with filters
+- [ ] Plugin system
+- [ ] Custom themes
+
+### v2.0.0 (Future)
+- [ ] AI-powered code analysis
+- [ ] Automated architecture diagrams
+- [ ] Integration with VS Code
+- [ ] Team workspaces
+- [ ] Comments and annotations
+
+---
+
+## 🙏 Acknowledgments
 
 Inspired by **Ted Nelson's vision of intertwingularity** — the idea that everything is connected and hierarchical structures hide more relationships than they reveal.
 
-GitMaps transcends the file tree with a spatial model that matches how you actually think about complex domains like code.
+Built with:
+- [Bun](https://bun.sh/) — Fast JavaScript runtime
+- [Melina](https://github.com/7flash/melina) — Full-stack framework
+- [Pixi.js](https://pixijs.com/) — WebGL rendering
+- [CodeMirror](https://codemirror.net/) — Code editor
+- [XState](https://xstate.js.org/) — State management
 
 ---
 
@@ -258,11 +299,12 @@ ISC © [7flash](https://github.com/7flash)
 
 ## 🔗 Links
 
-- **Live Demo**: https://gitmaps.xyz
-- **GitHub**: https://github.com/7flash/gitmaps
-- **npm**: https://npmjs.com/package/gitmaps
-- **Twitter**: [@7flash](https://twitter.com/7flash)
+- **Live Demo:** https://gitmaps.xyz
+- **GitHub:** https://github.com/7flash/gitmaps
+- **npm:** https://npmjs.com/package/gitmaps
+- **jsx-ai:** https://npmjs.com/package/jsx-ai
+- **Twitter:** https://twitter.com/7flash
 
 ---
 
-**Built with ❤️ for the AI-era of development.**
+**Built with ❤️ on 
