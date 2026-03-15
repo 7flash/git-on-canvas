@@ -612,7 +612,6 @@ export function renderFilesOnCanvas(
 export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
   // Use progressive loading for large repos (500+ files)
   if (files.length >= 500) {
-    renderAllFilesProgressive(ctx, files);
     return;
   }
 
