@@ -337,3 +337,4 @@ export default function mount(): () => void {
   (window as any).__gitcanvas_cleanup__ = cleanup;
   return cleanup;
 }
+// Force cache bust Sun Mar 15 15:45:16 MPST 2026
