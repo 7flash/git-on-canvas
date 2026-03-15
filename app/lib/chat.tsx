@@ -24,9 +24,29 @@ interface ChatState {
 const fileChatStates = new Map<string, ChatState>();
 let canvasChatState: ChatState = { messages: [], isStreaming: false };
 
-// ─── Render markdown-ish content to safe HTML string ────
+// Store parsed refactors to avoid passing huge string payloads via DOM attributes
+const pendingRefactors = new Map<string, { path: string, content: string }>();
+
 function renderChatContent(text: string): string {
     let html = escapeHtml(text);
+
+    // Parse escaped <edit_file path="...">...</edit_file>
+    const editRegex = /&lt;edit_file path=&quot;([^&]+)&quot;&gt;([\s\S]*?)&lt;\/edit_file&gt;/g;
+    html = html.replace(editRegex, (_, path, content) => {
+        const decodedContent = content.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+        const id = Math.random().toString(36).substring(7);
+        pendingRefactors.set(id, { path, content: decodedContent });
+        return `
+            <div class="chat-refactor-block" style="margin: 10px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;">
+                <div class="chat-refactor-header" style="background: var(--bg-card); padding: 4px 8px; font-size: 11px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border);">
+                    <span style="font-family: monospace;">📄 ${path}</span>
+                    <button class="chat-refactor-apply btn-primary btn-xs" data-refactor-id="${id}" style="padding: 2px 8px; font-size: 10px; border-radius: 4px;">Apply Edit</button>
+                </div>
+                <pre class="chat-code-block" style="margin: 0; border-radius: 0; max-height: 200px; overflow-y: auto;"><code class="language-typescript">${content.trim()}</code></pre>
+            </div>
+        `;
+    });
+
     html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) =>
         `<pre class="chat-code-block"><code class="language-${lang || 'text'}">${code.trim()}</code></pre>`);
     html = html.replace(/`([^`]+)`/g, '<code class="chat-inline-code">$1</code>');
@@ -60,12 +80,47 @@ function EmptyChat() {
     );
 }
 
-function MessageList({ messages, isTyping }: { messages: ChatMessage[]; isTyping: boolean }) {
+function MessageList({ messages, isTyping, repoPath }: { messages: ChatMessage[]; isTyping: boolean; repoPath?: string }) {
     if (messages.length === 0 && !isTyping) {
         return <EmptyChat />;
     }
+
+    const handleClick = async (e: any) => {
+        const btn = e.target.closest('.chat-refactor-apply');
+        if (!btn || btn.disabled) return;
+
+        const id = btn.getAttribute('data-refactor-id');
+        const refactor = pendingRefactors.get(id);
+        if (!refactor) return;
+
+        const actualRepoPath = repoPath || canvasChatState.canvasContext?.repoPath;
+        if (!actualRepoPath) {
+            btn.textContent = 'No Repo Context';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Applying...';
+
+        try {
+            const res = await fetch('/api/repo/file-save', {
+                method: 'POST',
+                body: JSON.stringify({ path: actualRepoPath, filePath: refactor.path, content: refactor.content })
+            });
+            if (res.ok) {
+                btn.textContent = 'Applied ✓';
+                btn.style.background = 'var(--accent-success, #10b981)';
+                btn.style.borderColor = 'var(--accent-success, #10b981)';
+            } else {
+                btn.textContent = 'Error';
+            }
+        } catch (err) {
+            btn.textContent = 'Failed';
+        }
+    };
+
     return (
-        <div className="chat-message-list-inner">
+        <div className="chat-message-list-inner" onClick={handleClick}>
             {messages.map((msg, i) => (
                 <div key={i} className={`chat-message chat-${msg.role}`}>
                     <div className="chat-message-role">{msg.role === 'user' ? 'You' : 'AI'}</div>
@@ -78,10 +133,10 @@ function MessageList({ messages, isTyping }: { messages: ChatMessage[]; isTyping
 }
 
 function ChatPanel({
-    containerId, title, messages, isTyping, onSend, onClose
+    containerId, title, messages, isTyping, repoPath, onSend, onClose
 }: {
     containerId: string; title: string; messages: ChatMessage[];
-    isTyping: boolean; onSend: (text: string) => void; onClose: () => void;
+    isTyping: boolean; repoPath?: string; onSend: (text: string) => void; onClose: () => void;
 }) {
     const handleSend = () => {
         const input = document.getElementById(`${containerId}Input`) as HTMLTextAreaElement;
@@ -108,7 +163,7 @@ function ChatPanel({
                 <button className="chat-close btn-ghost btn-xs" onClick={onClose}>✕</button>
             </div>
             <div className="chat-messages" id={`${containerId}Messages`}>
-                <MessageList messages={messages} isTyping={isTyping} />
+                <MessageList messages={messages} isTyping={isTyping} repoPath={repoPath} />
             </div>
             <div className="chat-input-area">
                 <textarea
@@ -146,6 +201,7 @@ function renderChatPanel(container: HTMLElement, containerId: string, title: str
                 title={title}
                 messages={state.messages}
                 isTyping={state.isStreaming && state.messages[state.messages.length - 1]?.content === ''}
+                repoPath={state.fileContext?.repoPath || state.canvasContext?.repoPath}
                 onSend={onSend}
                 onClose={onClose}
             />,
@@ -240,16 +296,16 @@ async function streamResponse(
 }
 
 // ─── Open file chat in modal ────────────────────────────
-export function openFileChatInModal(filePath: string, content: string, status: string, diff?: string) {
+export function openFileChatInModal(repoPath: string, filePath: string, content: string, status: string, diff?: string) {
     measure('chat:openFileChat', () => {
         if (!fileChatStates.has(filePath)) {
             fileChatStates.set(filePath, {
                 messages: [], isStreaming: false,
-                fileContext: { path: filePath, content, status, diff },
+                fileContext: { repoPath, path: filePath, content, status, diff },
             });
         }
         const state = fileChatStates.get(filePath)!;
-        state.fileContext = { path: filePath, content, status, diff };
+        state.fileContext = { repoPath, path: filePath, content, status, diff };
 
         let chatContainer = document.getElementById('modalChatContainer');
         if (!chatContainer) return;

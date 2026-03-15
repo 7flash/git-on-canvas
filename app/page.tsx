@@ -99,7 +99,7 @@ export default function Page() {
                     <div className="landing-hero">
                         <div className="landing-badge">
                             <span className="badge-dot"></span>
-                            Open Source · Spatial Code Explorer
+                            The Intertwingled Paradigm · $GM Protocol
                         </div>
 
                         <div className="landing-icon">
@@ -144,17 +144,16 @@ export default function Page() {
                             <span className="title-maps">Maps</span>
                         </h1>
                         <p className="landing-subtitle">
-                            Transcend the file tree. See your codebase in four dimensions.<br />
-                            <span className="subtitle-accent">Every file rendered on an infinite canvas —</span><br />
-                            <span className="subtitle-accent">review AI-generated code spatially instead of one-file-at-a-time.</span>
+                            Transcend the 1D file tree. See your codebase in five dimensions.<br />
+                            <span className="subtitle-accent">Spatial Web3 Canvas mapped by Agentic AI Swarms and Gravity Tokenomics.</span>
                         </p>
 
                         {/* Key features inline */}
-                        <div className="landing-features">
-                            <div className="feature-pill"><span className="feature-icon">📐</span> Spatial canvas</div>
-                            <div className="feature-pill"><span className="feature-icon">🗂️</span> Focus layers</div>
-                            <div className="feature-pill"><span className="feature-icon">🔗</span> File connections</div>
-                            <div className="feature-pill"><span className="feature-icon">⏱️</span> Git timeline</div>
+                        <div className="landing-features" style={{ gridTemplateColumns: 'repeat(4, auto)' }}>
+                            <div className="feature-pill"><span className="feature-icon">📐</span> Spatial Canvas</div>
+                            <div className="feature-pill"><span className="feature-icon">🤖</span> AI Swarms</div>
+                            <div className="feature-pill"><span className="feature-icon">💸</span> Minute-by-Minute Yields</div>
+                            <div className="feature-pill"><span className="feature-icon">⚖️</span> $GM Gravity Score</div>
                         </div>
                     </div>
 
@@ -201,23 +200,23 @@ export default function Page() {
                     {/* Stats Row */}
                     <div className="landing-stats">
                         <div className="landing-stat">
-                            <span className="stat-num">4D</span>
-                            <span className="stat-desc">Dimensional Space</span>
+                            <span className="stat-num">5D</span>
+                            <span className="stat-desc">Knowledge Graph</span>
                         </div>
                         <div className="stat-divider"></div>
                         <div className="landing-stat">
-                            <span className="stat-num">∞</span>
-                            <span className="stat-desc">Infinite Canvas</span>
+                            <span className="stat-num">$GM</span>
+                            <span className="stat-desc">Gravity Weights</span>
                         </div>
                         <div className="stat-divider"></div>
                         <div className="landing-stat">
                             <span className="stat-num">0ms</span>
-                            <span className="stat-desc">Local-First</span>
+                            <span className="stat-desc">DOM Culling</span>
                         </div>
                         <div className="stat-divider"></div>
                         <div className="landing-stat">
-                            <span className="stat-num">OSS</span>
-                            <span className="stat-desc">Open Source</span>
+                            <span className="stat-num">Web3</span>
+                            <span className="stat-desc">Spatial Economy</span>
                         </div>
                     </div>
                 </div>

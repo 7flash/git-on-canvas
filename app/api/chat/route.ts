@@ -41,7 +41,12 @@ Help the user understand this file. You can:
 - Suggest refactorings
 - Explain the diff/changes
 
-Be concise but thorough. Use code blocks with language tags for code examples. Reference line numbers when relevant.`;
+Be concise but thorough. Use code blocks with language tags for code examples. Reference line numbers when relevant.
+
+To suggest physical refactors or file changes, ALWAYS use the following format:
+<edit_file path="path/to/file.ts">
+// Full replacement file content goes here
+</edit_file>`;
             } else if (canvasContext) {
                 systemPrompt = `You are an AI code assistant helping analyze a Git repository's commit changes.
 
@@ -51,7 +56,13 @@ CURRENT COMMIT: ${canvasContext.commitHash || 'none'} — ${canvasContext.commit
 FILES ON CANVAS:
 ${(canvasContext.files || []).map(f => `- ${f.path} (${f.status})`).join('\n')}
 
-Help the user understand the codebase, the commit changes, relationships between files, architecture patterns, and potential issues. Be concise and actionable.`;
+Help the user understand the codebase, the commit changes, relationships between files, architecture patterns, and potential issues. Be concise and actionable.
+
+To suggest physical refactors or file changes, ALWAYS use the following format:
+<edit_file path="path/to/file.ts">
+// Full replacement file content goes here
+</edit_file>
+You may output multiple <edit_file> blocks in a single response to perform bulk refactoring across multiple files.`;
             } else {
                 systemPrompt = `You are an AI code assistant. Help the user with their coding questions. Be concise and use code blocks with language tags.`;
             }

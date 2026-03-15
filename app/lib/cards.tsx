@@ -420,7 +420,8 @@ function _handleChatClick(ctx: CanvasContext, file: any) {
         });
     }
 
-    openFileChatInModal(filePath, content, status, extraContext);
+    const repoPath = ctx.snap().context.repoPath;
+    openFileChatInModal(repoPath, filePath, content, status, extraContext);
 }
 
 // ─── Create file card (commit diff) ─────────────────────

@@ -29,6 +29,7 @@ import { initCommandPalette } from './lib/command-palette';
 import { initShortcutsPanel } from './lib/shortcuts-panel';
 import { initStatusBar } from './lib/status-bar';
 import { initLayoutSnapshots } from './lib/layout-snapshots';
+import { initTutorial } from './lib/tutorial';
 
 export default function mount(): () => void {
     // Stop any previous actor from a prior mount
@@ -82,6 +83,9 @@ export default function mount(): () => void {
 
             // Init auth UI
             setupAuth();
+
+            // Run interactive onboarding tutorial
+            initTutorial(ctx);
 
             // ── Shared Layout Decoder ──────────────────────────────────────────
             const applySharedLayout = async (ctx: CanvasContext) => {

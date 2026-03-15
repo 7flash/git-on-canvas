@@ -1,5 +1,11 @@
 # GitMaps Tasks & Ideas
 
+## 🟢 Completed Fixes (Recent)
+- [x] ~~**Interactive Onboarding Tutorial**~~ — ✅ DONE. Created `app/lib/tutorial.ts` which injects a step-by-step spatial DOM overlay for first-time visitors (tracked via `localStorage`). Teaches panning, zooming, layers control, and repo-loading.
+
+- [ ] **Canvas WebGL Acceleration Research** — Investigate migrating the core `packages/galaxydraw` 2D Canvas renderer to a WebGL/Pixi.js backend to support repositories exceeding 10,000 files without thermal throttling.
+- [x] ~~**Context-Aware AI Chat Agent**~~ — ✅ DONE. Integrated `<edit_file>` XML tag processing inside the `jsx-ai` `streamLLM` loop. The floating chat widget now intercepts payload streams dynamically and implements a `pendingRefactors` cache to project "Apply Edit" buttons dynamically, saving spatial selections via the backend `/api/repo/file-save` protocol without reloading the canvas.
+
 ## 🔴 Priority: Fix
 - [x] ~~**Connection lines too dense at low zoom**~~ — ✅ DONE. Zoom-aware LOD in `renderConnections`: below 35% only cross-dir connections show, between 35-60% same-dir connections fade in proportionally. Stroke width, dash pattern, and endpoint radius scale inversely with zoom. Labels hidden below 50% (unreadable).
 
