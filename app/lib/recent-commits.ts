@@ -152,6 +152,7 @@ export function renderRecentCommitsUI(): void {
 }
 
 function escapeHtml(str: string): string {
+  if (!str) return "";
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
