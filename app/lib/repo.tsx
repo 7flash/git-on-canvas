@@ -88,6 +88,9 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
       const data = await response.json();
       ctx.actor.send({ type: "REPO_LOADED", commits: data.commits });
 
+      // Set global repo path for image URLs
+      (window as any).__GITCANVAS_REPO_PATH__ = repoPath;
+
       // Hide landing overlay
       const landing = document.getElementById("landingOverlay");
       if (landing) landing.style.display = "none";
