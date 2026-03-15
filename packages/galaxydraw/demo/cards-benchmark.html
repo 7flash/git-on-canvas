@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GitMaps Cards Benchmark — Real File Cards</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Inter", sans-serif;
+        background: #0a0a0f;
+        color: #e2e8f0;
+        overflow: hidden;
+      }
+      #ui {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        z-index: 1000;
+        background: rgba(30, 41, 59, 0.95);
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 20px;
+        backdrop-filter: blur(8px);
+      }
+      h1 {
+        font-size: 18px;
+        margin-bottom: 16px;
+        background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .controls {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+      button {
+        padding: 8px 16px;
+        border-radius: 6px;
+        border: none;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #7c3aed, #3b82f6);
+        color: white;
+      }
+      .btn-secondary {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .metric {
+        background: #0f172a;
+        padding: 12px;
+        border-radius: 8px;
+      }
+      .metric-label {
+        font-size: 10px;
+        color: #64748b;
+        text-transform: uppercase;
+      }
+      .metric-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: #a78bfa;
+        margin-top: 4px;
+      }
+      #canvas {
+        width: 100vw;
+        height: 100vh;
+      }
+      .minimap {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 200px;
+        height: 150px;
+        background: #1e293b;
+        border: 2px solid #334155;
+        border-radius: 8px;
+      }
+      .status {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        background: #1e293b;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .card {
+        position: absolute;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      }
+      .card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: #0f172a;
+        border-bottom: 1px solid #334155;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .card-body {
+        padding: 12px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 11px;
+        color: #94a3b8;
+      }
+      .card-line {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .card-line.add {
+        color: #22c55e;
+      }
+      .card-line.del {
+        color: #ef4444;
+        background: rgba(239, 68, 68, 0.1);
+      }
+      .file-icon {
+        width: 14px;
+        height: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="ui">
+      <h1>🚀 GitMaps Cards Benchmark</h1>
+      <div class="controls">
+        <button class="btn-primary" onclick="runBenchmark()">▶ Run</button>
+        <button class="btn-secondary" onclick="toggleRenderer()">
+          🔄 Switch Renderer
+        </button>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">FPS</div>
+          <div class="metric-value" id="fpsValue">--</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Cards</div>
+          <div class="metric-value" id="cardCount">0</div>
+        </div>
+      </div>
+      <div style="margin-top: 12px; font-size: 11px; color: #64748b">
+        Renderer:
+        <strong id="rendererName" style="color: #a78bfa">DOM Cards</strong>
+      </div>
+    </div>
+
+    <div id="canvas"></div>
+    <div class="minimap" id="minimap"></div>
+    <div class="status" id="status">Ready. Click "Run" to start benchmark.</div>
+
+    <script>
+      const FILE_TEMPLATES = [
+        {
+          name: "index.ts",
+          ext: "ts",
+          icon: "#3178c6",
+          code: [
+            "export function main() {",
+            '  return "hello";',
+            "}",
+            "",
+            'export const VERSION = "1.0.0";',
+          ],
+        },
+        {
+          name: "App.tsx",
+          ext: "tsx",
+          icon: "#61dafb",
+          code: [
+            'import React from "react";',
+            "",
+            "export function App() {",
+            "  return <div>Hello</div>;",
+            "}",
+          ],
+        },
+        {
+          name: "utils.ts",
+          ext: "ts",
+          icon: "#3178c6",
+          code: [
+            "export function formatDate(d) {",
+            "  return d.toISOString();",
+            "}",
+            "",
+            "export const sleep = (ms) => new Promise(r => setTimeout(r, ms));",
+          ],
+        },
+        {
+          name: "styles.css",
+          ext: "css",
+          icon: "#3b82f6",
+          code: [
+            ".container {",
+            "  display: flex;",
+            "  gap: 1rem;",
+            "}",
+            "",
+            ".button {",
+            "  padding: 0.5rem 1rem;",
+            "}",
+          ],
+        },
+        {
+          name: "package.json",
+          ext: "json",
+          icon: "#f1e05a",
+          code: [
+            "{",
+            '  "name": "my-app",',
+            '  "version": "1.0.0",',
+            '  "scripts": {',
+            '    "dev": "vite"',
+            "  }",
+            "}",
+          ],
+        },
+      ];
+
+      let cards = [];
+      let canvas = document.getElementById("canvas");
+      let usePixi = false;
+      let pixiApp = null;
+      let pixiCards = [];
+      let animationFrame = null;
+      let frameCount = 0;
+      let lastFpsUpdate = performance.now();
+      let currentFps = 0;
+
+      function createCardData(index) {
+        const template = FILE_TEMPLATES[index % FILE_TEMPLATES.length];
+        const x = (index % 20) * 420 + 20;
+        const y = Math.floor(index / 20) * 320 + 20;
+
+        return {
+          id: index,
+          name: `${template.name.replace(".", index + ".")}`,
+          ext: template.ext,
+          color: template.icon,
+          code: template.code,
+          x,
+          y,
+          width: 400,
+          height: 300,
+          changes: { added: [1, 3], deleted: [2] },
+        };
+      }
+
+      function createCardDOM(card) {
+        const el = document.createElement("div");
+        el.className = "card";
+        el.style.left = card.x + "px";
+        el.style.top = card.y + "px";
+        el.style.width = card.width + "px";
+        el.style.height = card.height + "px";
+
+        el.innerHTML = `
+                <div class="card-header">
+                    <svg class="file-icon" viewBox="0 0 24 24" fill="${card.color}"><rect width="24" height="24" rx="4"/></svg>
+                    <span>${card.name}</span>
+                </div>
+                <div class="card-body">
+                    ${card.code
+                      .map((line, i) => {
+                        if (card.changes.added.includes(i))
+                          return `<div class="card-line add">+ ${line}</div>`;
+                        if (card.changes.deleted.includes(i))
+                          return `<div class="card-line del">- ${line}</div>`;
+                        return `<div class="card-line">${line}</div>`;
+                      })
+                      .join("")}
+                </div>
+            `;
+
+        return el;
+      }
+
+      function createCardPixi(card) {
+        // Create PIXI container for this card
+        const container = new PIXI.Container();
+        container.x = card.x;
+        container.y = card.y;
+
+        // Card background
+        const bg = new PIXI.Graphics();
+        bg.beginFill(0x1e293b);
+        bg.lineStyle(1, 0x334155);
+        bg.drawRoundedRect(0, 0, card.width, card.height, 8);
+        bg.endFill();
+        container.addChild(bg);
+
+        // Header
+        const header = new PIXI.Graphics();
+        header.beginFill(0x0f172a);
+        header.drawRect(0, 0, card.width, 32);
+        header.endFill();
+        container.addChild(header);
+
+        // File name text
+        const nameText = new PIXI.Text(card.name, {
+          fontFamily: "Inter",
+          fontSize: 11,
+          fontWeight: "600",
+          fill: 0xe2e8f0,
+        });
+        nameText.x = 28;
+        nameText.y = 9;
+        container.addChild(nameText);
+
+        // Code lines
+        card.code.forEach((line, i) => {
+          let color = 0x94a3b8;
+          let bgColor = null;
+
+          if (card.changes.added.includes(i)) {
+            color = 0x22c55e;
+          } else if (card.changes.deleted.includes(i)) {
+            color = 0xef4444;
+            bgColor = 0x1a1a2e;
+          }
+
+          const lineText = new PIXI.Text(line, {
+            fontFamily: "JetBrains Mono",
+            fontSize: 11,
+            fill: color,
+          });
+          lineText.x = 12;
+          lineText.y = 44 + i * 18;
+
+          if (bgColor) {
+            const lineBg = new PIXI.Graphics();
+            lineBg.beginFill(bgColor);
+            lineBg.drawRect(0, lineText.y - 2, card.width, 16);
+            lineBg.endFill();
+            container.addChild(lineBg);
+          }
+
+          container.addChild(lineText);
+        });
+
+        return container;
+      }
+
+      async function initPixi() {
+        if (pixiApp) return;
+
+        pixiApp = new PIXI.Application({
+          width: window.innerWidth,
+          height: window.innerHeight,
+          backgroundColor: 0x0a0a0f,
+          antialias: false, // Faster
+          resolution: window.devicePixelRatio || 1,
+        });
+
+        canvas.appendChild(pixiApp.canvas);
+
+        // Wait for PIXI to initialize
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+
+      function cleanupPixi() {
+        if (pixiApp) {
+          pixiApp.destroy(true);
+          pixiApp = null;
+          pixiCards = [];
+        }
+      }
+
+      async function runBenchmark() {
+        const cardCount = 100; // Test with 100 cards
+        document.getElementById("cardCount").textContent = cardCount;
+        document.getElementById("status").textContent =
+          `Creating ${cardCount} file cards...`;
+
+        // Clear canvas
+        canvas.innerHTML = "";
+        cleanupPixi();
+
+        // Generate cards
+        cards = Array.from({ length: cardCount }, (_, i) => createCardData(i));
+
+        if (usePixi) {
+          await initPixi();
+          cards.forEach((card) => {
+            const pixiCard = createCardPixi(card);
+            pixiApp.stage.addChild(pixiCard);
+            pixiCards.push(pixiCard);
+          });
+        } else {
+          cards.forEach((card) => {
+            const cardEl = createCardDOM(card);
+            canvas.appendChild(cardEl);
+          });
+        }
+
+        document.getElementById("status").textContent =
+          `Benchmark running with ${cardCount} cards. Pan/zoom to test performance.`;
+
+        // Start FPS counter
+        startFpsCounter();
+
+        // Start animation (simulate user interaction)
+        startAnimation();
+      }
+
+      function startFpsCounter() {
+        if (animationFrame) cancelAnimationFrame(animationFrame);
+
+        function update() {
+          frameCount++;
+          const now = performance.now();
+
+          if (now - lastFpsUpdate >= 1000) {
+            currentFps = frameCount;
+            document.getElementById("fpsValue").textContent = currentFps;
+            frameCount = 0;
+            lastFpsUpdate = now;
+          }
+
+          animationFrame = requestAnimationFrame(update);
+        }
+
+        update();
+      }
+
+      function startAnimation() {
+        let offsetX = 0;
+        let offsetY = 0;
+        let dirX = 1;
+        let dirY = 1;
+
+        function animate() {
+          offsetX += dirX * 2;
+          offsetY += dirY * 2;
+
+          if (Math.abs(offsetX) > 200) dirX *= -1;
+          if (Math.abs(offsetY) > 200) dirY *= -1;
+
+          if (usePixi) {
+            pixiApp.stage.x = offsetX;
+            pixiApp.stage.y = offsetY;
+          } else {
+            canvas.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+          }
+
+          requestAnimationFrame(animate);
+        }
+
+        animate();
+      }
+
+      function toggleRenderer() {
+        usePixi = !usePixi;
+        document.getElementById("rendererName").textContent = usePixi
+          ? "Pixi.js (WebGL)"
+          : "DOM Cards";
+        document.getElementById("rendererName").style.color = usePixi
+          ? "#a78bfa"
+          : "#60a5fa";
+        document.getElementById("status").textContent =
+          `Switched to ${usePixi ? "Pixi.js" : "DOM"}. Click "Run" to test.`;
+        cleanupPixi();
+        canvas.innerHTML = "";
+      }
+
+      // Handle resize
+      window.addEventListener("resize", () => {
+        if (pixiApp) {
+          pixiApp.renderer.resize(window.innerWidth, window.innerHeight);
+        }
+      });
+    </script>
+  </body>
+</html>

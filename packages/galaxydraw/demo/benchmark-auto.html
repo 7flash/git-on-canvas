@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xydraw Benchmark — Auto Test</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #0a0a0f;
+        color: #22c55e;
+        padding: 20px;
+      }
+      #log {
+        white-space: pre-wrap;
+        line-height: 1.6;
+      }
+      .pass {
+        color: #22c55e;
+      }
+      .fail {
+        color: #ef4444;
+      }
+      .info {
+        color: #60a5fa;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 xydraw Automated Benchmark</h1>
+    <div id="log">Initializing...</div>
+    <script src="https://pixijs.download/v8.1.0/pixi.min.js"></script>
+    <script>
+      const log = document.getElementById("log");
+      const results = [];
+
+      function print(msg, type = "info") {
+        const span = document.createElement("div");
+        span.className = type;
+        span.textContent = msg;
+        log.appendChild(span);
+        console.log(msg);
+      }
+
+      async function testRenderer(name, renderFn, lineCount) {
+        const startTime = performance.now();
+        let frames = 0;
+        let fps = 0;
+        const testDuration = 3000; // 3 seconds
+
+        return new Promise((resolve) => {
+          let lastFpsCheck = startTime;
+
+          function animate() {
+            const now = performance.now();
+            frames++;
+
+            renderFn();
+
+            if (now - lastFpsCheck >= 1000) {
+              fps = frames;
+              frames = 0;
+              lastFpsCheck = now;
+            }
+
+            if (now - startTime >= testDuration) {
+              resolve(fps);
+            } else {
+              requestAnimationFrame(animate);
+            }
+          }
+
+          animate();
+        });
+      }
+
+      async function runTest(lineCount) {
+        print(`\n${"=".repeat(60)}`, "info");
+        print(`Testing with ${lineCount.toLocaleString()} lines`, "info");
+        print(`${"=".repeat(60)}`, "info");
+
+        // Generate test data
+        const lines = [];
+        const colors = ["#a78bfa", "#60a5fa", "#34d399", "#fbbf24", "#f472b6"];
+        for (let i = 0; i < lineCount; i++) {
+          lines.push({
+            x: Math.random() * 800,
+            y: (i * 20) % 600,
+            text: `Line ${i}: function test${i}() { return ${i}; }`,
+            color: colors[i % colors.length],
+          });
+        }
+
+        // Test Pixi.js
+        print("\n🎨 Testing Pixi.js (WebGL)...", "info");
+        const pixiContainer = document.createElement("div");
+        pixiContainer.style.cssText =
+          "position:absolute;left:-9999px;width:800px;height:600px;";
+        document.body.appendChild(pixiContainer);
+
+        const pixiApp = new PIXI.Application({
+          width: 800,
+          height: 600,
+          backgroundColor: 0x0f172a,
+        });
+        pixiContainer.appendChild(pixiApp.canvas);
+
+        const pixiTexts = [];
+        const style = new PIXI.TextStyle({
+          fontFamily: "monospace",
+          fontSize: 12,
+          fill: "#ffffff",
+        });
+        lines.forEach((line) => {
+          const text = new PIXI.Text(line.text, style);
+          text.x = line.x;
+          text.y = line.y;
+          pixiApp.stage.addChild(text);
+          pixiTexts.push(text);
+        });
+
+        const pixiFPS = await testRenderer(
+          "Pixi.js",
+          () => {
+            pixiTexts.forEach((t, i) => {
+              t.x = (t.x + 1) % 800;
+            });
+          },
+          lineCount,
+        );
+
+        pixiApp.destroy(true);
+        pixiContainer.remove();
+
+        print(`✅ Pixi.js: ${pixiFPS} FPS`, pixiFPS >= 50 ? "pass" : "fail");
+
+        // Test Canvas 2D
+        print("\n🖌️ Testing Canvas 2D...", "info");
+        const canvas = document.createElement("canvas");
+        canvas.width = 800;
+        canvas.height = 600;
+        canvas.style.cssText = "position:absolute;left:-9999px;";
+        document.body.appendChild(canvas);
+        const ctx = canvas.getContext("2d");
+
+        const canvas2dFPS = await testRenderer(
+          "Canvas 2D",
+          () => {
+            ctx.clearRect(0, 0, 800, 600);
+            lines.forEach((line, i) => {
+              line.x = (line.x + 1) % 800;
+              ctx.fillStyle = line.color;
+              ctx.font = "12px monospace";
+              ctx.fillText(line.text, line.x, line.y);
+            });
+          },
+          lineCount,
+        );
+
+        canvas.remove();
+
+        print(
+          `✅ Canvas 2D: ${canvas2dFPS} FPS`,
+          canvas2dFPS >= 50 ? "pass" : "fail",
+        );
+
+        // Compare
+        const improvement = (pixiFPS / canvas2dFPS - 1) * 100;
+        print(`\n📊 Results:`, "info");
+        print(`   Pixi.js:    ${pixiFPS} FPS`, pixiFPS >= 50 ? "pass" : "fail");
+        print(
+          `   Canvas 2D:  ${canvas2dFPS} FPS`,
+          canvas2dFPS >= 50 ? "pass" : "fail",
+        );
+
+        if (improvement > 0) {
+          print(`   → Pixi.js is ${improvement.toFixed(0)}% FASTER`, "pass");
+        } else {
+          print(
+            `   → Canvas 2D is ${Math.abs(improvement).toFixed(0)}% FASTER`,
+            "fail",
+          );
+        }
+
+        results.push({
+          lines: lineCount,
+          pixiFPS,
+          canvasFPS: canvas2dFPS,
+          improvement,
+        });
+
+        return { pixiFPS, canvas2dFPS, improvement };
+      }
+
+      async function runAllTests() {
+        print("Starting automated benchmark...\n", "info");
+
+        const testSizes = [1000, 5000, 10000, 20000, 50000];
+
+        for (const size of testSizes) {
+          await runTest(size);
+          await new Promise((r) => setTimeout(r, 500)); // Brief pause between tests
+        }
+
+        // Summary
+        print(`\n${"=".repeat(60)}`, "info");
+        print("📋 SUMMARY", "info");
+        print(`${"=".repeat(60)}`, "info");
+        print(`Lines     | Pixi.js | Canvas 2D | Improvement`, "info");
+        print(`${"-".repeat(50)}`, "info");
+
+        results.forEach((r) => {
+          const status =
+            r.improvement > 50 ? "✅ WebGL Recommended" : "⚠️ Marginal gain";
+          print(
+            `${r.lines.toLocaleString().padStart(9)} | ${String(r.pixiFPS).padStart(7)} | ${String(r.canvasFPS).padStart(9)} | ${r.improvement.toFixed(0).padStart(11)}% ${status}`,
+          );
+        });
+
+        const avgImprovement =
+          results.reduce((s, r) => s + r.improvement, 0) / results.length;
+        print(
+          `\nAverage improvement: ${avgImprovement.toFixed(0)}%`,
+          avgImprovement > 50 ? "pass" : "info",
+        );
+
+        if (avgImprovement > 50) {
+          print("\n✅ RECOMMENDATION: Migrate to Pixi.js (WebGL)", "pass");
+          print("   Performance gain justifies integration effort", "pass");
+        } else {
+          print("\n⚠️ RECOMMENDATION: Canvas 2D is sufficient for now", "info");
+          print(
+            "   WebGL migration can wait until larger scale needed",
+            "info",
+          );
+        }
+      }
+
+      window.addEventListener("load", runAllTests);
+    </script>
+  </body>
+</html>
