@@ -13,28 +13,32 @@
  */
 
 // ─── Core ────────────────────────────────────────────────
-export { GalaxyDraw } from './core/engine';
-export type { GalaxyDrawOptions, ControlMode } from './core/engine';
+export { GalaxyDraw } from "./core/engine";
+export type { GalaxyDrawOptions, ControlMode } from "./core/engine";
+
+// ─── WebGL Renderer ──────────────────────────────────────
+export { WebGLRenderer } from "./core/webgl-renderer";
+export type { WebGLRendererOptions, WebGLCard } from "./core/webgl-renderer";
 
 // ─── Canvas State ────────────────────────────────────────
-export { CanvasState } from './core/state';
-export type { CanvasStateSnapshot, ViewportRect } from './core/state';
+export { CanvasState } from "./core/state";
+export type { CanvasStateSnapshot, ViewportRect } from "./core/state";
 
 // ─── Cards ───────────────────────────────────────────────
-export { CardManager } from './core/cards';
-export type { CardOptions, CardData, CardPlugin } from './core/cards';
+export { CardManager } from "./core/cards";
+export type { CardOptions, CardData, CardPlugin } from "./core/cards";
 
 // ─── Viewport & Virtualization ───────────────────────────
-export { ViewportCuller } from './core/viewport';
-export type { CullResult } from './core/viewport';
+export { ViewportCuller } from "./core/viewport";
+export type { CullResult } from "./core/viewport";
 
 // ─── Layout ──────────────────────────────────────────────
-export { LayoutManager } from './core/layout';
-export type { LayoutData, LayoutProvider } from './core/layout';
+export { LayoutManager } from "./core/layout";
+export type { LayoutData, LayoutProvider } from "./core/layout";
 
 // ─── Minimap ─────────────────────────────────────────────
-export { Minimap } from './core/minimap';
+export { Minimap } from "./core/minimap";
 
 // ─── Events ──────────────────────────────────────────────
-export { EventBus } from './core/events';
-export type { GalaxyDrawEvent, EventHandler } from './core/events';
+export { EventBus } from "./core/events";
+export type { GalaxyDrawEvent, EventHandler } from "./core/events";
