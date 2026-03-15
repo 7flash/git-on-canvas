@@ -37,6 +37,7 @@ import { initLayoutSnapshots } from "./lib/layout-snapshots";
 import { initTutorial } from "./lib/tutorial";
 import { renderSyncControls } from "./lib/sync-controls";
 import { renderRoleBadge } from "./lib/role";
+import { createWebGLToggleUI } from "./lib/webgl-toggle";
 
 export default function mount(): () => void {
   // Stop any previous actor from a prior mount
@@ -101,6 +102,11 @@ export default function mount(): () => void {
 
       // Render role badge
       renderRoleBadge();
+
+      // Render WebGL toggle
+      const webglBtn = createWebGLToggleUI();
+      const toolbar = document.querySelector(".toolbar-right");
+      if (toolbar) toolbar.insertBefore(webglBtn, toolbar.firstChild);
 
       // Render sync controls (leader-only)
       renderSyncControls();
