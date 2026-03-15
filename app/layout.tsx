@@ -6,53 +6,103 @@
  */
 
 export default function RootLayout({ children }: { children: any }) {
-    return (
-        <html lang="en">
-            <head>
-                <meta charSet="UTF-8" />
-                <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-                <meta name="description" content="Transcend the file tree. GitMaps renders knowledge on an infinite canvas — with layers, time-travel, and a minimap to never lose context." />
-                <meta property="og:title" content="GitMaps — Spatial Code Explorer" />
-                <meta property="og:description" content="Every file in your repo. One infinite canvas. Layers, git time-travel, inline diffs." />
-                <meta property="og:image" content="https://gitmaps.xyz/api/og-image" />
-                <meta property="og:url" content="https://gitmaps.xyz" />
-                <meta name="twitter:card" content="summary_large_image" />
-                <meta name="twitter:image" content="https://gitmaps.xyz/api/og-image" />
-                <title>GitMaps — Spatial Code Explorer</title>
-                <link rel="icon" type="image/png" href="/api/pwa-icon" />
-                <link rel="manifest" href="/api/manifest.json" />
-                <meta name="theme-color" content="#7c3aed" />
-                <link
-                    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-                    rel="stylesheet"
-                />
-            </head>
-            <body>
-                {/* Mobile gate — canvas needs a real screen */}
-                <div id="mobileGate" style={{
-                    display: 'none',
-                    position: 'fixed', inset: 0, zIndex: 99999,
-                    background: '#0a0a1a', color: '#e2e8f0',
-                    flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                    padding: '2rem', textAlign: 'center', fontFamily: 'Inter, sans-serif', gap: '1rem'
-                }}>
-                    <div style={{ fontSize: '3rem' }}>🗺️</div>
-                    <h2 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>GitMaps needs a bigger screen</h2>
-                    <p style={{ margin: 0, color: '#94a3b8', maxWidth: '320px', lineHeight: 1.6 }}>
-                        The infinite canvas works best on desktop or tablet. Come back on a larger screen to explore your repos spatially.
-                    </p>
-                    <a href="https://gitmaps.xyz" style={{
-                        marginTop: '0.5rem', padding: '0.75rem 1.5rem',
-                        background: '#7c3aed', color: 'white', borderRadius: '8px',
-                        textDecoration: 'none', fontWeight: 500
-                    }}>Learn more</a>
-                    <button id="mobileGateDismiss" style={{
-                        background: 'none', border: '1px solid #334155', color: '#94a3b8',
-                        padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer', fontSize: '0.85rem'
-                    }}>Continue anyway →</button>
-                </div>
-                <script dangerouslySetInnerHTML={{
-                    __html: `
+  return (
+    <html lang="en">
+      <head>
+        <meta charSet="UTF-8" />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <meta
+          name="description"
+          content="Transcend the file tree. GitMaps renders knowledge on an infinite canvas — with layers, time-travel, and a minimap to never lose context."
+        />
+        <meta property="og:title" content="GitMaps — Spatial Code Explorer" />
+        <meta
+          property="og:description"
+          content="Every file in your repo. One infinite canvas. Layers, git time-travel, inline diffs."
+        />
+        <meta property="og:image" content="https://gitmaps.xyz/api/og-image" />
+        <meta property="og:url" content="https://gitmaps.xyz" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content="https://gitmaps.xyz/api/og-image" />
+        <title>GitMaps — Spatial Code Explorer</title>
+        <link rel="icon" type="image/png" href="/api/pwa-icon" />
+        <link rel="manifest" href="/api/manifest.json" />
+        <meta name="theme-color" content="#7c3aed" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        {/* Mobile gate — canvas needs a real screen */}
+        <div
+          id="mobileGate"
+          style={{
+            display: "none",
+            position: "fixed",
+            inset: 0,
+            zIndex: 99999,
+            background: "#0a0a1a",
+            color: "#e2e8f0",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "2rem",
+            textAlign: "center",
+            fontFamily: "Inter, sans-serif",
+            gap: "1rem",
+          }}
+        >
+          <div style={{ fontSize: "3rem" }}>🗺️</div>
+          <h2 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 600 }}>
+            GitMaps needs a bigger screen
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              color: "#94a3b8",
+              maxWidth: "320px",
+              lineHeight: 1.6,
+            }}
+          >
+            The infinite canvas works best on desktop or tablet. Come back on a
+            larger screen to explore your repos spatially.
+          </p>
+          <a
+            href="https://gitmaps.xyz"
+            style={{
+              marginTop: "0.5rem",
+              padding: "0.75rem 1.5rem",
+              background: "#7c3aed",
+              color: "white",
+              borderRadius: "8px",
+              textDecoration: "none",
+              fontWeight: 500,
+            }}
+          >
+            Learn more
+          </a>
+          <button
+            id="mobileGateDismiss"
+            style={{
+              background: "none",
+              border: "1px solid #334155",
+              color: "#94a3b8",
+              padding: "0.5rem 1rem",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "0.85rem",
+            }}
+          >
+            Continue anyway →
+          </button>
+        </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
                     (function() {
                         if (window.innerWidth < 768) {
                             var g = document.getElementById('mobileGate');
@@ -61,502 +111,1205 @@ export default function RootLayout({ children }: { children: any }) {
                             if (d) d.onclick = function() { g.style.display = 'none'; };
                         }
                     })();
-                `}} />
-                <div id="app">
-                    <nav className="sidebar">
-                        <div className="sidebar-header">
-                            <div className="logo">
-                                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <circle cx="12" cy="12" r="3" />
-                                    <circle cx="12" cy="4" r="1.5" />
-                                    <circle cx="12" cy="20" r="1.5" />
-                                    <circle cx="4" cy="8" r="1.5" />
-                                    <circle cx="20" cy="8" r="1.5" />
-                                    <circle cx="4" cy="16" r="1.5" />
-                                    <circle cx="20" cy="16" r="1.5" />
-                                    <path d="M12 7v2M12 15v2M8.5 9.5l-2.5-1M15.5 9.5l2.5-1M8.5 14.5l-2.5 1M15.5 14.5l2.5 1" />
-                                </svg>
-                                <span>GitMaps</span>
-                            </div>
-                        </div>
+                `,
+          }}
+        />
+        <div id="app">
+          <nav className="sidebar">
+            <div className="sidebar-header">
+              <div className="logo">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <circle cx="12" cy="12" r="3" />
+                  <circle cx="12" cy="4" r="1.5" />
+                  <circle cx="12" cy="20" r="1.5" />
+                  <circle cx="4" cy="8" r="1.5" />
+                  <circle cx="20" cy="8" r="1.5" />
+                  <circle cx="4" cy="16" r="1.5" />
+                  <circle cx="20" cy="16" r="1.5" />
+                  <path d="M12 7v2M12 15v2M8.5 9.5l-2.5-1M15.5 9.5l2.5-1M8.5 14.5l-2.5 1M15.5 14.5l2.5 1" />
+                </svg>
+                <span>GitMaps</span>
+              </div>
+            </div>
 
-                        <div className="repo-selector">
-                            <select id="repoSelect" className="repo-dropdown">
-                                <option value="">Select a repository...</option>
-                            </select>
-                            <input type="text" id="repoPath" style={{ display: 'none' }} />
-                            <input type="file" id="folderPickerInput" style={{ display: 'none' }} />
-                            <div className="clone-status" id="cloneStatus" style={{ display: 'none' }}></div>
+            <div className="repo-selector">
+              <select id="repoSelect" className="repo-dropdown">
+                <option value="">Select a repository...</option>
+              </select>
+              <input type="text" id="repoPath" style={{ display: "none" }} />
+              <input
+                type="file"
+                id="folderPickerInput"
+                style={{ display: "none" }}
+              />
+              <div
+                className="clone-status"
+                id="cloneStatus"
+                style={{ display: "none" }}
+              ></div>
 
-                            <button id="githubImportBtn" className="github-import-btn" title="Import from GitHub">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                                </svg>
-                                Import from GitHub
-                            </button>
-                        </div>
+              <button
+                id="githubImportBtn"
+                className="github-import-btn"
+                title="Import from GitHub"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="currentColor"
+                >
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                Import from GitHub
+              </button>
+            </div>
 
-                        <div id="repoTabs" style={{ display: 'none', gap: '6px', padding: '0 12px 8px', flexWrap: 'wrap' }}></div>
+            <div
+              id="repoTabs"
+              style={{
+                display: "none",
+                gap: "6px",
+                padding: "0 12px 8px",
+                flexWrap: "wrap",
+              }}
+            ></div>
 
-                        <div className="commit-timeline" id="commitTimeline">
-                            <div className="section-header">
-                                <span className="section-title">History</span>
-                                <span className="badge" id="commitCount">0</span>
-                            </div>
-                            <div className="timeline-container" id="timelineContainer">
-                                <div className="empty-state">
-                                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.3">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M12 6v6l4 2" />
-                                    </svg>
-                                    <p>Load a repository</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="sidebar-bottom">
-                            <div className="canvas-controls">
-                                <div className="control-row">
-                                    <button id="resetView" className="btn-ghost" title="Reset View">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                                            <path d="M3 3v5h5" />
-                                        </svg>
-                                    </button>
-                                    <button id="fitAll" className="btn-ghost" title="Fit All">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                                        </svg>
-                                    </button>
-                                    <div className="zoom-inline">
-                                        <input type="range" id="zoomSlider" min="0.1" max="3" step="0.1" defaultValue="1" />
-                                        <span id="zoomValue">100%</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="hotkey-toggle-wrapper">
-                                <button id="hotkeyToggle" className="btn-ghost hotkey-toggle" title="Keyboard shortcuts">
-                                    <span>?</span>
-                                </button>
-                                <div className="hotkey-popup" id="hotkeyPopup">
-                                    <div className="hotkey-popup-title">Keyboard Shortcuts</div>
-                                    <div className="hotkey-grid">
-                                        <div className="hk"><kbd>Scroll</kbd> Zoom</div>
-                                        <div className="hk"><kbd>Space+Drag</kbd> Pan</div>
-                                        <div className="hk"><kbd>Click</kbd> Select</div>
-                                        <div className="hk"><kbd>Shift+Click</kbd> Multi-select</div>
-                                        <div className="hk"><kbd>Drag canvas</kbd> Rect select</div>
-                                        <div className="hk"><kbd>Drag card</kbd> Move</div>
-                                        <div className="hk"><kbd>Del</kbd> Hide file</div>
-                                        <div className="hk"><kbd>H</kbd> Arrange row</div>
-                                        <div className="hk"><kbd>V</kbd> Arrange column</div>
-                                        <div className="hk"><kbd>G</kbd> Arrange grid</div>
-                                        <div className="hk"><kbd>W</kbd> Fit to screen</div>
-                                        <div className="hk"><kbd>Ctrl+F</kbd> Search across files</div>
-                                        <div className="hk"><kbd>Ctrl+O</kbd> Find file</div>
-                                        <div className="hk"><kbd>Ctrl +/-</kbd> Text zoom</div>
-                                        <div className="hk"><kbd>Dbl-click</kbd> Open editor</div>
-                                        <div className="hk"><kbd>Alt+Click</kbd> Connect lines</div>
-                                        <div className="hk"><kbd>Arrow keys</kbd> Prev/next commit</div>
-                                        <div className="hk"><kbd>Ctrl+N</kbd> New file</div>
-                                        <div className="hk"><kbd>Ctrl+S</kbd> Save (in editor)</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </nav>
-
-                    <main className="canvas-area">
-                        <div className="canvas-header">
-                            <div className="header-left">
-                                <div className="current-commit" id="currentCommitInfo">
-                                    <span className="commit-hash-label">No commit selected</span>
-                                </div>
-                            </div>
-                            <div className="header-right">
-                                <div className="arrange-toolbar" id="arrangeToolbar" style={{ display: 'none' }}>
-                                    <span className="arrange-label">Arrange:</span>
-                                    <button id="arrangeRow" className="btn-ghost btn-xs" title="Arrange in row (H)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect x="2" y="7" width="5" height="10" rx="1" />
-                                            <rect x="9.5" y="7" width="5" height="10" rx="1" />
-                                            <rect x="17" y="7" width="5" height="10" rx="1" />
-                                        </svg>
-                                    </button>
-                                    <button id="arrangeCol" className="btn-ghost btn-xs" title="Arrange in column (V)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect x="4" y="2" width="16" height="5" rx="1" />
-                                            <rect x="4" y="9.5" width="16" height="5" rx="1" />
-                                            <rect x="4" y="17" width="16" height="5" rx="1" />
-                                        </svg>
-                                    </button>
-                                    <button id="arrangeGrid" className="btn-ghost btn-xs" title="Arrange in grid (G)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect x="3" y="3" width="7" height="7" rx="1" />
-                                            <rect x="14" y="3" width="7" height="7" rx="1" />
-                                            <rect x="3" y="14" width="7" height="7" rx="1" />
-                                            <rect x="14" y="14" width="7" height="7" rx="1" />
-                                        </svg>
-                                    </button>
-                                    <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }}></div>
-                                    <button id="arrangeFit" className="btn-ghost btn-xs" title="Reset Size (W)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                                        </svg>
-                                    </button>
-                                    <button id="arrangeAI" className="btn-ghost btn-xs" title="Explain with AI...">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-                                            <path d="M11 2h2v4h-2zm0 16h2v4h-2zm11-7v2h-4v-2zm-16 0v2H2v-2zm12.3-5.3l1.4 1.4-2.8 2.8-1.4-1.4zm-9.8 9.8l1.4 1.4-2.8 2.8-1.4-1.4z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <button id="toggleChangedFiles" className="btn-ghost btn-sm" title="Show changed files">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
-                                        <polyline points="14 2 14 8 20 8" />
-                                    </svg>
-                                    <span id="fileCount">0</span>
-                                </button>
-                                <button id="showHidden" className="btn-ghost btn-sm" title="Show hidden files" style={{ display: 'none' }}>
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
-                                        <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-                                        <line x1="1" y1="1" x2="23" y2="23" />
-                                    </svg>
-                                    <span id="hiddenCount">0</span>
-                                </button>
-                                <button id="toggleConnections" className="btn-ghost btn-sm" title="Toggle connection lines">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                    </svg>
-                                </button>
-                                <button id="dep-graph-btn" className="btn-ghost btn-sm" title="Toggle dependency graph (Ctrl+G)">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="5" cy="5" r="2.5" /><circle cx="19" cy="5" r="2.5" />
-                                        <circle cx="12" cy="19" r="2.5" /><line x1="7" y1="6" x2="17" y2="6" />
-                                        <line x1="6" y1="7" x2="11" y2="17" /><line x1="18" y1="7" x2="13" y2="17" />
-                                    </svg>
-                                </button>
-                                <button id="toggleCanvasText" className="btn-ghost btn-sm" title="Toggle text rendering mode (DOM vs WebGL/Canvas)">
-                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <polyline points="4 7 4 4 20 4 20 7" />
-                                        <line x1="9" y1="20" x2="15" y2="20" />
-                                        <line x1="12" y1="4" x2="12" y2="20" />
-                                    </svg>
-                                </button>
-                                <button id="autoDetectImports" className="btn-ghost btn-sm" title="Auto-detect import connections">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4" />
-                                        <path d="M14 9l2 2-2 2" />
-                                    </svg>
-                                </button>
-                                <button id="shareLayout" className="btn-ghost btn-sm" title="Share Layout (Copy URL)">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="18" cy="5" r="3" />
-                                        <circle cx="6" cy="12" r="3" />
-                                        <circle cx="18" cy="19" r="3" />
-                                        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-                                        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-                                    </svg>
-                                </button>
-                                <button id="helpOnboarding" className="btn-ghost btn-sm" title="Replay Tutorial (?)">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                    </svg>
-                                </button>
-                                <button id="toggleControlMode" className="btn-ghost btn-sm" title="Toggle control mode: Simple (drag=pan) / Advanced (space+drag=pan)">
-                                    <svg id="controlModeIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        {/* Default: Advanced (crosshair) — gets swapped by JS */}
-                                        <circle cx="12" cy="12" r="10" />
-                                        <line x1="12" y1="2" x2="12" y2="6" />
-                                        <line x1="12" y1="18" x2="12" y2="22" />
-                                        <line x1="2" y1="12" x2="6" y2="12" />
-                                        <line x1="18" y1="12" x2="22" y2="12" />
-                                    </svg>
-                                </button>
-                                <button id="openSnapshots" className="btn-ghost btn-sm" title="Layout Snapshots">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                                        <circle cx="12" cy="13" r="4" />
-                                        <path d="M15 8h.01" />
-                                    </svg>
-                                </button>
-                                <button id="openGlobalSearch" className="btn-ghost btn-sm" title="Search Files (Ctrl+F)">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                    </svg>
-                                </button>
-                                <button id="openBranchCompare" className="btn-ghost btn-sm" title="Compare Branches">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" />
-                                        <path d="M13 6h3a2 2 0 0 1 2 2v7" />
-                                        <path d="M6 9v12" />
-                                    </svg>
-                                </button>
-                                <button id="openSettings" className="btn-ghost btn-sm" title="Settings">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <circle cx="12" cy="12" r="3" />
-                                        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-                                    </svg>
-                                </button>
-                                <button id="toggleCanvasChat" className="btn-ghost btn-sm ai-chat-btn" title="AI Chat">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
-                                    </svg>
-                                    AI
-                                </button>
-                            </div>
-                        </div>
-
-                        {children}
-
-                        {/* Changed Files Panel */}
-                        <div className="changed-files-panel" id="changedFilesPanel" style={{ display: 'none' }}>
-                            <div className="panel-header">
-                                <span className="panel-title">Changed Files</span>
-                                <button id="closeChangedFiles" className="btn-ghost btn-xs" title="Close">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div className="changed-files-list" id="changedFilesList"></div>
-                        </div>
-
-                        {/* Connections Panel */}
-                        <div className="connections-panel" id="connectionsPanel" style={{ display: 'none' }}>
-                            <div className="panel-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                                <span className="panel-title" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                    Connections <span id="connCount" style={{ marginLeft: '6px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem' }}>0</span>
-                                </span>
-                                <button id="closeConnectionsPanel" className="btn-ghost btn-xs" title="Close">
-                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                        <line x1="18" y1="6" x2="6" y2="18" />
-                                        <line x1="6" y1="6" x2="18" y2="18" />
-                                    </svg>
-                                </button>
-                            </div>
-                            <div style={{ padding: '8px 16px', fontSize: '0.75rem', color: 'var(--text-muted)', borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.2)' }}>
-                                💡 Tip: <strong>Alt+Click</strong> any line number then select a target to connect them.
-                            </div>
-                            <div className="connections-list" id="connectionsList" style={{ flex: 1, overflowY: 'auto' }}></div>
-                        </div>
-
-
-
-                        <div className="minimap-container">
-                            <div className="minimap" id="minimap">
-                                <div className="minimap-viewport" id="minimapViewport"></div>
-                            </div>
-                            <button id="expandMinimap" className="btn-ghost btn-xs minimap-expand" title="Expand minimap">
-                                <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="15 3 21 3 21 9" />
-                                    <polyline points="9 21 3 21 3 15" />
-                                    <line x1="21" y1="3" x2="14" y2="10" />
-                                    <line x1="3" y1="21" x2="10" y2="14" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Sticky Zoom Controls — floating pill, bottom-right */}
-                        <div id="stickyZoomControls" className="sticky-zoom-pill">
-                            <button id="stickyZoomOut" className="sz-btn" title="Zoom out">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                            </button>
-                            <input type="range" id="stickyZoomSlider" className="sz-slider" min="0.1" max="3" step="0.05" defaultValue="1" />
-                            <button id="stickyZoomIn" className="sz-btn" title="Zoom in">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <line x1="12" y1="5" x2="12" y2="19" />
-                                    <line x1="5" y1="12" x2="19" y2="12" />
-                                </svg>
-                            </button>
-                            <span id="stickyZoomValue" className="sz-value">100%</span>
-                            <div className="sz-divider" />
-                            <button id="stickyFitAll" className="sz-btn sz-fit" title="Fit all cards">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
-                                </svg>
-                            </button>
-                        </div>
-
-                        {/* Bottom Layers Bar */}
-                        <div id="layersBarContainer"></div>
-                    </main>
+            <div className="commit-timeline" id="commitTimeline">
+              <div className="section-header">
+                <span className="section-title">History</span>
+                <span className="badge" id="commitCount">
+                  0
+                </span>
+              </div>
+              <div className="timeline-container" id="timelineContainer">
+                <div className="empty-state">
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="24"
+                    height="24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    opacity="0.3"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                  <p>Load a repository</p>
                 </div>
+              </div>
+            </div>
 
-                {/* File Preview Modal */}
-                <div className="file-preview-modal" id="filePreviewModal">
-                    <div className="modal-backdrop"></div>
-                    <div className="modal-content">
-                        <div className="modal-header">
-                            <div className="modal-header-left">
-                                <span className="file-path" id="previewFilePath"></span>
-                                <span className="modal-line-count" id="previewLineCount"></span>
-                                <span className="modal-file-status" id="previewFileStatus"></span>
-                            </div>
-                            <div className="modal-header-right">
-                                <div className="modal-diff-nav" id="modalDiffNav" style={{ display: 'none', marginRight: '16px', gap: '4px', alignItems: 'center' }}>
-                                    <button className="btn-ghost btn-xs" id="diffNavPrev" title="Previous changed file (k)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-                                    </button>
-                                    <button className="btn-ghost btn-xs" id="diffNavNext" title="Next changed file (j)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-                                    </button>
-                                </div>
-                                <div className="modal-view-tabs" id="modalViewTabs">
-                                    <button className="modal-tab active" data-view="edit">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                        </svg>
-                                        Edit
-                                    </button>
-                                    <button className="modal-tab" data-view="diff">
-                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M12 3v18M3 12h18" />
-                                        </svg>
-                                        Diff
-                                    </button>
-                                </div>
-                                <span className="modal-save-status" id="modalSaveStatus" style={{ display: 'none' }}></span>
-                                <button className="btn-ghost btn-xs modal-outline-toggle" id="outlineToggle" title="Toggle symbol outline (Ctrl+Shift+O)">
-                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" />
-                                        <line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" />
-                                    </svg>
-                                </button>
-                                <button className="modal-close" id="closePreview">&times;</button>
-                            </div>
-                        </div>
-                        <div className="modal-body-wrapper">
-                            <pre className="modal-body" id="modalBodyPre"><code id="previewContent"></code></pre>
-                            <div className="modal-outline-panel" id="modalOutlinePanel" style={{ display: 'none' }}></div>
-                        </div>
-                        <div className="modal-blame-container" id="modalBlameContainer" style={{ display: 'none' }}></div>
-                        <div className="modal-chat-container" id="modalChatContainer" style={{ display: 'none' }}></div>
-                        <div className="modal-edit-container" id="modalEditContainer" style={{ display: 'none' }}>
-                            <textarea id="modalEditTextarea" className="modal-edit-textarea" spellCheck={false} autoComplete="off"></textarea>
-                            <div className="modal-edit-toolbar" id="modalEditToolbar">
-                                <span className="edit-line-info" id="editLineInfo">Line 1, Col 1</span>
-                                <div className="edit-toolbar-right">
-                                    <div className="edit-commit-section" id="editCommitSection" style={{ display: 'none' }}>
-                                        <input
-                                            type="text"
-                                            id="editCommitMsg"
-                                            className="edit-commit-input"
-                                            placeholder="Commit message..."
-                                            spellCheck={false}
-                                            autoComplete="off"
-                                        />
-                                        <button className="btn-ghost btn-sm edit-commit-btn" id="editCommitBtn" title="Commit this file">
-                                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <circle cx="12" cy="12" r="4" />
-                                                <line x1="1.05" y1="12" x2="7" y2="12" />
-                                                <line x1="17.01" y1="12" x2="22.96" y2="12" />
-                                            </svg>
-                                            Commit
-                                        </button>
-                                        <button className="btn-ghost btn-xs edit-commit-cancel" id="editCommitCancel" title="Cancel">
-                                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                                <line x1="18" y1="6" x2="6" y2="18" />
-                                                <line x1="6" y1="6" x2="18" y2="18" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                    <button className="btn-ghost btn-sm edit-save-btn" id="editSaveBtn" title="Save (Ctrl+S)">
-                                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
-                                            <polyline points="17 21 17 13 7 13 7 21" />
-                                            <polyline points="7 3 7 8 15 8" />
-                                        </svg>
-                                        Save
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+            <div
+              className="recent-commits"
+              id="recentCommits"
+              style={{
+                display: "none",
+                marginTop: "12px",
+                borderTop: "1px solid var(--border)",
+                paddingTop: "12px",
+              }}
+            >
+              <div className="section-header" style={{ marginBottom: "8px" }}>
+                <span className="section-title">Recent Commits</span>
+                <button
+                  id="pullBtn"
+                  className="btn-ghost btn-xs"
+                  title="Pull latest commits from remote"
+                  style={{ marginLeft: "auto" }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Pull
+                </button>
+              </div>
+              <div
+                id="recentCommitsList"
+                style={{ maxHeight: "200px", overflowY: "auto" }}
+              >
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                    padding: "8px 0",
+                  }}
+                >
+                  No recent commits
+                </div>
+              </div>
+            </div>
+
+            <div className="sidebar-bottom">
+              <div className="canvas-controls">
+                <div className="control-row">
+                  <button
+                    id="resetView"
+                    className="btn-ghost"
+                    title="Reset View"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                  </button>
+                  <button id="fitAll" className="btn-ghost" title="Fit All">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                    </svg>
+                  </button>
+                  <div className="zoom-inline">
+                    <input
+                      type="range"
+                      id="zoomSlider"
+                      min="0.1"
+                      max="3"
+                      step="0.1"
+                      defaultValue="1"
+                    />
+                    <span id="zoomValue">100%</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hotkey-toggle-wrapper">
+                <button
+                  id="hotkeyToggle"
+                  className="btn-ghost hotkey-toggle"
+                  title="Keyboard shortcuts"
+                >
+                  <span>?</span>
+                </button>
+                <div className="hotkey-popup" id="hotkeyPopup">
+                  <div className="hotkey-popup-title">Keyboard Shortcuts</div>
+                  <div className="hotkey-grid">
+                    <div className="hk">
+                      <kbd>Scroll</kbd> Zoom
                     </div>
-                </div>
-
-                {/* GitHub Import Modal */}
-                <div className="github-modal" id="githubModal">
-                    <div className="github-modal-backdrop"></div>
-                    <div className="github-modal-content">
-                        <div className="github-modal-header">
-                            <div className="github-modal-title">
-                                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" style={{ opacity: 0.7 }}>
-                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                                </svg>
-                                <span>Import from GitHub</span>
-                            </div>
-                            <button className="github-modal-close" id="githubModalClose">&times;</button>
-                        </div>
-                        <div className="github-search-row">
-                            <input
-                                type="text"
-                                id="githubUserInput"
-                                className="github-user-input"
-                                placeholder="Username, org, or paste a GitHub URL..."
-                                spellCheck={false}
-                                autoComplete="off"
-                            />
-                            <select id="githubSortSelect" className="github-sort-select">
-                                <option value="updated">Recently Updated</option>
-                                <option value="stars">Most Stars</option>
-                                <option value="name">Name A→Z</option>
-                            </select>
-                            <button id="githubSearchBtn" className="github-search-btn">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                    <circle cx="11" cy="11" r="8" />
-                                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                </svg>
-                                Search
-                            </button>
-                        </div>
-                        <div className="github-url-clone-row" id="githubUrlCloneRow" style={{ display: 'none' }}>
-                            <div className="github-url-detected">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                                </svg>
-                                <span id="githubDetectedUrl">URL detected</span>
-                            </div>
-                            <button id="githubUrlCloneBtn" className="github-clone-btn github-url-clone-btn">Clone &amp; Open</button>
-                        </div>
-                        <div className="github-filter-row" id="githubFilterRow" style={{ display: 'none' }}>
-                            <input
-                                type="text"
-                                id="githubRepoFilter"
-                                className="github-repo-filter"
-                                placeholder="Filter repos by name..."
-                                spellCheck={false}
-                                autoComplete="off"
-                            />
-                        </div>
-                        <div className="github-profile" id="githubProfile" style={{ display: 'none' }}></div>
-                        <div className="github-repos-grid" id="githubReposGrid">
-                            <div className="github-empty-state">
-                                <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.2">
-                                    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
-                                </svg>
-                                <p>Enter a GitHub username to browse their repositories</p>
-                            </div>
-                        </div>
-                        <div className="github-pagination" id="githubPagination" style={{ display: 'none' }}>
-                            <button id="githubPrevPage" className="github-page-btn" disabled>← Previous</button>
-                            <span id="githubPageInfo" className="github-page-info">Page 1</span>
-                            <button id="githubNextPage" className="github-page-btn">Next →</button>
-                        </div>
+                    <div className="hk">
+                      <kbd>Space+Drag</kbd> Pan
                     </div>
+                    <div className="hk">
+                      <kbd>Click</kbd> Select
+                    </div>
+                    <div className="hk">
+                      <kbd>Shift+Click</kbd> Multi-select
+                    </div>
+                    <div className="hk">
+                      <kbd>Drag canvas</kbd> Rect select
+                    </div>
+                    <div className="hk">
+                      <kbd>Drag card</kbd> Move
+                    </div>
+                    <div className="hk">
+                      <kbd>Del</kbd> Hide file
+                    </div>
+                    <div className="hk">
+                      <kbd>H</kbd> Arrange row
+                    </div>
+                    <div className="hk">
+                      <kbd>V</kbd> Arrange column
+                    </div>
+                    <div className="hk">
+                      <kbd>G</kbd> Arrange grid
+                    </div>
+                    <div className="hk">
+                      <kbd>W</kbd> Fit to screen
+                    </div>
+                    <div className="hk">
+                      <kbd>Ctrl+F</kbd> Search across files
+                    </div>
+                    <div className="hk">
+                      <kbd>Ctrl+O</kbd> Find file
+                    </div>
+                    <div className="hk">
+                      <kbd>Ctrl +/-</kbd> Text zoom
+                    </div>
+                    <div className="hk">
+                      <kbd>Dbl-click</kbd> Open editor
+                    </div>
+                    <div className="hk">
+                      <kbd>Alt+Click</kbd> Connect lines
+                    </div>
+                    <div className="hk">
+                      <kbd>Arrow keys</kbd> Prev/next commit
+                    </div>
+                    <div className="hk">
+                      <kbd>Ctrl+N</kbd> New file
+                    </div>
+                    <div className="hk">
+                      <kbd>Ctrl+S</kbd> Save (in editor)
+                    </div>
+                  </div>
                 </div>
-                <script dangerouslySetInnerHTML={{
-                    __html: `
+              </div>
+            </div>
+          </nav>
+
+          <main className="canvas-area">
+            <div className="canvas-header">
+              <div className="header-left">
+                <div className="current-commit" id="currentCommitInfo">
+                  <span className="commit-hash-label">No commit selected</span>
+                </div>
+              </div>
+              <div className="header-right">
+                <div
+                  className="arrange-toolbar"
+                  id="arrangeToolbar"
+                  style={{ display: "none" }}
+                >
+                  <span className="arrange-label">Arrange:</span>
+                  <button
+                    id="arrangeRow"
+                    className="btn-ghost btn-xs"
+                    title="Arrange in row (H)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="2" y="7" width="5" height="10" rx="1" />
+                      <rect x="9.5" y="7" width="5" height="10" rx="1" />
+                      <rect x="17" y="7" width="5" height="10" rx="1" />
+                    </svg>
+                  </button>
+                  <button
+                    id="arrangeCol"
+                    className="btn-ghost btn-xs"
+                    title="Arrange in column (V)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="4" y="2" width="16" height="5" rx="1" />
+                      <rect x="4" y="9.5" width="16" height="5" rx="1" />
+                      <rect x="4" y="17" width="16" height="5" rx="1" />
+                    </svg>
+                  </button>
+                  <button
+                    id="arrangeGrid"
+                    className="btn-ghost btn-xs"
+                    title="Arrange in grid (G)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <rect x="3" y="3" width="7" height="7" rx="1" />
+                      <rect x="14" y="3" width="7" height="7" rx="1" />
+                      <rect x="3" y="14" width="7" height="7" rx="1" />
+                      <rect x="14" y="14" width="7" height="7" rx="1" />
+                    </svg>
+                  </button>
+                  <div
+                    style={{
+                      width: 1,
+                      height: 16,
+                      background: "var(--border)",
+                      margin: "0 4px",
+                    }}
+                  ></div>
+                  <button
+                    id="arrangeFit"
+                    className="btn-ghost btn-xs"
+                    title="Reset Size (W)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                    </svg>
+                  </button>
+                  <button
+                    id="arrangeAI"
+                    className="btn-ghost btn-xs"
+                    title="Explain with AI..."
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="currentColor"
+                    >
+                      <path d="M11 2h2v4h-2zm0 16h2v4h-2zm11-7v2h-4v-2zm-16 0v2H2v-2zm12.3-5.3l1.4 1.4-2.8 2.8-1.4-1.4zm-9.8 9.8l1.4 1.4-2.8 2.8-1.4-1.4z" />
+                    </svg>
+                  </button>
+                </div>
+                <button
+                  id="toggleChangedFiles"
+                  className="btn-ghost btn-sm"
+                  title="Show changed files"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  <span id="fileCount">0</span>
+                </button>
+                <button
+                  id="showHidden"
+                  className="btn-ghost btn-sm"
+                  title="Show hidden files"
+                  style={{ display: "none" }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                  <span id="hiddenCount">0</span>
+                </button>
+                <button
+                  id="toggleConnections"
+                  className="btn-ghost btn-sm"
+                  title="Toggle connection lines"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                </button>
+                <button
+                  id="dep-graph-btn"
+                  className="btn-ghost btn-sm"
+                  title="Toggle dependency graph (Ctrl+G)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="5" cy="5" r="2.5" />
+                    <circle cx="19" cy="5" r="2.5" />
+                    <circle cx="12" cy="19" r="2.5" />
+                    <line x1="7" y1="6" x2="17" y2="6" />
+                    <line x1="6" y1="7" x2="11" y2="17" />
+                    <line x1="18" y1="7" x2="13" y2="17" />
+                  </svg>
+                </button>
+                <button
+                  id="toggleCanvasText"
+                  className="btn-ghost btn-sm"
+                  title="Toggle text rendering mode (DOM vs WebGL/Canvas)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="16"
+                    height="16"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <polyline points="4 7 4 4 20 4 20 7" />
+                    <line x1="9" y1="20" x2="15" y2="20" />
+                    <line x1="12" y1="4" x2="12" y2="20" />
+                  </svg>
+                </button>
+                <button
+                  id="autoDetectImports"
+                  className="btn-ghost btn-sm"
+                  title="Auto-detect import connections"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2v-4M9 21H5a2 2 0 01-2-2v-4" />
+                    <path d="M14 9l2 2-2 2" />
+                  </svg>
+                </button>
+                <button
+                  id="shareLayout"
+                  className="btn-ghost btn-sm"
+                  title="Share Layout (Copy URL)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="18" cy="5" r="3" />
+                    <circle cx="6" cy="12" r="3" />
+                    <circle cx="18" cy="19" r="3" />
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                  </svg>
+                </button>
+                <button
+                  id="helpOnboarding"
+                  className="btn-ghost btn-sm"
+                  title="Replay Tutorial (?)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                </button>
+                <button
+                  id="toggleControlMode"
+                  className="btn-ghost btn-sm"
+                  title="Toggle control mode: Simple (drag=pan) / Advanced (space+drag=pan)"
+                >
+                  <svg
+                    id="controlModeIcon"
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    {/* Default: Advanced (crosshair) — gets swapped by JS */}
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="2" x2="12" y2="6" />
+                    <line x1="12" y1="18" x2="12" y2="22" />
+                    <line x1="2" y1="12" x2="6" y2="12" />
+                    <line x1="18" y1="12" x2="22" y2="12" />
+                  </svg>
+                </button>
+                <button
+                  id="openSnapshots"
+                  className="btn-ghost btn-sm"
+                  title="Layout Snapshots"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <circle cx="12" cy="13" r="4" />
+                    <path d="M15 8h.01" />
+                  </svg>
+                </button>
+                <button
+                  id="openGlobalSearch"
+                  className="btn-ghost btn-sm"
+                  title="Search Files (Ctrl+F)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                </button>
+                <button
+                  id="openBranchCompare"
+                  className="btn-ghost btn-sm"
+                  title="Compare Branches"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="18" cy="18" r="3" />
+                    <circle cx="6" cy="6" r="3" />
+                    <path d="M13 6h3a2 2 0 0 1 2 2v7" />
+                    <path d="M6 9v12" />
+                  </svg>
+                </button>
+                <button
+                  id="openSettings"
+                  className="btn-ghost btn-sm"
+                  title="Settings"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                  </svg>
+                </button>
+                <button
+                  id="toggleCanvasChat"
+                  className="btn-ghost btn-sm ai-chat-btn"
+                  title="AI Chat"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                  </svg>
+                  AI
+                </button>
+              </div>
+            </div>
+
+            {children}
+
+            {/* Changed Files Panel */}
+            <div
+              className="changed-files-panel"
+              id="changedFilesPanel"
+              style={{ display: "none" }}
+            >
+              <div className="panel-header">
+                <span className="panel-title">Changed Files</span>
+                <button
+                  id="closeChangedFiles"
+                  className="btn-ghost btn-xs"
+                  title="Close"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div className="changed-files-list" id="changedFilesList"></div>
+            </div>
+
+            {/* Connections Panel */}
+            <div
+              className="connections-panel"
+              id="connectionsPanel"
+              style={{ display: "none" }}
+            >
+              <div
+                className="panel-header"
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  padding: "12px 16px",
+                  borderBottom: "1px solid var(--border)",
+                }}
+              >
+                <span
+                  className="panel-title"
+                  style={{
+                    fontSize: "0.85rem",
+                    fontWeight: 600,
+                    color: "var(--text-primary)",
+                  }}
+                >
+                  Connections{" "}
+                  <span
+                    id="connCount"
+                    style={{
+                      marginLeft: "6px",
+                      background: "rgba(255,255,255,0.1)",
+                      padding: "2px 8px",
+                      borderRadius: "12px",
+                      fontSize: "0.75rem",
+                    }}
+                  >
+                    0
+                  </span>
+                </span>
+                <button
+                  id="closeConnectionsPanel"
+                  className="btn-ghost btn-xs"
+                  title="Close"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="12"
+                    height="12"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+              <div
+                style={{
+                  padding: "8px 16px",
+                  fontSize: "0.75rem",
+                  color: "var(--text-muted)",
+                  borderBottom: "1px solid var(--border)",
+                  background: "rgba(0,0,0,0.2)",
+                }}
+              >
+                💡 Tip: <strong>Alt+Click</strong> any line number then select a
+                target to connect them.
+              </div>
+              <div
+                className="connections-list"
+                id="connectionsList"
+                style={{ flex: 1, overflowY: "auto" }}
+              ></div>
+            </div>
+
+            <div className="minimap-container">
+              <div className="minimap" id="minimap">
+                <div className="minimap-viewport" id="minimapViewport"></div>
+              </div>
+              <button
+                id="expandMinimap"
+                className="btn-ghost btn-xs minimap-expand"
+                title="Expand minimap"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="11"
+                  height="11"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <polyline points="15 3 21 3 21 9" />
+                  <polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" />
+                  <line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Sticky Zoom Controls — floating pill, bottom-right */}
+            <div id="stickyZoomControls" className="sticky-zoom-pill">
+              <button id="stickyZoomOut" className="sz-btn" title="Zoom out">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+              <input
+                type="range"
+                id="stickyZoomSlider"
+                className="sz-slider"
+                min="0.1"
+                max="3"
+                step="0.05"
+                defaultValue="1"
+              />
+              <button id="stickyZoomIn" className="sz-btn" title="Zoom in">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+              <span id="stickyZoomValue" className="sz-value">
+                100%
+              </span>
+              <div className="sz-divider" />
+              <button
+                id="stickyFitAll"
+                className="sz-btn sz-fit"
+                title="Fit all cards"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Bottom Layers Bar */}
+            <div id="layersBarContainer"></div>
+          </main>
+        </div>
+
+        {/* File Preview Modal */}
+        <div className="file-preview-modal" id="filePreviewModal">
+          <div className="modal-backdrop"></div>
+          <div className="modal-content">
+            <div className="modal-header">
+              <div className="modal-header-left">
+                <span className="file-path" id="previewFilePath"></span>
+                <span className="modal-line-count" id="previewLineCount"></span>
+                <span
+                  className="modal-file-status"
+                  id="previewFileStatus"
+                ></span>
+              </div>
+              <div className="modal-header-right">
+                <div
+                  className="modal-diff-nav"
+                  id="modalDiffNav"
+                  style={{
+                    display: "none",
+                    marginRight: "16px",
+                    gap: "4px",
+                    alignItems: "center",
+                  }}
+                >
+                  <button
+                    className="btn-ghost btn-xs"
+                    id="diffNavPrev"
+                    title="Previous changed file (k)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+                  <button
+                    className="btn-ghost btn-xs"
+                    id="diffNavNext"
+                    title="Next changed file (j)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                    >
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </div>
+                <div className="modal-view-tabs" id="modalViewTabs">
+                  <button className="modal-tab active" data-view="edit">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                    Edit
+                  </button>
+                  <button className="modal-tab" data-view="diff">
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="12"
+                      height="12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 3v18M3 12h18" />
+                    </svg>
+                    Diff
+                  </button>
+                </div>
+                <span
+                  className="modal-save-status"
+                  id="modalSaveStatus"
+                  style={{ display: "none" }}
+                ></span>
+                <button
+                  className="btn-ghost btn-xs modal-outline-toggle"
+                  id="outlineToggle"
+                  title="Toggle symbol outline (Ctrl+Shift+O)"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="14"
+                    height="14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <line x1="8" y1="6" x2="21" y2="6" />
+                    <line x1="8" y1="12" x2="21" y2="12" />
+                    <line x1="8" y1="18" x2="21" y2="18" />
+                    <line x1="3" y1="6" x2="3.01" y2="6" />
+                    <line x1="3" y1="12" x2="3.01" y2="12" />
+                    <line x1="3" y1="18" x2="3.01" y2="18" />
+                  </svg>
+                </button>
+                <button className="modal-close" id="closePreview">
+                  &times;
+                </button>
+              </div>
+            </div>
+            <div className="modal-body-wrapper">
+              <pre className="modal-body" id="modalBodyPre">
+                <code id="previewContent"></code>
+              </pre>
+              <div
+                className="modal-outline-panel"
+                id="modalOutlinePanel"
+                style={{ display: "none" }}
+              ></div>
+            </div>
+            <div
+              className="modal-blame-container"
+              id="modalBlameContainer"
+              style={{ display: "none" }}
+            ></div>
+            <div
+              className="modal-chat-container"
+              id="modalChatContainer"
+              style={{ display: "none" }}
+            ></div>
+            <div
+              className="modal-edit-container"
+              id="modalEditContainer"
+              style={{ display: "none" }}
+            >
+              <textarea
+                id="modalEditTextarea"
+                className="modal-edit-textarea"
+                spellCheck={false}
+                autoComplete="off"
+              ></textarea>
+              <div className="modal-edit-toolbar" id="modalEditToolbar">
+                <span className="edit-line-info" id="editLineInfo">
+                  Line 1, Col 1
+                </span>
+                <div className="edit-toolbar-right">
+                  <div
+                    className="edit-commit-section"
+                    id="editCommitSection"
+                    style={{ display: "none" }}
+                  >
+                    <input
+                      type="text"
+                      id="editCommitMsg"
+                      className="edit-commit-input"
+                      placeholder="Commit message..."
+                      spellCheck={false}
+                      autoComplete="off"
+                    />
+                    <button
+                      className="btn-ghost btn-sm edit-commit-btn"
+                      id="editCommitBtn"
+                      title="Commit this file"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="14"
+                        height="14"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                      >
+                        <circle cx="12" cy="12" r="4" />
+                        <line x1="1.05" y1="12" x2="7" y2="12" />
+                        <line x1="17.01" y1="12" x2="22.96" y2="12" />
+                      </svg>
+                      Commit
+                    </button>
+                    <button
+                      className="btn-ghost btn-xs edit-commit-cancel"
+                      id="editCommitCancel"
+                      title="Cancel"
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="12"
+                        height="12"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18" />
+                        <line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                  <button
+                    className="btn-ghost btn-sm edit-save-btn"
+                    id="editSaveBtn"
+                    title="Save (Ctrl+S)"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
+                      <polyline points="17 21 17 13 7 13 7 21" />
+                      <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* GitHub Import Modal */}
+        <div className="github-modal" id="githubModal">
+          <div className="github-modal-backdrop"></div>
+          <div className="github-modal-content">
+            <div className="github-modal-header">
+              <div className="github-modal-title">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="currentColor"
+                  style={{ opacity: 0.7 }}
+                >
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                <span>Import from GitHub</span>
+              </div>
+              <button className="github-modal-close" id="githubModalClose">
+                &times;
+              </button>
+            </div>
+            <div className="github-search-row">
+              <input
+                type="text"
+                id="githubUserInput"
+                className="github-user-input"
+                placeholder="Username, org, or paste a GitHub URL..."
+                spellCheck={false}
+                autoComplete="off"
+              />
+              <select id="githubSortSelect" className="github-sort-select">
+                <option value="updated">Recently Updated</option>
+                <option value="stars">Most Stars</option>
+                <option value="name">Name A→Z</option>
+              </select>
+              <button id="githubSearchBtn" className="github-search-btn">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
+                Search
+              </button>
+            </div>
+            <div
+              className="github-url-clone-row"
+              id="githubUrlCloneRow"
+              style={{ display: "none" }}
+            >
+              <div className="github-url-detected">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                </svg>
+                <span id="githubDetectedUrl">URL detected</span>
+              </div>
+              <button
+                id="githubUrlCloneBtn"
+                className="github-clone-btn github-url-clone-btn"
+              >
+                Clone &amp; Open
+              </button>
+            </div>
+            <div
+              className="github-filter-row"
+              id="githubFilterRow"
+              style={{ display: "none" }}
+            >
+              <input
+                type="text"
+                id="githubRepoFilter"
+                className="github-repo-filter"
+                placeholder="Filter repos by name..."
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </div>
+            <div
+              className="github-profile"
+              id="githubProfile"
+              style={{ display: "none" }}
+            ></div>
+            <div className="github-repos-grid" id="githubReposGrid">
+              <div className="github-empty-state">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="40"
+                  height="40"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  opacity="0.2"
+                >
+                  <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" />
+                </svg>
+                <p>Enter a GitHub username to browse their repositories</p>
+              </div>
+            </div>
+            <div
+              className="github-pagination"
+              id="githubPagination"
+              style={{ display: "none" }}
+            >
+              <button id="githubPrevPage" className="github-page-btn" disabled>
+                ← Previous
+              </button>
+              <span id="githubPageInfo" className="github-page-info">
+                Page 1
+              </span>
+              <button id="githubNextPage" className="github-page-btn">
+                Next →
+              </button>
+            </div>
+          </div>
+        </div>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.register('/api/sw.js', { scope: '/' })
                             .catch(function(e) { console.warn('[SW] Registration failed:', e); });
@@ -566,8 +1319,10 @@ export default function RootLayout({ children }: { children: any }) {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ path: location.pathname })
                     }).catch(function(){});
-                ` }} />
-            </body >
-        </html >
-    );
+                `,
+          }}
+        />
+      </body>
+    </html>
+  );
 }
