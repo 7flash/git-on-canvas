@@ -169,6 +169,7 @@ export default function mount(): () => void {
 
       // Check URL path for repo slug (e.g. /starwar or /galaxy-canvas/starwar)
       // Fallback: also check hash for legacy URLs (e.g. #starwar)
+      console.log('[URL Routing] Starting URL check, pathname:', window.location.pathname);
       const rawPath = decodeURIComponent(
         window.location.pathname.replace(/^\//, ""),
       );
