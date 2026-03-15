@@ -44,3 +44,48 @@ export function isFollower(): boolean {
 export function clearRoleCache() {
   _cachedRole = null;
 }
+
+export function renderRoleBadge(): void {
+  const existing = document.getElementById("roleBadge");
+  if (existing) existing.remove();
+
+  const role = detectRole();
+  const badge = document.createElement("div");
+  badge.id = "roleBadge";
+  badge.className = `role-badge role-badge--${role}`;
+
+  if (role === "leader") {
+    badge.innerHTML = `
+      <span class="role-badge-icon">👑</span>
+      <span class="role-badge-text">Leader</span>
+      <span class="role-badge-sub">Local Control</span>
+    `;
+    badge.title =
+      "You have full control - can move cards, edit files, and push to remote servers";
+  } else {
+    badge.innerHTML = `
+      <span class="role-badge-icon">👁️</span>
+      <span class="role-badge-text">Follower</span>
+      <span class="role-badge-sub">Read-Only</span>
+    `;
+    badge.title = "Read-only mode - Clone this repo to edit locally";
+
+    // Add click to show clone hint
+    badge.style.cursor = "pointer";
+    badge.addEventListener("click", () => {
+      const { showToast } = require("./utils");
+      showToast(
+        "Clone this repo locally to become a Leader and edit",
+        "info",
+        5000,
+      );
+    });
+  }
+
+  const toolbar =
+    document.querySelector(".toolbar-right") ||
+    document.querySelector(".status-bar");
+  if (toolbar) {
+    toolbar.insertBefore(badge, toolbar.firstChild);
+  }
+}

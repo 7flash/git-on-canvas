@@ -36,6 +36,7 @@ import { initStatusBar } from "./lib/status-bar";
 import { initLayoutSnapshots } from "./lib/layout-snapshots";
 import { initTutorial } from "./lib/tutorial";
 import { renderSyncControls } from "./lib/sync-controls";
+import { renderRoleBadge } from "./lib/role";
 
 export default function mount(): () => void {
   // Stop any previous actor from a prior mount
@@ -97,6 +98,9 @@ export default function mount(): () => void {
 
       // Init auth UI
       setupAuth();
+
+      // Render role badge
+      renderRoleBadge();
 
       // Render sync controls (leader-only)
       renderSyncControls();
