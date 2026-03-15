@@ -56,7 +56,7 @@ function _refreshRepoDropdown() {
         if (!repoPath) return;
         const opt = document.createElement('option');
         opt.value = repoPath;
-        opt.textContent = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+        opt.textContent = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repoPath;
         opt.title = repoPath;
         repoSel.add(opt);
     });
@@ -538,7 +538,7 @@ export function setupEventListeners(ctx: CanvasContext) {
                 const opt = document.createElement('option');
                 opt.value = repoPath;
                 // Show short name (last folder part) + full path
-                const shortName = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+                const shortName = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repoPath;
                 opt.textContent = shortName;
                 opt.title = repoPath;
                 repoSelect.add(opt);
@@ -599,7 +599,7 @@ export function setupEventListeners(ctx: CanvasContext) {
         if (!repoPath) return;
                             const opt = document.createElement('option');
                             opt.value = repoPath;
-                            opt.textContent = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+                            opt.textContent = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repoPath;
                             opt.title = repoPath;
                             repoSelect.add(opt);
                         });
