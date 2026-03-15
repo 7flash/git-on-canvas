@@ -51,11 +51,13 @@ function _refreshRepoDropdown() {
     if (!repoSel) return;
     const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
     while (repoSel.options.length > 1) repoSel.remove(1);
-    updatedRepos.forEach(repo => {
+    updatedRepos.forEach((repo: any) => {
+        const repoPath = typeof repo === "string" ? repo : repo.path || "";
+        if (!repoPath) return;
         const opt = document.createElement('option');
-        opt.value = repo;
-        opt.textContent = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
-        opt.title = repo;
+        opt.value = repoPath;
+        opt.textContent = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+        opt.title = repoPath;
         repoSel.add(opt);
     });
     const newOpt = document.createElement('option');
@@ -534,11 +536,11 @@ export function setupEventListeners(ctx: CanvasContext) {
             while (repoSelect.options.length > 1) repoSelect.remove(1);
             recentRepos.forEach(repo => {
                 const opt = document.createElement('option');
-                opt.value = repo;
+                opt.value = repoPath;
                 // Show short name (last folder part) + full path
                 const shortName = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
                 opt.textContent = shortName;
-                opt.title = repo;
+                opt.title = repoPath;
                 repoSelect.add(opt);
             });
             // "Open new repo..." option at the end
@@ -592,11 +594,13 @@ export function setupEventListeners(ctx: CanvasContext) {
                         // Re-populate dropdown options
                         const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
                         while (repoSelect.options.length > 1) repoSelect.remove(1);
-                        updatedRepos.forEach(repo => {
+                        updatedRepos.forEach((repo: any) => {
+        const repoPath = typeof repo === "string" ? repo : repo.path || "";
+        if (!repoPath) return;
                             const opt = document.createElement('option');
-                            opt.value = repo;
-                            opt.textContent = repo.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
-                            opt.title = repo;
+                            opt.value = repoPath;
+                            opt.textContent = repoPath.replace(/\\/g, '/').split('/').filter(Boolean).pop() || repo;
+                            opt.title = repoPath;
                             repoSelect.add(opt);
                         });
                         const newOptRefresh = document.createElement('option');
