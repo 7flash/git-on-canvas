@@ -219,6 +219,11 @@ export async function loadAllFiles(ctx: CanvasContext) {
       renderAllFilesOnCanvas(ctx, data.files);
       const fileCountEl = document.getElementById("fileCount");
       if (fileCountEl) fileCountEl.textContent = data.total;
+      // Auto-fit view after loading files
+      setTimeout(() => {
+        const { fitAllFiles } = require("./canvas");
+        fitAllFiles(ctx);
+      }, 100);
       // Process large files for virtual cards
       processVirtualFiles(ctx);
     } catch (err) {
