@@ -36,6 +36,7 @@ import { initStatusBar } from "./lib/status-bar";
 import { initLayoutSnapshots } from "./lib/layout-snapshots";
 import { initTutorial } from "./lib/tutorial";
 import { renderSyncControls } from "./lib/sync-controls";
+import { renderVersionBadge } from "./lib/version";
 import { renderRoleBadge } from "./lib/role";
 import { renderRecentCommitsUI, addRecentRepo } from "./lib/recent-commits";
 
@@ -105,6 +106,7 @@ export default function mount(): () => void {
 
       // Render sync controls (leader-only)
       renderSyncControls();
+      renderVersionBadge();
 
       // Render recent commits
       renderRecentCommitsUI();

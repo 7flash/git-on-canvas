@@ -1,19 +1,147 @@
-<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Stress Test</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,sans-serif;background:#0a0a0f;color:#e2e8f0;overflow:hidden}#ui{position:fixed;top:20px;left:20px;z-index:1000;background:rgba(30,41,59,0.95);border:1px solid #334155;border-radius:12px;padding:20px}h1{font-size:16px;margin-bottom:16px;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}.controls{display:flex;gap:8px;margin-bottom:16px}button{padding:8px 14px;border-radius:6px;border:none;font-size:11px;font-weight:600;cursor:pointer}.btn-primary{background:linear-gradient(135deg,#7c3aed,#3b82f6);color:white}.btn-secondary{background:#1e293b;color:#e2e8f0;border:1px solid #334155}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}.metric{background:#0f172a;padding:10px;border-radius:6px}.metric-label{font-size:9px;color:#64748b;text-transform:uppercase}.metric-value{font-size:20px;font-weight:700;color:#a78bfa;margin-top:4px}#container{width:100vw;height:100vh}#pixiContainer{display:none}.status{position:fixed;bottom:20px;left:20px;background:#1e293b;padding:12px 20px;border-radius:8px;font-size:12px;color:#94a3b8;border:1px solid #334155}</style>
-<script src="https://pixijs.download/v8.17.0/pixi.min.js"></script></head><body>
-<div id="ui"><h1>Stress Test - 1000 Cards x 50 Lines</h1>
-<div class="controls"><button class="btn-primary" onclick="runTest('dom')">DOM Test</button><button class="btn-secondary" onclick="runTest('webgl')">WebGL Test</button></div>
-<div class="metrics"><div class="metric"><div class="metric-label">FPS</div><div class="metric-value" id="fpsValue">--</div></div><div class="metric"><div class="metric-label">Cards</div><div class="metric-value" id="cardCount">1000</div></div></div>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Stress Test - 1000 Cards</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Inter,sans-serif;background:#0a0a0f;color:#e2e8f0;overflow:hidden}
+#ui{position:fixed;top:20px;left:20px;z-index:1000;background:rgba(30,41,59,0.95);border:1px solid #334155;border-radius:12px;padding:20px}
+h1{font-size:16px;margin-bottom:16px;background:linear-gradient(135deg,#a78bfa,#60a5fa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.controls{display:flex;gap:8px;margin-bottom:16px}
+button{padding:8px 14px;border-radius:6px;border:none;font-size:11px;font-weight:600;cursor:pointer}
+.btn-primary{background:linear-gradient(135deg,#7c3aed,#3b82f6);color:white}
+.btn-secondary{background:#1e293b;color:#e2e8f0;border:1px solid #334155}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.metric{background:#0f172a;padding:10px;border-radius:6px}
+.metric-label{font-size:9px;color:#64748b;text-transform:uppercase}
+.metric-value{font-size:20px;font-weight:700;color:#a78bfa;margin-top:4px}
+#container,#pixiContainer{width:100vw;height:100vh;position:absolute;top:0;left:0}
+#pixiContainer{display:none}
+.status{position:fixed;bottom:20px;left:20px;background:#1e293b;padding:12px 20px;border-radius:8px;font-size:12px;color:#94a3b8;border:1px solid #334155}
+</style>
+<script src="https://pixijs.download/v7.4.0/pixi.min.js"></script>
+</head>
+<body>
+<div id="ui">
+<h1>Stress Test - 1000 Cards x 50 Lines</h1>
+<div class="controls">
+<button class="btn-primary" id="domBtn">DOM Test</button>
+<button class="btn-secondary" id="webglBtn">WebGL Test</button>
+</div>
+<div class="metrics">
+<div class="metric"><div class="metric-label">FPS</div><div class="metric-value" id="fpsValue">--</div></div>
+<div class="metric"><div class="metric-label">Cards</div><div class="metric-value" id="cardCount">1000</div></div>
+</div>
 <div style="margin-top:12px;font-size:10px;color:#64748b;">Renderer: <strong id="rendererName" style="color:#60a5fa;">DOM</strong></div>
-<div style="margin-top:10px;font-size:10px;color:#94a3b8;">Total: 50,000+ lines</div></div>
-<div id="container"></div><div id="pixiContainer"></div><div class="status" id="status">Ready</div>
+<div style="margin-top:10px;font-size:10px;color:#94a3b8;">Total: 50,000+ lines</div>
+</div>
+<div id="container"></div>
+<div id="pixiContainer"></div>
+<div class="status" id="status">Ready</div>
 <script>
 var CODE='export async function main(){const config=await loadConfig();const database=await connectDatabase(config.db);const cache=new RedisCache(config.redis);try{const users=await database.query("SELECT * FROM users");for(const user of users){const profile=await fetchUserProfile(user.id);const settings=await loadUserSettings(user.id);const preferences=await getUserPreferences(user.id);await cache.set("user:"+user.id,{profile,settings,preferences});console.log("Loaded user "+user.id);}return{success:true,count:users.length};}catch(error){console.error("Failed:",error);throw error;}finally{await database.disconnect();}}';
 var frameCount=0,lastFpsUpdate=performance.now(),animationFrame=null,pixiApp=null,pixiCards=[];
-function generateCards(c){var lines=CODE.split('\n'),cards=[];for(var i=0;i<c;i++){cards.push({id:i,name:'file_'+i+'.tsx',color:['#3178c6','#61dafb','#f1e05a'][i%3],code:lines,changes:{added:[0,5,10],deleted:[2,7]},x:(i%40)*450+50,y:Math.floor(i/40)*900+50,width:430,height:880});}return cards;}
-function createDOMCard(c){var el=document.createElement('div');el.style.cssText='position:absolute;left:'+c.x+'px;top:'+c.y+'px;width:'+c.width+'px;height:'+c.height+'px;background:#1e293b;border:1px solid #334155;border-radius:8px;overflow:hidden;';var html=c.code.map(function(l,i){var col='#94a3b8',bg='transparent';if(c.changes.added.includes(i)){col='#22c55e';bg='rgba(34,197,94,0.1)';}else if(c.changes.deleted.includes(i)){col='#ef4444';bg='rgba(239,68,68,0.1)';}return'<div style="color:'+col+';background:'+bg+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace;font-size:10px;line-height:1.6;">'+l+'</div>';}).join('');el.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0f172a;border-bottom:1px solid #334155;font-size:11px;font-weight:600;"><div style="width:14px;height:14px;border-radius:2px;background:'+c.color+'"></div><span>'+c.name+'</span></div><div style="padding:12px;">'+html+'</div>';return el;}
-function createPixiCard(c){var container=new PIXI.Container();container.x=c.x;container.y=c.y;var bg=new PIXI.Graphics();bg.beginFill(0x1e293b);bg.lineStyle(1,0x334155);bg.drawRoundedRect(0,0,c.width,c.height,8);bg.endFill();container.addChild(bg);var header=new PIXI.Graphics();header.beginFill(0x0f172a);header.drawRect(0,0,c.width,32);header.endFill();container.addChild(header);var nameText=new PIXI.Text(c.name,{fontFamily:'Inter',fontSize:11,fontWeight:'600',fill:0xe2e8f0});nameText.x=32;nameText.y=10;container.addChild(nameText);c.code.forEach(function(l,i){var col=0x94a3b8;if(c.changes.added.includes(i))col=0x22c55e;else if(c.changes.deleted.includes(i))col=0xef4444;var lt=new PIXI.Text(l.substring(0,60),{fontFamily:'JetBrains Mono',fontSize:10,fill:col});lt.x=12;lt.y=44+(i*16);container.addChild(lt);});return container;}
-function runTest(r){var count=1000;document.getElementById('cardCount').textContent=count;document.getElementById('rendererName').textContent=r==='dom'?'DOM':'Pixi.js (WebGL)';document.getElementById('rendererName').style.color=r==='dom'?'#60a5fa':'#a78bfa';document.getElementById('container').innerHTML='';if(pixiApp){pixiApp.destroy(true);pixiApp=null;}pixiCards=[];var cards=generateCards(count);document.getElementById('status').textContent='Creating '+count+' cards...';if(r==='dom'){document.getElementById('pixiContainer').style.display='none';document.getElementById('container').style.display='block';cards.forEach(function(c){document.getElementById('container').appendChild(createDOMCard(c));});document.getElementById('status').textContent='DOM: '+count+' cards running...';}else{document.getElementById('container').style.display='none';document.getElementById('pixiContainer').style.display='block';pixiApp=new PIXI.Application({width:window.innerWidth,height:window.innerHeight,backgroundColor:0x0a0a0f,antialias:false});document.getElementById('pixiContainer').appendChild(pixiApp.canvas);cards.forEach(function(c){var pc=createPixiCard(c);pixiApp.stage.addChild(pc);pixiCards.push(pc);});document.getElementById('status').textContent='WebGL: '+count+' cards running...';}startFpsCounter();}
-function startFpsCounter(){if(animationFrame)cancelAnimationFrame(animationFrame);function update(){frameCount++;var now=performance.now();if(now-lastFpsUpdate>=1000){document.getElementById('fpsValue').textContent=frameCount;frameCount=0;lastFpsUpdate=now;}animationFrame=requestAnimationFrame(update);}update();}
+
+function generateCards(c){
+var lines=CODE.split('\n'),cards=[];
+for(var i=0;i<c;i++){
+cards.push({id:i,name:'file_'+i+'.tsx',color:['#3178c6','#61dafb','#f1e05a'][i%3],code:lines,changes:{added:[0,5,10],deleted:[2,7]},x:(i%40)*450+50,y:Math.floor(i/40)*900+50,width:430,height:880});
+}
+return cards;
+}
+
+function createDOMCard(c){
+var el=document.createElement('div');
+el.style.cssText='position:absolute;left:'+c.x+'px;top:'+c.y+'px;width:'+c.width+'px;height:'+c.height+'px;background:#1e293b;border:1px solid #334155;border-radius:8px;overflow:hidden;';
+var html=c.code.map(function(l,i){
+var col='#94a3b8',bg='transparent';
+if(c.changes.added.includes(i)){col='#22c55e';bg='rgba(34,197,94,0.1)';}
+else if(c.changes.deleted.includes(i)){col='#ef4444';bg='rgba(239,68,68,0.1)';}
+return'<div style="color:'+col+';background:'+bg+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:monospace;font-size:10px;line-height:1.6;">'+l+'</div>';
+}).join('');
+el.innerHTML='<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0f172a;border-bottom:1px solid #334155;font-size:11px;font-weight:600;"><div style="width:14px;height:14px;border-radius:2px;background:'+c.color+'"></div><span>'+c.name+'</span></div><div style="padding:12px;">'+html+'</div>';
+return el;
+}
+
+function createPixiCard(c){
+var container=new PIXI.Container();
+container.x=c.x;container.y=c.y;
+var bg=new PIXI.Graphics();
+bg.beginFill(0x1e293b);
+bg.lineStyle(1,0x334155);
+bg.drawRoundedRect(0,0,c.width,c.height,8);
+bg.endFill();
+container.addChild(bg);
+var header=new PIXI.Graphics();
+header.beginFill(0x0f172a);
+header.drawRect(0,0,c.width,32);
+header.endFill();
+container.addChild(header);
+var nameText=new PIXI.Text(c.name,{fontFamily:'Inter',fontSize:11,fontWeight:'600',fill:0xe2e8f0});
+nameText.x=32;nameText.y=10;
+container.addChild(nameText);
+c.code.forEach(function(l,i){
+var col=0x94a3b8;
+if(c.changes.added.includes(i))col=0x22c55e;
+else if(c.changes.deleted.includes(i))col=0xef4444;
+var lt=new PIXI.Text(l.substring(0,60),{fontFamily:'monospace',fontSize:10,fill:col});
+lt.x=12;lt.y=44+(i*16);
+container.addChild(lt);
+});
+return container;
+}
+
+function runTest(r){
+var count=1000;
+document.getElementById('cardCount').textContent=count;
+document.getElementById('rendererName').textContent=r==='dom'?'DOM':'Pixi.js (WebGL)';
+document.getElementById('rendererName').style.color=r==='dom'?'#60a5fa':'#a78bfa';
+document.getElementById('container').innerHTML='';
+if(pixiApp){pixiApp.destroy(true);pixiApp=null;}
+pixiCards=[];
+var cards=generateCards(count);
+document.getElementById('status').textContent='Creating '+count+' cards...';
+
+if(r==='dom'){
+document.getElementById('pixiContainer').style.display='none';
+document.getElementById('container').style.display='block';
+cards.forEach(function(c){document.getElementById('container').appendChild(createDOMCard(c));});
+document.getElementById('status').textContent='DOM: '+count+' cards (50,000 lines) running...';
+}else{
+document.getElementById('container').style.display='none';
+document.getElementById('pixiContainer').style.display='block';
+pixiApp=new PIXI.Application({
+width:window.innerWidth,
+height:window.innerHeight,
+backgroundColor:0x0a0a0f,
+antialias:false,
+autoDensity:true
+});
+document.getElementById('pixiContainer').appendChild(pixiApp.canvas);
+cards.forEach(function(c){var pc=createPixiCard(c);pixiApp.stage.addChild(pc);pixiCards.push(pc);});
+document.getElementById('status').textContent='WebGL: '+count+' cards (50,000 lines) running...';
+}
+startFpsCounter();
+}
+
+function startFpsCounter(){
+if(animationFrame)cancelAnimationFrame(animationFrame);
+function update(){
+frameCount++;
+var now=performance.now();
+if(now-lastFpsUpdate>=1000){
+document.getElementById('fpsValue').textContent=frameCount;
+frameCount=0;lastFpsUpdate=now;
+}
+animationFrame=requestAnimationFrame(update);
+}
+update();
+}
+
+document.getElementById('domBtn').onclick=function(){runTest('dom');};
+document.getElementById('webglBtn').onclick=function(){runTest('webgl');};
 window.addEventListener('resize',function(){if(pixiApp)pixiApp.renderer.resize(window.innerWidth,window.innerHeight);});
-</script></body></html>
+</script>
+</body>
+</html>
