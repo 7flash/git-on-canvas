@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitMaps WebGL Demo — 1000+ Cards at 60fps</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0a0f;
+            color: #e2e8f0;
+            overflow: hidden;
+        }
+        #ui {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 20px;
+            backdrop-filter: blur(8px);
+            min-width: 280px;
+        }
+        h1 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #a78bfa, #60a5fa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        button {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #7c3aed, #3b82f6);
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.4);
+        }
+        .btn-secondary {
+            background: #1e293b;
+            color: #e2e8f0;
+            border: 1px solid #334155;
+        }
+        .btn-secondary:hover {
+            background: #334155;
+        }
+        .metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .metric {
+            background: #0f172a;
+            padding: 10px;
+            border-radius: 6px;
+        }
+        .metric-label {
+            font-size: 9px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #a78bfa;
+            margin-top: 4px;
+        }
+        .status {
+            margin-top: 12px;
+            font-size: 10px;
+            color: #94a3b8;
+        }
+        #container {
+            width: 100vw;
+            height: 100vh;
+        }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 9px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .badge-dom {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+            border: 1px solid #3b82f6;
+        }
+        .badge-webgl {
+            background: rgba(124, 58, 237, 0.2);
+            color: #a78bfa;
+            border: 1px solid #7c3aed;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <h1>
+            🚀 GitMaps WebGL Demo
+            <span class="badge badge-webgl">WebGL</span>
+            <span class="badge badge-dom">DOM</span>
+        </h1>
+        <div class="controls">
+            <button class="btn-primary" id="domBtn">DOM Test</button>
+            <button class="btn-secondary" id="webglBtn">WebGL Test</button>
+        </div>
+        <div class="metrics">
+            <div class="metric">
+                <div class="metric-label">FPS</div>
+                <div class="metric-value" id="fpsValue">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Cards</div>
+                <div class="metric-value" id="cardCount">1000</div>
+            </div>
+        </div>
+        <div class="status" id="status">
+            Select renderer and click to test performance
+        </div>
+    </div>
+
+    <div id="container"></div>
+
+    <script src="https://pixijs.download/v8.17.0/pixi.min.js"></script>
+    <script type="module">
+        import { WebGLRenderer } from '../src/webgl-renderer.ts';
+
+        let currentRenderer = 'dom';
+        let pixiRenderer = null;
+        let domCards = [];
+        let frameCount = 0;
+        let lastFpsUpdate = performance.now();
+        let animationFrame = null;
+
+        // Generate realistic card data
+        function generateCards(count) {
+            const CODE = `export async function main() {
+  const config = await loadConfig();
+  const database = await connectDatabase(config.db);
+  const cache = new RedisCache(config.redis);
+  try {
+    const users = await database.query('SELECT * FROM users');
+    for (const user of users) {
+      const profile = await fetchUserProfile(user.id);
+      const settings = await loadUserSettings(user.id);
+      const preferences = await getUserPreferences(user.id);
+      await cache.set("user:" + user.id, { profile, settings, preferences });
+      console.log("Loaded user " + user.id);
+    }
+    return { success: true, count: users.length };
+  } catch (error) {
+    console.error("Failed:", error);
+    throw error;
+  } finally {
+    await database.disconnect();
+  }
+}`;
+            const lines = CODE.split('\n');
+            
+            return Array.from({ length: count }, (_, i) => ({
+                id: `card-${i}`,
+                name: `file_${i}.tsx`,
+                x: (i % 40) * 450 + 50,
+                y: Math.floor(i / 40) * 900 + 50,
+                width: 430,
+                height: 880,
+                codeLines: lines.map((line, j) => ({
+                    type: j % 5 === 0 ? 'add' : j % 7 === 0 ? 'del' : 'normal',
+                    content: line
+                }))
+            }));
+        }
+
+        // DOM rendering
+        function createDOMCard(card) {
+            const el = document.createElement('div');
+            el.style.cssText = `
+                position: absolute;
+                left: ${card.x}px;
+                top: ${card.y}px;
+                width: ${card.width}px;
+                height: ${card.height}px;
+                background: #1e293b;
+                border: 1px solid #334155;
+                border-radius: 8px;
+                overflow: hidden;
+            `;
+            
+            const codeHTML = card.codeLines.slice(0, 40).map((line, i) => {
+                let color = '#94a3b8';
+                let bg = 'transparent';
+                if (line.type === 'add') { color = '#22c55e'; bg = 'rgba(34,197,94,0.1)'; }
+                else if (line.type === 'del') { color = '#ef4444'; bg = 'rgba(239,68,68,0.1)'; }
+                return `<div style="color:${color};background:${bg};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.6;padding:0 12px;">${line.content}</div>`;
+            }).join('');
+            
+            el.innerHTML = `
+                <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:#0f172a;border-bottom:1px solid #334155;font-size:11px;font-weight:600;">
+                    <div style="width:14px;height:14px;border-radius:2px;background:#60a5fa"></div>
+                    <span>${card.name}</span>
+                </div>
+                <div style="padding:12px;">${codeHTML}</div>
+            `;
+            
+            return el;
+        }
+
+        function runTest(renderer) {
+            const count = 1000;
+            document.getElementById('cardCount').textContent = count;
+            document.getElementById('status').textContent = `Creating ${count} cards with ${renderer.toUpperCase()}...`;
+            
+            const container = document.getElementById('container');
+            container.innerHTML = '';
+            
+            if (pixiRenderer) {
+                pixiRenderer.destroy();
+                pixiRenderer = null;
+            }
+            
+            const cards = generateCards(count);
+            
+            if
