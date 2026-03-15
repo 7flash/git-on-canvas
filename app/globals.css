@@ -3375,6 +3375,157 @@ body {
 }
 
 /* ─── Hidden Files Modal ─────────────────────────── */
+
+/* ─── Sync Controls ───────────────────────────────── */
+.sync-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  border: 1px solid var(--border-primary);
+  font-size: 12px;
+}
+
+.sync-controls-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sync-server-select {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-server-select label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.sync-server-select select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  max-width: 180px;
+}
+
+.sync-btn-icon {
+  background: var(--accent-primary);
+  border: none;
+  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  color: white;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.sync-btn-icon:hover {
+  background: var(--accent-secondary);
+}
+
+.sync-auto-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sync-auto-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.sync-auto-toggle label {
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.sync-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.sync-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sync-btn-push {
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+}
+
+.sync-btn-push:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+.sync-btn-pull {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+}
+
+.sync-btn-pull:hover:not(:disabled) {
+  background: var(--bg-card);
+}
+
+.sync-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sync-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border-primary);
+}
+
+.sync-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.sync-status-dot.synced {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.sync-status-text {
+  color: var(--text-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
 .hidden-files-modal {
   position: fixed;
   inset: 0;

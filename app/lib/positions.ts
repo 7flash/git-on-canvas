@@ -108,7 +108,7 @@ export function flushPositions(ctx: CanvasContext) {
       if (key) localStorage.setItem(key, JSON.stringify(obj));
     } catch {}
 
-    // Sync to server (async, fire-and-forget)
+    // Sync to local server (async, fire-and-forget)
     fetch("/api/auth/positions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -116,6 +116,18 @@ export function flushPositions(ctx: CanvasContext) {
     }).catch(() => {
       /* silent — localStorage is the safety net */
     });
+
+    // Auto-sync to remote server if enabled
+    try {
+      const { isAutoSyncEnabled, pushToServer } = require("./sync-controls");
+      if (isAutoSyncEnabled()) {
+        pushToServer(repoPath, obj).catch(() => {
+          /* silent */
+        });
+      }
+    } catch {
+      /* sync-controls not loaded or auto-sync disabled */
+    }
   }
   // Follower: No saves allowed (read-only)
 }
