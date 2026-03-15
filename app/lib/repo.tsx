@@ -18,7 +18,6 @@ import { performViewportCulling } from "./viewport-culling";
 import { getPositionKey, loadSavedPositions } from "./positions";
 import { updateHiddenUI } from "./hidden-files";
 import {
-import { renderAllFilesProgressive } from "./repo-progressive";
   showLoadingProgress,
   updateLoadingProgress,
   hideLoadingProgress,

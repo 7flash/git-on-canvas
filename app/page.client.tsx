@@ -18,7 +18,6 @@ import { setupCanvasInteraction, setupEventListeners } from "./lib/events";
 import { loadConnections } from "./lib/connections";
 import {
   clearCanvas,
-      import("./lib/url-debug").then(m => m.debugURLLoad());
   updateCanvasTransform,
   updateZoomUI,
   restoreViewport,
