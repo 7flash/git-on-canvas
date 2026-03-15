@@ -52,7 +52,15 @@ function _refreshRepoDropdown() {
     const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
     while (repoSel.options.length > 1) repoSel.remove(1);
     updatedRepos.forEach((repo: any) => {
-        const repoPath = typeof repo === "string" ? repo : repo.path || "";
+        // Handle strings, objects with path property, or skip invalid entries
+        let repoPath = "";
+        if (typeof repo === "string") {
+            repoPath = repo;
+        } else if (repo && typeof repo.path === "string") {
+            repoPath = repo.path;
+        } else {
+            return; // Skip invalid entries
+        }
         if (!repoPath) return;
         const opt = document.createElement('option');
         opt.value = repoPath;
