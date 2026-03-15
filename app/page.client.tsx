@@ -37,6 +37,7 @@ import { initLayoutSnapshots } from "./lib/layout-snapshots";
 import { initTutorial } from "./lib/tutorial";
 import { renderSyncControls } from "./lib/sync-controls";
 import { renderRoleBadge } from "./lib/role";
+import { renderRecentCommitsUI, addRecentRepo } from "./lib/recent-commits";
 
 export default function mount(): () => void {
   // Stop any previous actor from a prior mount
@@ -104,6 +105,9 @@ export default function mount(): () => void {
 
       // Render sync controls (leader-only)
       renderSyncControls();
+
+      // Render recent commits
+      renderRecentCommitsUI();
 
       // Store context globally for sync controls
       (window as any).__GITCANVAS_CTX__ = ctx;

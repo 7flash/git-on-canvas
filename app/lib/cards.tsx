@@ -167,8 +167,14 @@ export function setupCardInteraction(
   commitHash: string,
 ) {
   // Follower mode: read-only, no drag/edit
-  if (isFollower()) {
+  const role = detectRole();
+  console.log(
+    `[cards] setupCardInteraction: ${role} mode for ${card.dataset.path}`,
+  );
+
+  if (role === "follower") {
     card.style.cursor = "default";
+    card.style.pointerEvents = "auto";
     card.addEventListener("click", (e) => {
       // Click to select is still allowed
       const filePath = card.dataset.path || "";
@@ -177,6 +183,11 @@ export function setupCardInteraction(
         path: filePath,
         shift: e.shiftKey || e.ctrlKey,
       });
+    });
+    // Block drag by preventing mousedown
+    card.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
     });
     return;
   }
