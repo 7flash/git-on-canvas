@@ -18,6 +18,7 @@ import { performViewportCulling } from "./viewport-culling";
 import { getPositionKey, loadSavedPositions } from "./positions";
 import { updateHiddenUI } from "./hidden-files";
 import {
+import { processFileForVirtualCards } from "./virtual-files";
   showLoadingProgress,
   updateLoadingProgress,
   hideLoadingProgress,
@@ -218,6 +219,8 @@ export async function loadAllFiles(ctx: CanvasContext) {
       renderAllFilesOnCanvas(ctx, data.files);
       const fileCountEl = document.getElementById("fileCount");
       if (fileCountEl) fileCountEl.textContent = data.total;
+      // Process large files for virtual cards
+      processVirtualFiles(ctx);
     } catch (err) {
       measure("allfiles:loadError", () => err);
       showToast(`Failed to load files: ${err.message} `, "error");
@@ -1214,5 +1217,44 @@ export function populateChangedFilesPanel(ctx: CanvasContext, files: any[]) {
 
   if (panel.dataset.manuallyClosed !== "true") {
     panel.style.display = "flex";
+  }
+}
+
+// ─── Virtual Files Integration ───────────────────────────
+/**
+ * Process large files for virtual card creation
+ * Called after files are loaded to detect compression opportunities
+ */
+export async function processVirtualFiles(ctx: CanvasContext): Promise<void> {
+  const files = ctx.allFilesData || [];
+  
+  // Only process large files (>10KB)
+  const largeFiles = files.filter(f => f.size > 10240);
+  
+  if (largeFiles.length === 0) return;
+  
+  console.log(`[virtual-files] Processing ${largeFiles.length} large files for compression...`);
+  
+  // Fetch content for large files and create virtual cards
+  for (const file of largeFiles.slice(0, 10)) { // Limit to 10 files
+    try {
+      const response = await fetch('/api/repo/file-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          path: ctx.snap().context.repoPath,
+          filePath: file.path,
+        }),
+      });
+      
+      if (!response.ok) continue;
+      
+      const data = await response.json();
+      if (data.content) {
+        await processFileForVirtualCards(ctx, file.path, data.content);
+      }
+    } catch (err) {
+      console.warn(`[virtual-files] Failed to process ${file.path}:`, err);
+    }
   }
 }
