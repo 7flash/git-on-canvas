@@ -18,6 +18,7 @@ import { performViewportCulling } from "./viewport-culling";
 import { getPositionKey, loadSavedPositions } from "./positions";
 import { updateHiddenUI } from "./hidden-files";
 import {
+import { renderAllFilesProgressive } from "./repo-progressive";
   showLoadingProgress,
   updateLoadingProgress,
   hideLoadingProgress,
@@ -610,6 +611,12 @@ export function renderFilesOnCanvas(
 // Virtualized: only creates DOM for cards in/near the viewport.
 // Remaining cards are deferred and materialized on-demand by viewport culling.
 export function renderAllFilesOnCanvas(ctx: CanvasContext, files: any[]) {
+  // Use progressive loading for large repos (500+ files)
+  if (files.length >= 500) {
+    renderAllFilesProgressive(ctx, files);
+    return;
+  }
+
   measure("canvas:renderAllFiles", () => {
     // In multi-repo mode, don't clear canvas if adding a second repo
     const isAdditionalRepo = isMultiRepoLoad();
