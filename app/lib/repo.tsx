@@ -108,13 +108,15 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
         repoPath.replace(/\\/g, "/").split("/").filter(Boolean).pop() ||
         repoPath;
       const displaySlug = isCurrentGitHubSlug ? currentPath : repoSlug;
+      const commitHash = data.commits[0]?.hash || "";
       history.replaceState(
         null,
         "",
         "/" +
           (displaySlug.includes("/")
             ? displaySlug
-            : encodeURIComponent(displaySlug)),
+            : encodeURIComponent(displaySlug)) +
+          (commitHash ? `#${commitHash}` : ""),
       );
       localStorage.setItem("gitcanvas:lastRepo", repoPath);
       // Store slug→path mapping for URL-based loading (both short and GitHub-style)
@@ -152,10 +154,15 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
       updateLoadingProgress(ctx, "Loading all files...", 65);
       await loadAllFiles(ctx);
 
-      // Then select the first commit to get diff data
+      // Then select commit (from URL hash or first commit)
       if (data.commits.length > 0) {
         updateLoadingProgress(ctx, "Loading commit diff...", 85);
-        await selectCommit(ctx, data.commits[0].hash);
+        const hashFromUrl = window.location.hash?.replace("#", "");
+        const commitToSelect =
+          hashFromUrl && data.commits.find((c) => c.hash === hashFromUrl)
+            ? hashFromUrl
+            : data.commits[0].hash;
+        await selectCommit(ctx, commitToSelect);
       }
 
       updateLoadingProgress(ctx, "Finalizing...", 100);
@@ -502,6 +509,10 @@ export async function selectCommit(ctx: CanvasContext, hash: string) {
       _showCommitProgress(false);
       updateStatusBarCommit(hash);
       updateStatusBarFiles(ctx.fileCards.size);
+
+      // Update URL hash for shareable links
+      const [basePath] = window.location.href.split("#");
+      history.replaceState(null, "", `${basePath}#${hash}`);
 
       // Populate changed files panel with diff stats
       populateChangedFilesPanel(ctx, data.files);

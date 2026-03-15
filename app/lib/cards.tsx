@@ -8,6 +8,7 @@ import { render } from "melina/client";
 import type { CanvasContext } from "./context";
 import { escapeHtml, getFileIcon, getFileIconClass, showToast } from "./utils";
 import { hideSelectedFiles } from "./hidden-files";
+import { isFollower } from "./role";
 import {
   savePosition,
   getPositionKey,
@@ -165,6 +166,21 @@ export function setupCardInteraction(
   card: HTMLElement,
   commitHash: string,
 ) {
+  // Follower mode: read-only, no drag/edit
+  if (isFollower()) {
+    card.style.cursor = "default";
+    card.addEventListener("click", (e) => {
+      // Click to select is still allowed
+      const filePath = card.dataset.path || "";
+      ctx.actor.send({
+        type: "SELECT_CARD",
+        path: filePath,
+        shift: e.shiftKey || e.ctrlKey,
+      });
+    });
+    return;
+  }
+
   let action = null; // null | 'move' | 'pending'
   let startX: number, startY: number;
   let moveStartPositions: any[] = [];
