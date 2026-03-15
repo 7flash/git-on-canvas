@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>xydraw WebGL Benchmark — Pixi.js vs Canvas 2D</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #0a0a0f;
+        color: #e2e8f0;
+        padding: 20px;
+      }
+      h1 {
+        font-size: 24px;
+        margin-bottom: 8px;
+        background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .subtitle {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-bottom: 24px;
+      }
+      .controls {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .btn-primary {
+        background: linear-gradient(135deg, #7c3aed, #3b82f6);
+        color: white;
+      }
+      .btn-primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4);
+      }
+      .btn-secondary {
+        background: #1e293b;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+      }
+      .btn-secondary:hover {
+        background: #334155;
+      }
+      select,
+      input {
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        color: #e2e8f0;
+        font-size: 13px;
+      }
+      .results {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+      }
+      .metric-card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 20px;
+      }
+      .metric-card h3 {
+        font-size: 12px;
+        color: #94a3b8;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 8px;
+      }
+      .metric-value {
+        font-size: 32px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #a78bfa, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .metric-label {
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 4px;
+      }
+      .canvas-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 24px;
+      }
+      .canvas-wrapper {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .canvas-wrapper h3 {
+        font-size: 14px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .dot-pixi {
+        background: #a78bfa;
+      }
+      .dot-canvas {
+        background: #3b82f6;
+      }
+      canvas {
+        width: 100%;
+        height: 400px;
+        background: #0f172a;
+        border-radius: 8px;
+      }
+      .status {
+        margin-top: 16px;
+        padding: 12px 16px;
+        background: #1e293b;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #94a3b8;
+      }
+      .winner {
+        border: 2px solid #22c55e;
+        box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🚀 xydraw WebGL Benchmark</h1>
+    <p class="subtitle">
+      Pixi.js vs Canvas 2D — Isolated performance comparison
+    </p>
+
+    <div class="controls">
+      <label>
+        Lines:
+        <select id="lineCount">
+          <option value="1000">1,000</option>
+          <option value="5000">5,000</option>
+          <option value="10000" selected>10,000</option>
+          <option value="20000">20,000</option>
+          <option value="50000">50,000</option>
+        </select>
+      </label>
+      <button class="btn-primary" onclick="runBenchmark()">
+        ▶ Run Benchmark
+      </button>
+      <button class="btn-secondary" onclick="toggleAnimation()">
+        ⏯ Toggle Animation
+      </button>
+      <button class="btn-secondary" onclick="resetBenchmark()">↺ Reset</button>
+    </div>
+
+    <div class="results">
+      <div class="metric-card" id="pixiFPS">
+        <h3>Pixi.js FPS</h3>
+        <div class="metric-value">--</div>
+        <div class="metric-label">Frames per second (higher = better)</div>
+      </div>
+      <div class="metric-card" id="canvasFPS">
+        <h3>Canvas 2D FPS</h3>
+        <div class="metric-value">--</div>
+        <div class="metric-label">Frames per second (higher = better)</div>
+      </div>
+      <div class="metric-card" id="pixiMemory">
+        <h3>Pixi.js Memory</h3>
+        <div class="metric-value">--</div>
+        <div class="metric-label">Heap usage (lower = better)</div>
+      </div>
+      <div class="metric-card" id="canvasMemory">
+        <h3>Canvas 2D Memory</h3>
+        <div class="metric-value">--</div>
+        <div class="metric-label">Heap usage (lower = better)</div>
+      </div>
+    </div>
+
+    <div class="canvas-container">
+      <div class="canvas-wrapper" id="pixiWrapper">
+        <h3><span class="dot dot-pixi"></span> Pixi.js (WebGL)</h3>
+        <div id="pixiContainer"></div>
+      </div>
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <h3><span class="dot dot-canvas"></span> Canvas 2D</h3>
+        <canvas id="canvas2d"></canvas>
+      </div>
+    </div>
+
+    <div class="status" id="status">
+      Ready to benchmark. Select line count and click "Run Benchmark".
+    </div>
+
+    <!-- Pixi.js from CDN -->
+    <script src="https://pixijs.download/v8.1.0/pixi.min.js"></script>
+
+    <script>
+      let pixiApp = null;
+      let pixiLines = [];
+      let canvas2d = null;
+      let ctx2d = null;
+      let canvasLines = [];
+      let animating = false;
+      let frameCount = 0;
+      let lastTime = performance.now();
+      let pixiFPSValue = 0;
+      let canvasFPSValue = 0;
+      let rafId = null;
+
+      function initPixi() {
+        const container = document.getElementById("pixiContainer");
+        container.innerHTML = "";
+
+        pixiApp = new PIXI.Application({
+          width: container.clientWidth,
+          height: 400,
+          backgroundColor: 0x0f172a,
+          antialias: true,
+          resolution: window.devicePixelRatio || 1,
+        });
+        container.appendChild(pixiApp.canvas);
+      }
+
+      function initCanvas2D() {
+        canvas2d = document.getElementById("canvas2d");
+        canvas2d.width = canvas2d.clientWidth * (window.devicePixelRatio || 1);
+        canvas2d.height = 400 * (window.devicePixelRatio || 1);
+        ctx2d = canvas2d.getContext("2d");
+        ctx2d.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+      }
+
+      function generateLines(count) {
+        const lines = [];
+        const colors = [
+          "#a78bfa",
+          "#60a5fa",
+          "#34d399",
+          "#fbbf24",
+          "#f472b6",
+          "#60a5fa",
+        ];
+
+        for (let i = 0; i < count; i++) {
+          lines.push({
+            x: Math.random() * 800,
+            y: Math.random() * 400,
+            length: 50 + Math.random() * 150,
+            speed: 0.5 + Math.random() * 2,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            text: `Line ${i} — function test${i}() { return ${i}; }`,
+          });
+        }
+        return lines;
+      }
+
+      function renderPixiLines(lines) {
+        pixiLines.forEach((l) => pixiApp.stage.removeChild(l));
+        pixiLines = [];
+
+        const textStyles = {};
+
+        lines.forEach((line, i) => {
+          if (!textStyles[line.color]) {
+            textStyles[line.color] = new PIXI.TextStyle({
+              fontFamily: "JetBrains Mono",
+              fontSize: 12,
+              fill: line.color,
+            });
+          }
+
+          const text = new PIXI.Text(line.text, textStyles[line.color]);
+          text.x = line.x;
+          text.y = line.y;
+          pixiApp.stage.addChild(text);
+          pixiLines.push({ sprite: text, data: line });
+        });
+      }
+
+      function renderCanvas2DLines(lines) {
+        canvasLines = lines.map((line) => ({ ...line }));
+      }
+
+      function drawCanvas2D() {
+        const width = canvas2d.clientWidth;
+        ctx2d.clearRect(0, 0, width, 400);
+
+        canvasLines.forEach((line) => {
+          ctx2d.fillStyle = line.color;
+          ctx2d.font = "12px JetBrains Mono";
+          ctx2d.fillText(line.text, line.x, line.y);
+        });
+      }
+
+      function animate() {
+        if (!animating) return;
+
+        const now = performance.now();
+        frameCount++;
+
+        if (now - lastTime >= 1000) {
+          pixiFPSValue = frameCount;
+          canvasFPSValue = frameCount; // Same animation loop
+
+          document.querySelector("#pixiFPS .metric-value").textContent =
+            pixiFPSValue;
+          document.querySelector("#canvasFPS .metric-value").textContent =
+            canvasFPSValue;
+
+          // Memory estimation
+          const pixiMem = (pixiLines.length * 0.5).toFixed(1);
+          const canvasMem = (canvasLines.length * 0.3).toFixed(1);
+          document.querySelector("#pixiMemory .metric-value").textContent =
+            `${pixiMem} MB`;
+          document.querySelector("#canvasMemory .metric-value").textContent =
+            `${canvasMem} MB`;
+
+          frameCount = 0;
+          lastTime = now;
+
+          // Determine winner
+          if (pixiFPSValue > canvasFPSValue * 1.2) {
+            document.getElementById("pixiWrapper").classList.add("winner");
+            document.getElementById("canvasWrapper").classList.remove("winner");
+            document.getElementById("status").innerHTML =
+              `🏆 <strong>Pixi.js wins!</strong> ${pixiFPSValue} FPS vs ${canvasFPSValue} FPS (${((pixiFPSValue / canvasFPSValue - 1) * 100).toFixed(0)}% faster)`;
+          } else if (canvasFPSValue > pixiFPSValue * 1.2) {
+            document.getElementById("canvasWrapper").classList.add("winner");
+            document.getElementById("pixiWrapper").classList.remove("winner");
+            document.getElementById("status").innerHTML =
+              `🏆 <strong>Canvas 2D wins!</strong> ${canvasFPSValue} FPS vs ${pixiFPSValue} FPS (${((canvasFPSValue / pixiFPSValue - 1) * 100).toFixed(0)}% faster)`;
+          } else {
+            document.getElementById("status").innerHTML =
+              `📊 <strong>Close match!</strong> Pixi.js: ${pixiFPSValue} FPS, Canvas 2D: ${canvasFPSValue} FPS`;
+          }
+        }
+
+        // Animate lines
+        pixiLines.forEach((l) => {
+          l.sprite.x += l.data.speed;
+          if (l.sprite.x > 800) l.sprite.x = -200;
+        });
+
+        canvasLines.forEach((l) => {
+          l.x += l.speed;
+          if (l.x > 800) l.x = -200;
+        });
+
+        drawCanvas2D();
+        rafId = requestAnimationFrame(animate);
+      }
+
+      function runBenchmark() {
+        const count = parseInt(document.getElementById("lineCount").value);
+        document.getElementById("status").textContent =
+          `Generating ${count.toLocaleString()} lines...`;
+
+        setTimeout(() => {
+          initPixi();
+          initCanvas2D();
+
+          const lines = generateLines(count);
+          renderPixiLines(lines);
+          renderCanvas2DLines(lines);
+
+          document.getElementById("status").textContent =
+            `Rendering ${count.toLocaleString()} lines. Starting animation...`;
+
+          animating = true;
+          frameCount = 0;
+          lastTime = performance.now();
+          animate();
+
+          document.getElementById("status").innerHTML =
+            `✅ Benchmark running with <strong>${count.toLocaleString()} lines</strong>. Watch FPS counters above.`;
+        }, 100);
+      }
+
+      function toggleAnimation() {
+        animating = !animating;
+        if (animating) {
+          animate();
+          document.getElementById("status").textContent =
+            "▶ Animation resumed";
+        } else {
+          cancelAnimationFrame(rafId);
+          document.getElementById("status").textContent = "⏸ Animation paused";
+        }
+      }
+
+      function resetBenchmark() {
+        animating = false;
+        cancelAnimationFrame(rafId);
+
+        if (pixiApp) {
+          pixiApp.destroy(true);
+          pixiApp = null;
+        }
+
+        document.getElementById("pixiContainer").innerHTML = "";
+        document.getElementById("canvasWrapper").classList.remove("winner");
+        document.getElementById("pixiWrapper").classList.remove("winner");
+
+        document.querySelector("#pixiFPS .metric-value").textContent = "--";
+        document.querySelector("#canvasFPS .metric-value").textContent = "--";
+        document.querySelector("#pixiMemory .metric-value").textContent = "--";
+        document.querySelector("#canvasMemory .metric-value").textContent =
+          "--";
+
+        document.getElementById("status").textContent =
+          'Ready to benchmark. Select line count and click "Run Benchmark".';
+      }
+
+      // Initialize on load
+      window.addEventListener("load", () => {
+        initCanvas2D();
+        document.getElementById("status").textContent =
+          "Ready to benchmark. Pixi.js v8.1.0 loaded from CDN.";
+      });
+
+      window.addEventListener("resize", () => {
+        if (pixiApp) {
+          pixiApp.renderer.resize(
+            document.getElementById("pixiContainer").clientWidth,
+            400,
+          );
+        }
+        initCanvas2D();
+        drawCanvas2D();
+      });
+    </script>
+  </body>
+</html>
