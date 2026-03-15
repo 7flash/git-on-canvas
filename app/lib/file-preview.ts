@@ -217,7 +217,7 @@ function renderImagePreview(path: string): HTMLElement | null {
 
   // Image element
   const img = document.createElement("img");
-  img.src = `/api/repo/file-raw?path=${encodeURIComponent(repoPath)}&filePath=${encodeURIComponent(path)}`;
+  img.src = `/api/repo/file-content?path=${encodeURIComponent(repoPath)}&filePath=file=${encodeURIComponent(path)}`;
   img.alt = path;
   img.style.cssText = `
         max-width: ${POPUP_MAX_W - 24}px;
