@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 📚 Documentation
+    url: https://github.com/7flash/gitmaps/blob/master/README.md
+    about: Check the documentation for answers to common questions.
+  - name: 💬 Discussions
+    url: https://github.com/7flash/gitmaps/discussions
+    about: Ask questions and discuss ideas with the community.
+  - name: 🐦 Twitter
+    url: https://twitter.com/7flash
+    about: Follow for updates and announcements.
