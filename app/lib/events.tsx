@@ -49,7 +49,10 @@ function _addRecentRepo(path: string) {
 function _refreshRepoDropdown() {
     const repoSel = document.getElementById('repoSelect') as HTMLSelectElement;
     if (!repoSel) return;
-    const updatedRepos: string[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
+    let updatedRepos: any[] = JSON.parse(localStorage.getItem('gitcanvas:recentRepos') || '[]');
+    // Clean up corrupted entries (strings only, no objects/elements)
+    updatedRepos = updatedRepos.filter(r => typeof r === 'string' && r && !r.includes('[object'));
+    localStorage.setItem('gitcanvas:recentRepos', JSON.stringify(updatedRepos));
     while (repoSel.options.length > 1) repoSel.remove(1);
     updatedRepos.forEach((repo: any) => {
         // Handle strings, objects with path property, or skip invalid entries
