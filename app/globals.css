@@ -3588,6 +3588,29 @@ body {
   letter-spacing: 0.05em;
 }
 
+.role-badge--follower .clone-to-edit-btn {
+  margin-left: 8px;
+  padding: 4px 10px;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  );
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+
+.role-badge--follower .clone-to-edit-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.5);
+}
+
 .hidden-files-modal {
   position: fixed;
   inset: 0;
