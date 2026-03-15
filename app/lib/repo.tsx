@@ -88,6 +88,10 @@ export async function loadRepository(ctx: CanvasContext, repoPath: string) {
       const data = await response.json();
       ctx.actor.send({ type: "REPO_LOADED", commits: data.commits });
 
+      // Add to recent repos
+      const { addRecentRepo } = require("./recent-commits");
+      addRecentRepo(repoPath, data.commits.length);
+
       // Set global repo path for image URLs
       (window as any).__GITCANVAS_REPO_PATH__ = repoPath;
 
