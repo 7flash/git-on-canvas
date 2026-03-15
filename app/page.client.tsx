@@ -18,11 +18,6 @@ import { setupCanvasInteraction, setupEventListeners } from "./lib/events";
 import { loadConnections } from "./lib/connections";
 import {
   clearCanvas,
-      const { debugURLRouting } = await import("./lib/url-routing");
-      debugURLRouting();
-      console.log("[URL Debug] pathname:", window.location.pathname);
-      console.log("[URL Debug] hash:", window.location.hash);
-      console.log("[URL Debug] urlSlug:", urlSlug);
   updateCanvasTransform,
   updateZoomUI,
   restoreViewport,
